@@ -4,23 +4,16 @@ import 'dart:io';
 import 'package:http_interop/http_interop.dart';
 import 'package:http_interop_io/http_interop_io.dart';
 
-class JsonApiServer(
-  final Handler _handler, {
-
-  /// Server host name
-  final String host = '0.0.0.0',
-
-  /// Server port
-  final int port = 8080,
-}) {
+/// Allows to start and stop an HTTP server.
+class HttpServerHarness() {
   HttpServer? _server;
   StreamSubscription<HttpRequest>? _subscription;
 
   /// starts the server
-  Future<void> start() async {
+  Future<void> start(Handler handler, {String host = '0.0.0.0', int port = 8080}) async {
     if (_server != null) return;
     try {
-      _server = await _createServer();
+      _server = (await HttpServer.bind(host, port))..listenInterop(handler);
     } on Exception {
       await stop();
       rethrow;
@@ -33,11 +26,5 @@ class JsonApiServer(
     _subscription = null;
     await _server?.close(force: force);
     _server = null;
-  }
-
-  Future<HttpServer> _createServer() async {
-    final server = await HttpServer.bind(host, port);
-    _subscription = server.listenInterop(_handler);
-    return server;
   }
 }
