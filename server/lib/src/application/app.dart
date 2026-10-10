@@ -20,19 +20,6 @@ class App({
   final Handler _defaultHandler = plain404,
   final Log _log = const NoLog(),
 }) {
-  static const _googleOAuthCallbackPath = '/auth/google/callback';
-
-  final _routes = <(RouteMatcher, Handler)>[];
-  final GoogleOAuth _googleOAuth =
-      googleOAuth ??
-      GoogleOAuthClient(
-        clientId: _config.googleOAuthClientId,
-        clientSecret: _config.googleOAuthClientSecret,
-        redirectUri: _config.baseUri.replace(path: _googleOAuthCallbackPath).toString(),
-      );
-  late final Handler _handler;
-  var _isReady = false;
-
   this {
     _routes.addAll([
       (
@@ -53,6 +40,19 @@ class App({
     );
     _handler = loggingMiddleware(routingHandler(_routes, _defaultHandler));
   }
+
+  static const _googleOAuthCallbackPath = '/auth/google/callback';
+
+  final _routes = <(RouteMatcher, Handler)>[];
+  final GoogleOAuth _googleOAuth =
+      googleOAuth ??
+      GoogleOAuthClient(
+        clientId: _config.googleOAuthClientId,
+        clientSecret: _config.googleOAuthClientSecret,
+        redirectUri: _config.baseUri.replace(path: _googleOAuthCallbackPath).toString(),
+      );
+  late final Handler _handler;
+  var _isReady = false;
 
   Future<void> start() async {
     final db = await Connection.open(

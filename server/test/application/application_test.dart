@@ -5,6 +5,7 @@ import 'package:http_interop/http_interop.dart';
 import 'package:json_api/client.dart' hide Request;
 import 'package:json_api/routing.dart';
 import 'package:test/test.dart';
+import 'package:tw_server/tw_server.dart';
 
 import 'harness.dart';
 
@@ -12,20 +13,32 @@ Future<void> main() async {
   final urlDesign = StandardUriDesign(testConfig.baseUri);
   late TestGoogleOAuth googleOAuth;
   late Handler appHandler;
-  late RoutingClient client;
+  late TwApiClient client;
+
+  Future<Response> googleCallback(String code, {String? state}) => appHandler(
+    Request(
+      'get',
+      Uri(
+        path: '/auth/google/callback',
+        queryParameters: {'code': code, 'state': state ?? googleOAuth.states.last},
+      ),
+      Body(),
+      Headers(),
+    ),
+  );
 
   group('Application', () {
     setUp(() async {
       await resetDatabaseSchema(testConfig);
       googleOAuth = TestGoogleOAuth();
       appHandler = await testApplicationHandler(testConfig, googleOAuth);
-      client = RoutingClient(urlDesign, Client(appHandler));
+      client = TwApiClient(urlDesign, Client(appHandler));
     });
 
     group('Sessions', () {
       test('No Auth Header: Unauthorized', () async {
         expect(
-          () => client.fetchCollection('sessions'),
+          () => client.listSessions(),
           throwsA(
             isA<RequestFailure>().having(
               (r) => r.rawResponse.httpResponse.statusCode,
@@ -37,34 +50,50 @@ Future<void> main() async {
       });
 
       test('Session creation supplies a fresh redirect URL for each request', () async {
-        final first = await client.createNew('sessions');
-        final second = await client.createNew('sessions');
+        final first = await client.createSession();
+        final second = await client.createSession();
+
+        expect(first!.attributes['redirect'], isNot(second!.attributes['redirect']));
+      });
+
+      test('Session Deletion: Happy Path', () async {
+        final first = await client.createSession();
+        await googleCallback('test-code');
+
+        final secondClient = TwApiClient(urlDesign, Client(appHandler));
+        final second = await secondClient.createSession();
+        googleOAuth.sessionId = 'updated-session-id';
+        await googleCallback('updated-code');
+
+        expect((await client.listSessions()).map((r) => r.id), [first!.id, second!.id]);
+
+        await secondClient.deleteSession();
 
         expect(
-          first.resource.attributes['redirect'],
-          isNot(second.resource.attributes['redirect']),
+          () => secondClient.listSessions(),
+          throwsA(
+            isA<RequestFailure>().having(
+              (r) => r.rawResponse.httpResponse.statusCode,
+              'Status Code',
+              equals(401),
+            ),
+          ),
         );
+        expect((await client.listSessions()).map((r) => r.id), [first.id]);
       });
 
       test('Session Creation: Happy Path', () async {
-        final r0 = await client.createNew('sessions');
-        expect(r0.resource.attributes['redirect'], googleOAuth.authorizationUri.toString());
+        final r0 = await client.createSession();
+        expect(r0!.attributes['redirect'], googleOAuth.authorizationUri.toString());
 
         final state = googleOAuth.states.last;
         expect(state, isNotEmpty);
         expect(googleOAuth.authorizationUri.queryParameters['state'], state);
 
-        final createdSession = await fetchSession(testConfig, r0.resource.id);
-        expect(createdSession, isNotNull);
-        expect(createdSession!.nonce, state);
-        expect(createdSession.sessionKey, matches(RegExp(r'^[A-Za-z0-9]{64}$')));
-        expect(createdSession.userId, isNull);
-        expect(r0.resource.attributes['http_authorization_bearer'], createdSession.sessionKey);
-        final authHeaders = {
-          'Authorization': ['Bearer ${createdSession.sessionKey}'],
-        };
+        final bearer = r0.attributes['http_authorization_bearer'] as String?;
+        expect(bearer, isNotEmpty);
         expect(
-          () => client.fetchCollection('sessions', headers: authHeaders),
+          () => client.listSessions(),
           throwsA(
             isA<RequestFailure>().having(
               (r) => r.rawResponse.httpResponse.statusCode,
@@ -74,81 +103,34 @@ Future<void> main() async {
           ),
         );
 
-        await appHandler(
-          Request(
-            'get',
-            Uri(
-              path: '/auth/google/callback',
-              queryParameters: {'code': 'test-code', 'state': state},
-            ),
-            Body(),
-            Headers(),
-          ),
-        ).then((r) async {
+        await googleCallback('test-code', state: state).then((r) async {
           expect(r.statusCode, 200);
           expect(await r.body.decode(utf8), '''
-Signed in with Google. Session: ${createdSession.sessionKey}
+Signed in with Google. Session: $bearer
 Email: user@example.com
 Name: Test User''');
           expect(googleOAuth.queryParameters, {'code': 'test-code', 'state': state});
         });
 
-        final user = await fetchUserByEmail(testConfig, 'user@example.com');
-        expect(user, isNotNull);
-        expect(user!.email, 'user@example.com');
-        expect(user.name, 'Test User');
+        final fetchedSessions = await client.listSessions();
+        expect(fetchedSessions.map((r) => r.id), [r0.id]);
+        expect(fetchedSessions.single.attributes['http_authorization_bearer'], bearer);
 
-        final session = await fetchSession(testConfig, r0.resource.id);
-        expect(session, isNotNull);
-        expect(session!.sessionKey, createdSession.sessionKey);
-        expect(session.nonce, isNull);
-        expect(session.userId, user.id);
-
-        final fetchedSessions = await client.fetchCollection('sessions', headers: authHeaders);
-        expect(fetchedSessions.collection.map((r) => r.id), [session.id]);
-        expect(
-          fetchedSessions.collection.single.attributes['http_authorization_bearer'],
-          createdSession.sessionKey,
-        );
-
-        final r1 = await client.createNew('sessions');
+        final r1 = await client.createSession();
         final updatedState = googleOAuth.states.last;
-        final createdUpdatedSession = await fetchSession(testConfig, r1.resource.id);
-        expect(createdUpdatedSession, isNotNull);
-        expect(createdUpdatedSession!.nonce, updatedState);
-        expect(createdUpdatedSession.sessionKey, matches(RegExp(r'^[A-Za-z0-9]{64}$')));
-        expect(createdUpdatedSession.userId, isNull);
+        final updatedBearer = r1!.attributes['http_authorization_bearer'] as String?;
+        expect(updatedBearer, isNotEmpty);
 
         googleOAuth.name = 'Updated User';
         googleOAuth.sessionId = 'updated-session-id';
-        await appHandler(
-          Request(
-            'get',
-            Uri(
-              path: '/auth/google/callback',
-              queryParameters: {'code': 'updated-code', 'state': updatedState},
-            ),
-            Body(),
-            Headers(),
-          ),
-        );
+        await googleCallback('updated-code', state: updatedState);
 
-        final updatedUser = await fetchUserByEmail(testConfig, 'user@example.com');
-        expect(updatedUser, isNotNull);
-        expect(updatedUser!.id, user.id);
-        expect(updatedUser.name, 'Updated User');
-
-        final updatedSession = await fetchSession(testConfig, r1.resource.id);
-        expect(updatedSession, isNotNull);
-        expect(updatedSession!.sessionKey, createdUpdatedSession.sessionKey);
-        expect(updatedSession.nonce, isNull);
-        expect(updatedSession.userId, user.id);
-
-        final updatedFetchedSessions = await client.fetchCollection(
-          'sessions',
-          headers: authHeaders,
-        );
-        expect(updatedFetchedSessions.collection.map((r) => r.id), [session.id, updatedSession.id]);
+        final updatedFetchedSessions = await client.listSessions();
+        expect(updatedFetchedSessions.map((r) => r.id), [r0.id, r1.id]);
+        expect(updatedFetchedSessions.map((r) => r.attributes['http_authorization_bearer']), [
+          bearer,
+          updatedBearer,
+        ]);
       });
     });
   });

@@ -8,6 +8,7 @@ linter:
     use_declaring_parameters: true
     unnecessary_primary_constructor_body: true
     unnecessary_type_name_in_constructor: true
+    sort_constructors_first: true
 
     curly_braces_in_flow_control_structures: false
     prefer_if_null_operators: true

@@ -35,6 +35,24 @@ class SessionsController(final GoogleOAuth _googleOAuth, final SessionsDAO _sess
     );
   }
 
+  @override
+  Future<Response> deleteResource(Request request, ResourceTarget target) async {
+    final authenticatedSession = await _authenticatedSession(request);
+    if (authenticatedSession == null) {
+      return Response(401, Body.text('Unauthorized', utf8), Headers());
+    }
+    final session = await _sessionsDAO.fetch(target.id);
+    if (session == null) {
+      return notFound();
+    }
+    if (authenticatedSession.id != session.id &&
+        (authenticatedSession.userId == null || authenticatedSession.userId != session.userId)) {
+      return Response(401, Body.text('Unauthorized', utf8), Headers());
+    }
+    await _sessionsDAO.delete(target.id);
+    return noContent();
+  }
+
   Future<SessionRecord?> _authenticatedSession(Request request) async {
     final authorization = request.headers['Authorization']?.singleOrNull;
     if (authorization == null) {

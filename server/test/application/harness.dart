@@ -3,9 +3,6 @@ import 'package:postgres/postgres.dart';
 import 'package:tw_server/src/application/app_config.dart';
 import 'package:tw_server/src/application/app.dart';
 import 'package:tw_server/src/auth/google/google_oauth.dart';
-import 'package:tw_server/src/auth/sessions_dao.dart';
-import 'package:tw_server/src/auth/users_dao.dart';
-
 
 final testConfig = AppConfig(
   baseUri: Uri.parse('http://localhost:8080/api/v0'),
@@ -51,15 +48,6 @@ Future<T> withTestDatabase<T>(
     await connection.close();
   }
 }
-
-Future<UserRecord?> fetchUserByEmail(AppConfig config, String email) =>
-    withTestDatabase(config, (connection) => UsersDAO(connection).fetchByEmail(email));
-
-Future<SessionRecord?> fetchSession(AppConfig config, String id) =>
-    withTestDatabase(config, (connection) => SessionsDAO(connection).fetch(id));
-
-Future<SessionRecord?> fetchSessionByKey(AppConfig config, String sessionKey) =>
-    withTestDatabase(config, (connection) => SessionsDAO(connection).fetchBySessionKey(sessionKey));
 
 class TestGoogleOAuth({
   var String email = 'user@example.com',

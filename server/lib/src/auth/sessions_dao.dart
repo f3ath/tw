@@ -88,6 +88,14 @@ class SessionsDAO(final Connection connection) {
     return _sessionRecord(rows.single.toColumnMap());
   }
 
+  Future<bool> delete(String id) async {
+    final rows = await connection.execute(
+      Sql.named('DELETE FROM sessions WHERE id = @id:text RETURNING id'),
+      parameters: {'id': id},
+    );
+    return rows.isNotEmpty;
+  }
+
   static String _newSessionKey() => String.fromCharCodes(
     List<int>.generate(
       64,
