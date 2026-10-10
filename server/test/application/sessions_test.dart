@@ -105,18 +105,10 @@ Future<void> main() async {
       googleOAuth.name = 'Other User';
       await googleCallback('updated-code');
 
-      final secondBearer = second!.attributes['http_authorization_bearer'] as String;
-      final secondId = second.id;
-      final jsonApi = RoutingClient(urlDesign, Client(appHandler));
+      final secondId = second!.id;
 
       expect(
-        () => jsonApi.deleteResource(
-          'sessions',
-          firstId,
-          headers: {
-            'Authorization': ['Bearer $secondBearer'],
-          },
-        ),
+        () => secondClient.deleteSessionById(firstId),
         throwsA(
           isA<RequestFailure>().having(
             (r) => r.rawResponse.httpResponse.statusCode,

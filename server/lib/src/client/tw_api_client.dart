@@ -54,8 +54,14 @@ class TwApiClient(UriDesign urlDesign, Handler handler) {
     if (session == null) {
       throw StateError('No session to delete');
     }
-    await _jsonApi.deleteResource('sessions', session.id);
-    _session = null;
+    await deleteSessionById(session.id);
+  }
+
+  Future<void> deleteSessionById(String id) async {
+    await _jsonApi.deleteResource('sessions', id);
+    if (_session?.id == id) {
+      _session = null;
+    }
   }
 
   Handler _authenticated(Handler inner) => (request) {
