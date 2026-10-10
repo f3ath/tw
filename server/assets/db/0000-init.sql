@@ -44,3 +44,20 @@ CREATE TRIGGER trg_vehicles_modts
     BEFORE UPDATE
     ON vehicles
     FOR EACH ROW EXECUTE PROCEDURE moddatetime(updated_at);
+
+CREATE TABLE schedules
+(
+    id              text PRIMARY KEY,
+    vehicle_id      text      NOT NULL REFERENCES vehicles (id) ON DELETE CASCADE,
+    name            text      NOT NULL,
+    interval_miles  integer   NOT NULL,
+    interval_months integer   NOT NULL,
+    details         text      NOT NULL,
+    created_at      timestamp NOT NULL DEFAULT now(),
+    updated_at      timestamp NOT NULL DEFAULT now()
+);
+
+CREATE TRIGGER trg_schedules_modts
+    BEFORE UPDATE
+    ON schedules
+    FOR EACH ROW EXECUTE PROCEDURE moddatetime(updated_at);

@@ -8,18 +8,17 @@ import 'package:tw_server/tw_server.dart';
 import 'harness.dart';
 
 Future<void> main() async {
-  TestApplication? app;
+  late TestApplication app;
   late TwApiClient client;
 
   group('Sessions', () {
     setUp(() async {
       app = await startTestApplication();
-      client = app!.client;
+      client = app.client;
     });
 
     tearDown(() async {
-      await app?.stop();
-      app = null;
+      await app.stop();
     });
 
     test('No Auth Header: Unauthorized', () async {
@@ -44,12 +43,12 @@ Future<void> main() async {
 
     test('Google callback nonce is one-time', () async {
       final session = await client.createSession();
-      final state = app!.googleOAuth.states.last;
+      final state = app.googleOAuth.states.last;
 
-      final first = await app!.googleCallback('test-code', state: state);
+      final first = await app.googleCallback('test-code', state: state);
       expect(first.statusCode, 200);
 
-      final replay = await app!.googleCallback('replay-code', state: state);
+      final replay = await app.googleCallback('replay-code', state: state);
       expect(replay.statusCode, 400);
       expect(await replay.body.decode(utf8), 'Invalid Google callback.');
 
@@ -58,11 +57,11 @@ Future<void> main() async {
 
     test('Session Deletion: Happy Path', () async {
       final first = await client.createSession();
-      await app!.googleCallback('test-code');
+      await app.googleCallback('test-code');
 
-      final secondClient = TwApiClient(app!.urlDesign, app!.clientHandler);
+      final secondClient = TwApiClient(app.urlDesign, app.clientHandler);
       final second = await secondClient.createSession();
-      await app!.googleCallback('updated-code');
+      await app.googleCallback('updated-code');
 
       expect((await client.listSessions()).map((r) => r.id), [first!.id, second!.id]);
 
@@ -83,14 +82,14 @@ Future<void> main() async {
 
     test("Session Deletion: Can't delete another user's session", () async {
       final first = await client.createSession();
-      await app!.googleCallback('test-code');
+      await app.googleCallback('test-code');
       final firstId = first!.id;
 
-      final secondClient = TwApiClient(app!.urlDesign, app!.clientHandler);
+      final secondClient = TwApiClient(app.urlDesign, app.clientHandler);
       final second = await secondClient.createSession();
-      app!.googleOAuth.email = 'other@example.com';
-      app!.googleOAuth.name = 'Other User';
-      await app!.googleCallback('updated-code');
+      app.googleOAuth.email = 'other@example.com';
+      app.googleOAuth.name = 'Other User';
+      await app.googleCallback('updated-code');
 
       final secondId = second!.id;
 
@@ -111,11 +110,11 @@ Future<void> main() async {
 
     test('Session Creation: Happy Path', () async {
       final r0 = await client.createSession();
-      expect(r0!.attributes['redirect'], app!.googleOAuth.authorizationUri.toString());
+      expect(r0!.attributes['redirect'], app.googleOAuth.authorizationUri.toString());
 
-      final state = app!.googleOAuth.states.last;
+      final state = app.googleOAuth.states.last;
       expect(state, isNotEmpty);
-      expect(app!.googleOAuth.authorizationUri.queryParameters['state'], state);
+      expect(app.googleOAuth.authorizationUri.queryParameters['state'], state);
 
       final bearer = r0.attributes['http_authorization_bearer'] as String?;
       expect(bearer, isNotEmpty);
@@ -130,13 +129,13 @@ Future<void> main() async {
         ),
       );
 
-      await app!.googleCallback('test-code', state: state).then((r) async {
+      await app.googleCallback('test-code', state: state).then((r) async {
         expect(r.statusCode, 200);
         expect(await r.body.decode(utf8), '''
 Signed in with Google. Session: $bearer
 Email: user@example.com
 Name: Test User''');
-        expect(app!.googleOAuth.queryParameters, {'code': 'test-code', 'state': state});
+        expect(app.googleOAuth.queryParameters, {'code': 'test-code', 'state': state});
       });
 
       final fetchedSessions = await client.listSessions();
@@ -144,12 +143,12 @@ Name: Test User''');
       expect(fetchedSessions.single.attributes['http_authorization_bearer'], bearer);
 
       final r1 = await client.createSession();
-      final updatedState = app!.googleOAuth.states.last;
+      final updatedState = app.googleOAuth.states.last;
       final updatedBearer = r1!.attributes['http_authorization_bearer'] as String?;
       expect(updatedBearer, isNotEmpty);
 
-      app!.googleOAuth.name = 'Updated User';
-      await app!.googleCallback('updated-code', state: updatedState);
+      app.googleOAuth.name = 'Updated User';
+      await app.googleCallback('updated-code', state: updatedState);
 
       final updatedFetchedSessions = await client.listSessions();
       expect(updatedFetchedSessions.map((r) => r.id), [r0.id, r1.id]);
