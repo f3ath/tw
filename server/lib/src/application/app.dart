@@ -72,7 +72,7 @@ class App({
     final googleOAuthController = GoogleOAuthController(_googleOAuth, sessionsDAO, usersDAO);
 
     final controller = MappingController();
-    controller.map['sessions'] = SessionsController(_googleOAuth);
+    controller.map['sessions'] = SessionsController(_googleOAuth, sessionsDAO);
 
     final jsonApiHandler = router(controller, StandardUriDesign(_config.baseUri).matchTarget);
 

@@ -25,11 +25,18 @@ class GoogleOAuthController(
       return _text(400, 'Invalid Google callback.');
     }
     final user = await usersDAO.createOrUpdate(email: session.email, name: session.name);
-    await sessionsDAO.create(sessionKey: session.id, userId: user.id);
+    final nonce = request.uri.queryParameters['state'];
+    if (nonce == null) {
+      return _text(400, 'Invalid Google callback.');
+    }
+    final linkedSession = await sessionsDAO.linkUserByNonce(nonce: nonce, userId: user.id);
+    if (linkedSession == null) {
+      return _text(400, 'Invalid Google callback.');
+    }
 
     return _text(
       200,
-      'Signed in with Google. Session: ${session.id}\nEmail: ${session.email}\nName: ${session.name}',
+      'Signed in with Google. Session: ${linkedSession.sessionKey}\nEmail: ${session.email}\nName: ${session.name}',
     );
   }
 }
