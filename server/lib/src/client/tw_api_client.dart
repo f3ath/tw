@@ -1,9 +1,14 @@
+import 'package:http_interop/http_interop.dart';
 import 'package:json_api/client.dart';
 import 'package:json_api/document.dart';
 import 'package:json_api/routing.dart';
 
-class TwApiClient(UriDesign urlDesign, Client client) {
-  final RoutingClient _jsonApi = RoutingClient(urlDesign, client);
+class TwApiClient(UriDesign urlDesign, Handler handler) {
+  this {
+    _jsonApi = RoutingClient(urlDesign, Client(_authenticated(handler)));
+  }
+
+  late final RoutingClient _jsonApi;
   Resource? _session;
 
   Future<Resource?> createSession() async {
@@ -12,22 +17,21 @@ class TwApiClient(UriDesign urlDesign, Client client) {
   }
 
   Future<List<Resource>> listSessions() async =>
-      (await _jsonApi.fetchCollection('sessions', headers: _authHeaders())).collection;
+      (await _jsonApi.fetchCollection('sessions')).collection;
 
   Future<Resource> createVehicle({required String name, required DateTime manufactureDate}) async {
     final response = await _jsonApi.createNew(
       'vehicles',
       attributes: {'name': name, 'manufacture_date': _date(manufactureDate)},
-      headers: _authHeaders(),
     );
     return response.resource;
   }
 
   Future<List<Resource>> listVehicles() async =>
-      (await _jsonApi.fetchCollection('vehicles', headers: _authHeaders())).collection;
+      (await _jsonApi.fetchCollection('vehicles')).collection;
 
   Future<Resource> fetchVehicle(String id) async =>
-      (await _jsonApi.fetchResource('vehicles', id, headers: _authHeaders())).resource;
+      (await _jsonApi.fetchResource('vehicles', id)).resource;
 
   Future<Resource?> updateVehicle(String id, {String? name, DateTime? manufactureDate}) async {
     final attributes = <String, Object?>{};
@@ -37,17 +41,12 @@ class TwApiClient(UriDesign urlDesign, Client client) {
     if (manufactureDate != null) {
       attributes['manufacture_date'] = _date(manufactureDate);
     }
-    final response = await _jsonApi.updateResource(
-      'vehicles',
-      id,
-      attributes: attributes,
-      headers: _authHeaders(),
-    );
+    final response = await _jsonApi.updateResource('vehicles', id, attributes: attributes);
     return response.resource;
   }
 
   Future<void> deleteVehicle(String id) async {
-    await _jsonApi.deleteResource('vehicles', id, headers: _authHeaders());
+    await _jsonApi.deleteResource('vehicles', id);
   }
 
   Future<void> deleteSession() async {
@@ -55,19 +54,17 @@ class TwApiClient(UriDesign urlDesign, Client client) {
     if (session == null) {
       throw StateError('No session to delete');
     }
-    await _jsonApi.deleteResource('sessions', session.id, headers: _authHeaders());
+    await _jsonApi.deleteResource('sessions', session.id);
     _session = null;
   }
 
-  Map<String, List<String>> _authHeaders() {
+  Handler _authenticated(Handler inner) => (request) {
     final bearer = _session?.attributes['http_authorization_bearer'] as String?;
-    if (bearer == null) {
-      return const {};
+    if (bearer != null) {
+      request.headers['Authorization'] = ['Bearer $bearer'];
     }
-    return {
-      'Authorization': ['Bearer $bearer'],
-    };
-  }
+    return inner(request);
+  };
 
   String _date(DateTime date) => date.toIso8601String().split('T').first;
 }
