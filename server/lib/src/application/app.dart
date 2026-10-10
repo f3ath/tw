@@ -14,6 +14,8 @@ import 'package:tw_server/src/http/context.dart';
 import 'package:tw_server/src/http/responses.dart';
 import 'package:tw_server/src/http/routing_handler.dart';
 import 'package:tw_server/src/log/log.dart';
+import 'package:tw_server/src/vehicles/vehicles_controller.dart';
+import 'package:tw_server/src/vehicles/vehicles_dao.dart';
 
 class App({
   required final AppConfig _config,
@@ -70,10 +72,12 @@ class App({
 
     final sessionsDAO = SessionsDAO(db);
     final usersDAO = UsersDAO(db);
+    final vehiclesDAO = VehiclesDAO(db);
     final googleOAuthController = GoogleOAuthController(_googleOAuth, sessionsDAO, usersDAO);
 
     final controller = MappingController();
     controller.map['sessions'] = SessionsController(_googleOAuth, sessionsDAO);
+    controller.map['vehicles'] = VehiclesController(vehiclesDAO);
 
     Future<String?> getCallerUserId(Request rq) async {
       final sessionId = rq.headers['Authorization']?.firstOrNull;

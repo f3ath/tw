@@ -14,6 +14,42 @@ class TwApiClient(UriDesign urlDesign, Client client) {
   Future<List<Resource>> listSessions() async =>
       (await _jsonApi.fetchCollection('sessions', headers: _authHeaders())).collection;
 
+  Future<Resource> createVehicle({required String name, required DateTime manufactureDate}) async {
+    final response = await _jsonApi.createNew(
+      'vehicles',
+      attributes: {'name': name, 'manufacture_date': _date(manufactureDate)},
+      headers: _authHeaders(),
+    );
+    return response.resource;
+  }
+
+  Future<List<Resource>> listVehicles() async =>
+      (await _jsonApi.fetchCollection('vehicles', headers: _authHeaders())).collection;
+
+  Future<Resource> fetchVehicle(String id) async =>
+      (await _jsonApi.fetchResource('vehicles', id, headers: _authHeaders())).resource;
+
+  Future<Resource?> updateVehicle(String id, {String? name, DateTime? manufactureDate}) async {
+    final attributes = <String, Object?>{};
+    if (name != null) {
+      attributes['name'] = name;
+    }
+    if (manufactureDate != null) {
+      attributes['manufacture_date'] = _date(manufactureDate);
+    }
+    final response = await _jsonApi.updateResource(
+      'vehicles',
+      id,
+      attributes: attributes,
+      headers: _authHeaders(),
+    );
+    return response.resource;
+  }
+
+  Future<void> deleteVehicle(String id) async {
+    await _jsonApi.deleteResource('vehicles', id, headers: _authHeaders());
+  }
+
   Future<void> deleteSession() async {
     final session = _session;
     if (session == null) {
@@ -32,4 +68,6 @@ class TwApiClient(UriDesign urlDesign, Client client) {
       'Authorization': ['Bearer $bearer'],
     };
   }
+
+  String _date(DateTime date) => date.toIso8601String().split('T').first;
 }
