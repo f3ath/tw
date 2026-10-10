@@ -1,30 +1,17 @@
 import 'package:http_interop/http_interop.dart';
 import 'package:test/test.dart';
-import 'package:tw_server/src/application/app_config.dart';
 import 'package:tw_server/src/application/app.dart';
 
 import 'harness.dart';
 
 Future<void> main() async {
-  final baseUri = Uri.parse('http://localhost:8080/api/v0');
-  final config = AppConfig(
-    baseUri: baseUri,
-    googleOAuthClientId: 'test-client-id',
-    googleOAuthClientSecret: 'test-client-secret',
-    databaseHost: 'localhost',
-    databasePort: 5432,
-    databaseName: 'tw_e2e',
-    databaseUsername: 'tw',
-    databasePassword: 'tw',
-  );
-
   group('Application', () {
     setUp(() async {
-      await resetDatabaseSchema(config);
+      await resetDatabaseSchema(testConfig);
     });
 
     test('liveness and readiness probes reflect application startup', () async {
-      final app = App(config: config, googleOAuth: TestGoogleOAuth());
+      final app = App(config: testConfig, googleOAuth: TestGoogleOAuth());
 
       await app(get('/k8s/liveness')).then((r) {
         expect(r.statusCode, 200);

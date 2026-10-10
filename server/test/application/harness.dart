@@ -6,6 +6,18 @@ import 'package:tw_server/src/auth/google/google_oauth.dart';
 import 'package:tw_server/src/auth/sessions_dao.dart';
 import 'package:tw_server/src/auth/users_dao.dart';
 
+
+final testConfig = AppConfig(
+  baseUri: Uri.parse('http://localhost:8080/api/v0'),
+  googleOAuthClientId: 'test-client-id',
+  googleOAuthClientSecret: 'test-client-secret',
+  databaseHost: 'localhost',
+  databasePort: 5432,
+  databaseName: 'tw_e2e',
+  databaseUsername: 'tw',
+  databasePassword: 'tw',
+);
+
 Future<Handler> testApplicationHandler(AppConfig config, GoogleOAuth googleOAuth) async {
   final app = App(config: config, googleOAuth: googleOAuth);
   await app.start();

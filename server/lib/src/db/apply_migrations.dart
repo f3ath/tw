@@ -20,6 +20,6 @@ Future<void> applyMigrations(Connection db, Log log) async {
   );
 
   log.info('Loaded $loaded migrations.');
-  await Database(LoggingGatewayWrapper(PostgreSQLGateway(db))).upgrade(migrations);
+  await Database(LoggingGatewayWrapper(PostgreSQLGateway(db), log)).upgrade(migrations);
   log.info('Migrations applied.');
 }

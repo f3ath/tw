@@ -1,26 +1,23 @@
 import 'package:migrant/migrant.dart';
+import 'package:tw_server/src/log/log.dart';
 
-class LoggingGatewayWrapper implements DatabaseGateway {
-  LoggingGatewayWrapper(this.gateway);
-
-  final DatabaseGateway gateway;
-
+class LoggingGatewayWrapper(final DatabaseGateway gateway, final Log log) implements DatabaseGateway {
   @override
   Future<String?> currentVersion() async {
     final version = await gateway.currentVersion();
-    print('Database is at version $version.');
+    log.info('Database is at version $version.');
     return version;
   }
 
   @override
   Future<void> initialize(Migration migration) {
-    print('Initializing DB with version ${migration.version}...');
+    log.info('Initializing DB with version ${migration.version}...');
     return gateway.initialize(migration);
   }
 
   @override
   Future<void> upgrade(String version, Migration migration) {
-    print('Upgrading DB $version -> ${migration.version}...');
+    log.info('Upgrading DB $version -> ${migration.version}...');
     return gateway.upgrade(version, migration);
   }
 }

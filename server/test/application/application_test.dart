@@ -5,32 +5,20 @@ import 'package:http_interop/http_interop.dart';
 import 'package:json_api/client.dart' hide Request;
 import 'package:json_api/routing.dart';
 import 'package:test/test.dart';
-import 'package:tw_server/src/application/app_config.dart';
 
 import 'harness.dart';
 
 Future<void> main() async {
-  final baseUri = Uri.parse('http://localhost:8080/api/v0');
-  final urlDesign = StandardUriDesign(baseUri);
-  final config = AppConfig(
-    baseUri: baseUri,
-    googleOAuthClientId: 'test-client-id',
-    googleOAuthClientSecret: 'test-client-secret',
-    databaseHost: 'localhost',
-    databasePort: 5432,
-    databaseName: 'tw_e2e',
-    databaseUsername: 'tw',
-    databasePassword: 'tw',
-  );
+  final urlDesign = StandardUriDesign(testConfig.baseUri);
   late TestGoogleOAuth googleOAuth;
   late Handler appHandler;
   late RoutingClient client;
 
   group('Application', () {
     setUp(() async {
-      await resetDatabaseSchema(config);
+      await resetDatabaseSchema(testConfig);
       googleOAuth = TestGoogleOAuth();
-      appHandler = await testApplicationHandler(config, googleOAuth);
+      appHandler = await testApplicationHandler(testConfig, googleOAuth);
       client = RoutingClient(urlDesign, Client(appHandler));
     });
 
@@ -84,12 +72,12 @@ Name: Test User''');
           expect(googleOAuth.queryParameters, {'code': 'test-code', 'state': state});
         });
 
-        final user = await fetchUserByEmail(config, 'user@example.com');
+        final user = await fetchUserByEmail(testConfig, 'user@example.com');
         expect(user, isNotNull);
         expect(user!.email, 'user@example.com');
         expect(user.name, 'Test User');
 
-        final session = await fetchSessionByKey(config, 'test-session-id');
+        final session = await fetchSessionByKey(testConfig, 'test-session-id');
         expect(session, isNotNull);
         expect(session!.sessionKey, 'test-session-id');
         expect(session.userId, user.id);
@@ -105,12 +93,12 @@ Name: Test User''');
           ),
         );
 
-        final updatedUser = await fetchUserByEmail(config, 'user@example.com');
+        final updatedUser = await fetchUserByEmail(testConfig, 'user@example.com');
         expect(updatedUser, isNotNull);
         expect(updatedUser!.id, user.id);
         expect(updatedUser.name, 'Updated User');
 
-        final updatedSession = await fetchSessionByKey(config, 'updated-session-id');
+        final updatedSession = await fetchSessionByKey(testConfig, 'updated-session-id');
         expect(updatedSession, isNotNull);
         expect(updatedSession!.sessionKey, 'updated-session-id');
         expect(updatedSession.userId, user.id);
