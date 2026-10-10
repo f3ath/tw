@@ -5,7 +5,7 @@ import 'package:googleapis_auth/auth_io.dart';
 import 'package:http/http.dart' as http;
 
 abstract interface class GoogleOAuth() {
-  Uri startAuthorization();
+  Uri startAuthorization(String state);
 
   Future<GoogleOAuthSession?> finishAuthorization(Map<String, String> queryParameters);
 }
@@ -39,8 +39,7 @@ class GoogleOAuthClient({
   );
 
   @override
-  Uri startAuthorization() {
-    final state = _randomId();
+  Uri startAuthorization(String state) {
     _pendingGoogleStates[state] = DateTime.now();
     return _googleAuthorizationUrl(state);
   }

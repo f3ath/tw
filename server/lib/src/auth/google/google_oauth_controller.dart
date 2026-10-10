@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:http_interop/http_interop.dart';
+import 'package:uuid/uuid.dart';
 import 'package:tw_server/src/auth/google/google_oauth.dart';
 
 class GoogleOAuthController(final GoogleOAuth googleOAuth) {
@@ -9,7 +10,7 @@ class GoogleOAuthController(final GoogleOAuth googleOAuth) {
       return _text(405, 'Method Not Allowed');
     }
 
-    return _redirect(googleOAuth.startAuthorization());
+    return _redirect(googleOAuth.startAuthorization(const Uuid().v4()));
   }
 
   Future<Response> callback(Request request) async {

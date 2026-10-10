@@ -9,11 +9,16 @@ Future<Handler> testApplicationHandler(AppConfig config, GoogleOAuth googleOAuth
 }
 
 class TestGoogleOAuth() implements GoogleOAuth {
-  final authorizationUri = Uri.parse('https://accounts.google.com/o/oauth2/auth?state=test-state');
+  Uri? _authorizationUri;
+  Uri get authorizationUri => _authorizationUri!;
+  final states = <String>[];
   Map<String, String>? queryParameters;
 
   @override
-  Uri startAuthorization() => authorizationUri;
+  Uri startAuthorization(String state) {
+    states.add(state);
+    return _authorizationUri = Uri.https('accounts.google.com', '/o/oauth2/auth', {'state': state});
+  }
 
   @override
   Future<GoogleOAuthSession?> finishAuthorization(Map<String, String> queryParameters) async {
