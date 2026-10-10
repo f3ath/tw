@@ -5,7 +5,7 @@ CREATE TABLE users
 (
     id         text PRIMARY KEY,
     email      text UNIQUE NOT NULL,
-    name       text NOT NULL,
+    name       text        NOT NULL,
     created_at timestamp   NOT NULL DEFAULT now(),
     updated_at timestamp   NOT NULL DEFAULT now()
 );
@@ -19,6 +19,7 @@ CREATE TABLE sessions
 (
     id          text PRIMARY KEY,
     session_key text UNIQUE NOT NULL,
+    nonce       text UNIQUE,
     user_id     text REFERENCES users (id) ON DELETE CASCADE,
     created_at  timestamp   NOT NULL DEFAULT now(),
     updated_at  timestamp   NOT NULL DEFAULT now()

@@ -3,8 +3,14 @@ import 'dart:convert';
 import 'package:http_interop/http_interop.dart';
 import 'package:uuid/uuid.dart';
 import 'package:tw_server/src/auth/google/google_oauth.dart';
+import 'package:tw_server/src/auth/sessions_dao.dart';
+import 'package:tw_server/src/auth/users_dao.dart';
 
-class GoogleOAuthController(final GoogleOAuth googleOAuth) {
+class GoogleOAuthController(
+  final GoogleOAuth googleOAuth,
+  final SessionsDAO sessionsDAO,
+  final UsersDAO usersDAO,
+) {
   Future<Response> start(Request request) async {
     if (request.method.toLowerCase() != 'get') {
       return _text(405, 'Method Not Allowed');
@@ -18,6 +24,8 @@ class GoogleOAuthController(final GoogleOAuth googleOAuth) {
     if (session == null) {
       return _text(400, 'Invalid Google callback.');
     }
+    final user = await usersDAO.createOrUpdate(email: session.email, name: session.name);
+    await sessionsDAO.create(sessionKey: session.id, userId: user.id);
 
     return _text(
       200,

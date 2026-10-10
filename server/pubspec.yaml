@@ -18,6 +18,7 @@ dependencies:
   uuid: ^4.2.0
   googleapis_auth: ^2.3.4
   http: ^1.6.0
+  dotenv: ^4.2.0
 
 dev_dependencies:
   lints: ^6.0.0

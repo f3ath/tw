@@ -1,31 +1,18 @@
-import 'dart:io';
-
 import 'package:http_interop/http_interop.dart';
 import 'package:http_interop_middleware/http_interop_middleware.dart';
 import 'package:json_api/routing.dart';
 import 'package:json_api/server.dart';
-import 'package:migrant/migrant.dart';
-import 'package:migrant_db_postgresql/migrant_db_postgresql.dart';
-import 'package:migrant_source_fs/migrant_source_fs.dart';
 import 'package:postgres/postgres.dart';
+import 'package:tw_server/src/application/app_config.dart';
 import 'package:tw_server/src/auth/google/google_oauth.dart';
 import 'package:tw_server/src/auth/google/google_oauth_controller.dart';
 import 'package:tw_server/src/auth/sessions_controller.dart';
-import 'package:tw_server/src/db/logging_gateway_wrapper.dart';
+import 'package:tw_server/src/auth/sessions_dao.dart';
+import 'package:tw_server/src/auth/users_dao.dart';
+import 'package:tw_server/src/db/apply_migrations.dart';
 import 'package:tw_server/src/http/responses.dart';
 import 'package:tw_server/src/http/routing_handler.dart';
 import 'package:tw_server/src/log/log.dart';
-
-class AppConfig({
-  required final Uri baseUri,
-  required final String googleOAuthClientId,
-  required final String googleOAuthClientSecret,
-  required final String databaseHost,
-  required final int databasePort,
-  required final String databaseName,
-  required final String databaseUsername,
-  required final String databasePassword,
-});
 
 class App({
   required final AppConfig _config,
@@ -68,18 +55,7 @@ class App({
   }
 
   Future<void> start() async {
-    final format = FileNameFormat(RegExp(r'\d{4}'));
-    final directory = Directory('assets/db');
-    final migrations = LocalFilesystem();
-    _log.info('Reading all migrations from $directory:');
-    final loaded = await migrations.load(
-      directory,
-      format,
-      split: (sql) => sql.split('\n\n').where((it) => it.trim().isNotEmpty).toList(),
-    );
-
-    _log.info('Loaded $loaded migrations.');
-    final c = await Connection.open(
+    final db = await Connection.open(
       Endpoint(
         host: _config.databaseHost,
         port: _config.databasePort,
@@ -89,10 +65,11 @@ class App({
       ),
       settings: ConnectionSettings(sslMode: SslMode.disable),
     );
-    await Database(LoggingGatewayWrapper(PostgreSQLGateway(c))).upgrade(migrations);
-    _log.info('Migrations applied.');
+    await applyMigrations(db, _log);
 
-    final googleOAuthController = GoogleOAuthController(_googleOAuth);
+    final sessionsDAO = SessionsDAO(db);
+    final usersDAO = UsersDAO(db);
+    final googleOAuthController = GoogleOAuthController(_googleOAuth, sessionsDAO, usersDAO);
 
     final controller = MappingController();
     controller.map['sessions'] = SessionsController(_googleOAuth);

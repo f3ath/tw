@@ -5,7 +5,7 @@ import 'package:http_interop/http_interop.dart';
 import 'package:json_api/client.dart' hide Request;
 import 'package:json_api/routing.dart';
 import 'package:test/test.dart';
-import 'package:tw_server/src/application/application.dart';
+import 'package:tw_server/src/application/app_config.dart';
 
 import 'harness.dart';
 
@@ -22,11 +22,18 @@ Future<void> main() async {
     databaseUsername: 'tw',
     databasePassword: 'tw',
   );
-  final googleOAuth = TestGoogleOAuth();
-  final appHandler = await testApplicationHandler(config, googleOAuth);
-  final client = RoutingClient(urlDesign, Client(appHandler));
+  late TestGoogleOAuth googleOAuth;
+  late Handler appHandler;
+  late RoutingClient client;
 
   group('Application', () {
+    setUp(() async {
+      await resetDatabaseSchema(config);
+      googleOAuth = TestGoogleOAuth();
+      appHandler = await testApplicationHandler(config, googleOAuth);
+      client = RoutingClient(urlDesign, Client(appHandler));
+    });
+
     group('Sessions', () {
       test('No Auth Header: Unauthorized', () async {
         expect(
@@ -61,7 +68,10 @@ Future<void> main() async {
         await appHandler(
           Request(
             'get',
-            Uri(path: '/auth/google/callback', queryParameters: {'code': 'test-code', 'state': state}),
+            Uri(
+              path: '/auth/google/callback',
+              queryParameters: {'code': 'test-code', 'state': state},
+            ),
             Body(),
             Headers(),
           ),
@@ -73,6 +83,37 @@ Email: user@example.com
 Name: Test User''');
           expect(googleOAuth.queryParameters, {'code': 'test-code', 'state': state});
         });
+
+        final user = await fetchUserByEmail(config, 'user@example.com');
+        expect(user, isNotNull);
+        expect(user!.email, 'user@example.com');
+        expect(user.name, 'Test User');
+
+        final session = await fetchSessionByKey(config, 'test-session-id');
+        expect(session, isNotNull);
+        expect(session!.sessionKey, 'test-session-id');
+        expect(session.userId, user.id);
+
+        googleOAuth.name = 'Updated User';
+        googleOAuth.sessionId = 'updated-session-id';
+        await appHandler(
+          Request(
+            'get',
+            Uri.parse('/auth/google/callback?code=updated-code&state=updated-state'),
+            Body(),
+            Headers(),
+          ),
+        );
+
+        final updatedUser = await fetchUserByEmail(config, 'user@example.com');
+        expect(updatedUser, isNotNull);
+        expect(updatedUser!.id, user.id);
+        expect(updatedUser.name, 'Updated User');
+
+        final updatedSession = await fetchSessionByKey(config, 'updated-session-id');
+        expect(updatedSession, isNotNull);
+        expect(updatedSession!.sessionKey, 'updated-session-id');
+        expect(updatedSession.userId, user.id);
       });
     });
   });

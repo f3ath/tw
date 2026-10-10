@@ -21,6 +21,7 @@ This file applies to the `server` package.
 
 - Follow `analysis_options.yaml`.
 - Prefer primary constructors and declaring parameters.
+- Use ALL_CAPS for SQL keywords.
 - Keep changes small and local to the requested behavior.
 - Do not rewrite unrelated dirty files.
 - Follow TDD principles: write a failing test, implement the feature, and refactor.
