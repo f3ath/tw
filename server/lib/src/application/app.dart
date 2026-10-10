@@ -10,6 +10,7 @@ import 'package:tw_server/src/auth/sessions_controller.dart';
 import 'package:tw_server/src/auth/sessions_dao.dart';
 import 'package:tw_server/src/auth/users_dao.dart';
 import 'package:tw_server/src/db/apply_migrations.dart';
+import 'package:tw_server/src/http/context.dart';
 import 'package:tw_server/src/http/responses.dart';
 import 'package:tw_server/src/http/routing_handler.dart';
 import 'package:tw_server/src/log/log.dart';
@@ -17,7 +18,7 @@ import 'package:tw_server/src/log/log.dart';
 class App({
   required final AppConfig _config,
   GoogleOAuth? googleOAuth,
-  final Handler _defaultHandler = plain404,
+  final Handler _defaultHandler = plainNotFound,
   final Log _log = const NoLog(),
 }) {
   this {
@@ -74,7 +75,34 @@ class App({
     final controller = MappingController();
     controller.map['sessions'] = SessionsController(_googleOAuth, sessionsDAO);
 
-    final jsonApiHandler = router(controller, StandardUriDesign(_config.baseUri).matchTarget);
+    Future<String?> getCallerUserId(Request rq) async {
+      final sessionId = rq.headers['Authorization']?.firstOrNull;
+      if (sessionId != null) {
+        final bearer = sessionId.startsWith('Bearer ') ? sessionId.substring(7) : null;
+        if (bearer != null) {
+          final session = await sessionsDAO.fetchBySessionKey(bearer);
+          return session?.userId;
+        }
+      }
+      return null;
+    }
+
+    Handler authenticationMiddleware(Handler inner) => (rq) async {
+      final userId = await getCallerUserId(rq);
+      if (userId != null) {
+        Context(rq).userId = userId;
+      }
+
+      if (userId != null ||
+          (rq.uri.path == '${_config.baseUri.path}/sessions' && rq.method == 'post')) {
+        return await inner(rq);
+      }
+      return unauthorized();
+    };
+
+    final jsonApiHandler = authenticationMiddleware(
+      router(controller, StandardUriDesign(_config.baseUri).matchTarget),
+    );
 
     _routes.addAll([
       ((rq) => rq.uri.path.startsWith(_config.baseUri.path), jsonApiHandler),

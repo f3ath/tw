@@ -1,21 +1,17 @@
-import 'dart:convert';
-
 import 'package:http_interop/http_interop.dart';
 import 'package:json_api/document.dart';
 import 'package:json_api/routing.dart';
 import 'package:json_api/server.dart';
 import 'package:tw_server/src/auth/google/google_oauth.dart';
 import 'package:tw_server/src/auth/sessions_dao.dart';
+import 'package:tw_server/src/http/context.dart';
 
 class SessionsController(final GoogleOAuth _googleOAuth, final SessionsDAO _sessionsDAO)
     extends BaseController {
   @override
   Future<Response> fetchCollection(Request request, Target target) async {
-    final authenticatedSession = await _authenticatedSession(request);
-    if (authenticatedSession?.userId == null) {
-      return Response(401, Body.text('Unauthorized', utf8), Headers());
-    }
-    final sessions = await _sessionsDAO.fetchByUserId(authenticatedSession!.userId!);
+    final userId = Context(request).userId;
+    final sessions = await _sessionsDAO.fetchByUserId(userId);
     return ok(
       OutboundDataDocument.collection(sessions.map((session) => _resource(target, session))),
     );
@@ -37,32 +33,13 @@ class SessionsController(final GoogleOAuth _googleOAuth, final SessionsDAO _sess
 
   @override
   Future<Response> deleteResource(Request request, ResourceTarget target) async {
-    final authenticatedSession = await _authenticatedSession(request);
-    if (authenticatedSession == null) {
-      return Response(401, Body.text('Unauthorized', utf8), Headers());
-    }
-    final session = await _sessionsDAO.fetch(target.id);
-    if (session == null) {
+    final userId = Context(request).userId;
+    final sessions = await _sessionsDAO.fetchByUserId(userId);
+    if (!sessions.any((session) => session.id == target.id)) {
       return notFound();
-    }
-    if (authenticatedSession.id != session.id &&
-        (authenticatedSession.userId == null || authenticatedSession.userId != session.userId)) {
-      return Response(401, Body.text('Unauthorized', utf8), Headers());
     }
     await _sessionsDAO.delete(target.id);
     return noContent();
-  }
-
-  Future<SessionRecord?> _authenticatedSession(Request request) async {
-    final authorization = request.headers['Authorization']?.singleOrNull;
-    if (authorization == null) {
-      return null;
-    }
-    const prefix = 'Bearer ';
-    if (!authorization.startsWith(prefix)) {
-      return null;
-    }
-    return _sessionsDAO.fetchBySessionKey(authorization.substring(prefix.length));
   }
 
   Resource _resource(Target target, SessionRecord session) =>

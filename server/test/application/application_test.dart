@@ -95,6 +95,42 @@ Future<void> main() async {
         expect((await client.listSessions()).map((r) => r.id), [first.id]);
       });
 
+      test("Session Deletion: Can't delete another user's session", () async {
+        final first = await client.createSession();
+        await googleCallback('test-code');
+        final firstId = first!.id;
+
+        final secondClient = TwApiClient(urlDesign, Client(appHandler));
+        final second = await secondClient.createSession();
+        googleOAuth.email = 'other@example.com';
+        googleOAuth.name = 'Other User';
+        await googleCallback('updated-code');
+
+        final secondBearer = second!.attributes['http_authorization_bearer'] as String;
+        final secondId = second.id;
+        final jsonApi = RoutingClient(urlDesign, Client(appHandler));
+
+        expect(
+          () => jsonApi.deleteResource(
+            'sessions',
+            firstId,
+            headers: {
+              'Authorization': ['Bearer $secondBearer'],
+            },
+          ),
+          throwsA(
+            isA<RequestFailure>().having(
+              (r) => r.rawResponse.httpResponse.statusCode,
+              'Status Code',
+              equals(404),
+            ),
+          ),
+        );
+
+        expect((await client.listSessions()).map((r) => r.id), [firstId]);
+        expect((await secondClient.listSessions()).map((r) => r.id), [secondId]);
+      });
+
       test('Session Creation: Happy Path', () async {
         final r0 = await client.createSession();
         expect(r0!.attributes['redirect'], googleOAuth.authorizationUri.toString());
