@@ -1,34 +1,18 @@
-import 'package:http_interop/http_interop.dart';
 import 'package:json_api/client.dart' hide Request;
 import 'package:json_api/document.dart';
-import 'package:json_api/routing.dart';
 import 'package:test/test.dart';
 import 'package:tw_server/tw_server.dart';
 
 import 'harness.dart';
 
 Future<void> main() async {
-  final urlDesign = StandardUriDesign(testConfig.baseUri);
-  late TestGoogleOAuth googleOAuth;
-  late Handler appHandler;
+  TestApplication? app;
   late TwApiClient client;
   late RoutingClient jsonApi;
 
-  Future<Response> googleCallback(String code, {String? state}) => appHandler(
-    Request(
-      'get',
-      Uri(
-        path: '/auth/google/callback',
-        queryParameters: {'code': code, 'state': state ?? googleOAuth.states.last},
-      ),
-      Body(),
-      Headers(),
-    ),
-  );
-
   Future<Resource> signIn(TwApiClient client, String code) async {
     final session = await client.createSession();
-    await googleCallback(code, state: googleOAuth.states.last);
+    await app!.googleCallback(code, state: app!.googleOAuth.states.last);
     return session!;
   }
 
@@ -46,11 +30,14 @@ Future<void> main() async {
 
   group('Vehicles', () {
     setUp(() async {
-      await resetDatabaseSchema(testConfig);
-      googleOAuth = TestGoogleOAuth();
-      appHandler = await testApplicationHandler(testConfig, googleOAuth);
-      client = TwApiClient(urlDesign, appHandler);
-      jsonApi = RoutingClient(urlDesign, Client(appHandler));
+      app = await startTestApplication();
+      client = app!.client;
+      jsonApi = RoutingClient(app!.urlDesign, Client(app!.clientHandler));
+    });
+
+    tearDown(() async {
+      await app?.stop();
+      app = null;
     });
 
     test('No Auth Header: Unauthorized', () async {
@@ -122,9 +109,9 @@ Future<void> main() async {
         headers: authHeaders(firstSession),
       );
 
-      final secondClient = TwApiClient(urlDesign, appHandler);
-      googleOAuth.email = 'other@example.com';
-      googleOAuth.name = 'Other User';
+      final secondClient = TwApiClient(app!.urlDesign, app!.clientHandler);
+      app!.googleOAuth.email = 'other@example.com';
+      app!.googleOAuth.name = 'Other User';
       final secondSession = await signIn(secondClient, 'other-code');
 
       expect(

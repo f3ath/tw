@@ -7,6 +7,10 @@ import 'package:http_interop_io/http_interop_io.dart';
 class HttpServerHarness() {
   HttpServer? _server;
 
+  String get host => _server?.address.host ?? (throw StateError('Server is not running'));
+
+  int get port => _server?.port ?? (throw StateError('Server is not running'));
+
   /// starts the server
   Future<void> start(Handler handler, {String host = '0.0.0.0', int port = 8080}) async {
     if (_server != null) return;
