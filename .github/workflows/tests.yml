@@ -1,0 +1,43 @@
+name: Tests
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Dart tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: server
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Dart
+        uses: dart-lang/setup-dart@v1
+        with:
+          sdk: stable
+
+      - name: Install dependencies
+        run: dart pub get --enforce-lockfile
+
+      - name: Start test database
+        run: docker compose up -d --wait --wait-timeout 90 postgres
+
+      # Application test suites share a database and apply migrations at startup.
+      - name: Run tests
+        run: dart test --concurrency=1
+
+      - name: Show database logs on failure
+        if: failure()
+        run: docker compose logs postgres
+
+      - name: Stop test database
+        if: always()
+        run: docker compose down --volumes
