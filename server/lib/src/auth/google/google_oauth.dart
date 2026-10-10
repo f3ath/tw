@@ -16,7 +16,6 @@ class GoogleOAuthClient({
   final AuthEndpoints authEndpoints = const GoogleAuthEndpoints(),
 }) implements GoogleOAuth {
   static final _userInfoEndpoint = Uri.parse('https://openidconnect.googleapis.com/v1/userinfo');
-  final _pendingGoogleStates = <String, DateTime>{};
 
   Uri _googleAuthorizationUrl(String state) => authEndpoints.authorizationEndpoint.replace(
     queryParameters: {
@@ -31,20 +30,13 @@ class GoogleOAuthClient({
   );
 
   @override
-  Uri startAuthorization(String state) {
-    _pendingGoogleStates[state] = DateTime.now();
-    return _googleAuthorizationUrl(state);
-  }
+  Uri startAuthorization(String state) => _googleAuthorizationUrl(state);
 
   @override
   Future<GoogleOAuthSession?> finishAuthorization(Map<String, String> queryParameters) async {
     final code = queryParameters['code'];
     final state = queryParameters['state'];
     if (code == null || state == null) {
-      return null;
-    }
-
-    if (_pendingGoogleStates.remove(state) == null) {
       return null;
     }
 
@@ -77,7 +69,7 @@ class GoogleOAuthClient({
   }
 }
 
-class GoogleOAuthSession({required final String email, required final String name}) {}
+class GoogleOAuthSession({required final String email, required final String name});
 
 Future<Map<String, Object?>> _getJson(http.Client client, Uri uri) async {
   final response = await client.get(uri);

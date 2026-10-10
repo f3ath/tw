@@ -56,6 +56,20 @@ Future<void> main() async {
         expect(first!.attributes['redirect'], isNot(second!.attributes['redirect']));
       });
 
+      test('Google callback nonce is one-time', () async {
+        final session = await client.createSession();
+        final state = googleOAuth.states.last;
+
+        final first = await googleCallback('test-code', state: state);
+        expect(first.statusCode, 200);
+
+        final replay = await googleCallback('replay-code', state: state);
+        expect(replay.statusCode, 400);
+        expect(await replay.body.decode(utf8), 'Invalid Google callback.');
+
+        expect((await client.listSessions()).map((r) => r.id), [session!.id]);
+      });
+
       test('Session Deletion: Happy Path', () async {
         final first = await client.createSession();
         await googleCallback('test-code');

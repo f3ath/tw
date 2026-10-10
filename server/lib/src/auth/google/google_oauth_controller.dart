@@ -1,10 +1,10 @@
 import 'dart:convert';
 
 import 'package:http_interop/http_interop.dart';
-import 'package:uuid/uuid.dart';
 import 'package:tw_server/src/auth/google/google_oauth.dart';
 import 'package:tw_server/src/auth/sessions_dao.dart';
 import 'package:tw_server/src/auth/users_dao.dart';
+import 'package:uuid/uuid.dart';
 
 class GoogleOAuthController(
   final GoogleOAuth googleOAuth,
