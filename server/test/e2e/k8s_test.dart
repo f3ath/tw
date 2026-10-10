@@ -5,7 +5,7 @@ import 'package:tw_server/src/application/app.dart';
 import 'harness.dart';
 
 Future<void> main() async {
-  group('Application', () {
+  group('k8s probes', () {
     setUp(() async {
       await resetDatabaseSchema(testConfig);
     });
