@@ -40,15 +40,28 @@ Future<void> main() async {
           ),
         );
       });
+      test('Session creation supplies a fresh state for each request', () async {
+        final count = googleOAuth.states.length;
+        await client.createNew('sessions');
+        await client.createNew('sessions');
+        final states = googleOAuth.states.skip(count).toList();
+        expect(states, hasLength(2));
+        expect(states.every((state) => state.isNotEmpty), isTrue);
+        expect(states[0], isNot(states[1]));
+      });
       test('Session Creation: Happy Path', () async {
         final r0 = await client.createNew('sessions');
         expect(r0.resource.id, '1');
         expect(r0.resource.attributes['redirect'], googleOAuth.authorizationUri.toString());
 
+        final state = googleOAuth.states.last;
+        expect(state, isNotEmpty);
+        expect(googleOAuth.authorizationUri.queryParameters['state'], state);
+
         await appHandler(
           Request(
             'get',
-            Uri.parse('/auth/google/callback?code=test-code&state=test-state'),
+            Uri(path: '/auth/google/callback', queryParameters: {'code': 'test-code', 'state': state}),
             Body(),
             Headers(),
           ),
@@ -58,7 +71,7 @@ Future<void> main() async {
 Signed in with Google. Session: test-session-id
 Email: user@example.com
 Name: Test User''');
-          expect(googleOAuth.queryParameters, {'code': 'test-code', 'state': 'test-state'});
+          expect(googleOAuth.queryParameters, {'code': 'test-code', 'state': state});
         });
       });
     });
