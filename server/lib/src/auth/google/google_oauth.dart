@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'dart:math';
 
 import 'package:googleapis_auth/auth_io.dart';
 import 'package:http/http.dart' as http;
@@ -18,13 +17,6 @@ class GoogleOAuthClient({
 }) implements GoogleOAuth {
   static final _userInfoEndpoint = Uri.parse('https://openidconnect.googleapis.com/v1/userinfo');
   final _pendingGoogleStates = <String, DateTime>{};
-  final _sessions = <String, Map<String, Object>>{};
-  final _random = Random.secure();
-
-  String _randomId() {
-    final bytes = List<int>.generate(24, (_) => _random.nextInt(256));
-    return base64UrlEncode(bytes).replaceAll('=', '');
-  }
 
   Uri _googleAuthorizationUrl(String state) => authEndpoints.authorizationEndpoint.replace(
     queryParameters: {
@@ -59,17 +51,8 @@ class GoogleOAuthClient({
     final userInfo = await _fetchUserInfo(code);
     final email = userInfo['email'] as String? ?? '';
     final name = userInfo['name'] as String? ?? '';
-    final sessionId = _randomId();
-    _sessions[sessionId] = {
-      'provider': 'google',
-      'code': code,
-      'state': state,
-      'email': email,
-      'name': name,
-      'createdAt': DateTime.now().toIso8601String(),
-    };
 
-    return GoogleOAuthSession(id: sessionId, email: email, name: name);
+    return GoogleOAuthSession(email: email, name: name);
   }
 
   Future<Map<String, Object?>> _fetchUserInfo(String code) async {
@@ -94,11 +77,7 @@ class GoogleOAuthClient({
   }
 }
 
-class GoogleOAuthSession({
-  required final String id,
-  required final String email,
-  required final String name,
-}) {}
+class GoogleOAuthSession({required final String email, required final String name}) {}
 
 Future<Map<String, Object?>> _getJson(http.Client client, Uri uri) async {
   final response = await client.get(uri);

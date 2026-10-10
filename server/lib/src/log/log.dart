@@ -8,7 +8,13 @@ enum LogLevel(final int level) {
 }
 
 abstract interface class Log() {
-  void log(LogLevel level, Object? message, {DateTime? time, Object? error, StackTrace? stackTrace});
+  void log(
+    LogLevel level,
+    Object? message, {
+    DateTime? time,
+    Object? error,
+    StackTrace? stackTrace,
+  });
 }
 
 extension LogExt on Log {
@@ -33,7 +39,13 @@ extension LogExt on Log {
 
 class const NoLog() implements Log {
   @override
-  void log(LogLevel level, Object? message, {DateTime? time, Object? error, StackTrace? stackTrace}) {}
+  void log(
+    LogLevel level,
+    Object? message, {
+    DateTime? time,
+    Object? error,
+    StackTrace? stackTrace,
+  }) {}
 }
 
 class LogRecord(
@@ -48,7 +60,13 @@ class InMemoryLog() implements Log {
   final records = <LogRecord>[];
 
   @override
-  void log(LogLevel level, Object? message, {DateTime? time, Object? error, StackTrace? stackTrace}) {
+  void log(
+    LogLevel level,
+    Object? message, {
+    DateTime? time,
+    Object? error,
+    StackTrace? stackTrace,
+  }) {
     records.add(LogRecord(level, message, time: time, error: error, stackTrace: stackTrace));
   }
 }

@@ -1,7 +1,8 @@
 import 'package:migrant/migrant.dart';
 import 'package:tw_server/src/log/log.dart';
 
-class LoggingGatewayWrapper(final DatabaseGateway gateway, final Log log) implements DatabaseGateway {
+class LoggingGatewayWrapper(final DatabaseGateway gateway, final Log log)
+    implements DatabaseGateway {
   @override
   Future<String?> currentVersion() async {
     final version = await gateway.currentVersion();

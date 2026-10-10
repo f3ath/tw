@@ -49,11 +49,8 @@ Future<T> withTestDatabase<T>(
   }
 }
 
-class TestGoogleOAuth({
-  var String email = 'user@example.com',
-  var String name = 'Test User',
-  var String sessionId = 'test-session-id',
-}) implements GoogleOAuth {
+class TestGoogleOAuth({var String email = 'user@example.com', var String name = 'Test User'})
+    implements GoogleOAuth {
   Uri? _authorizationUri;
   Uri get authorizationUri => _authorizationUri!;
   final states = <String>[];
@@ -68,6 +65,6 @@ class TestGoogleOAuth({
   @override
   Future<GoogleOAuthSession?> finishAuthorization(Map<String, String> queryParameters) async {
     this.queryParameters = queryParameters;
-    return GoogleOAuthSession(id: sessionId, email: email, name: name);
+    return GoogleOAuthSession(email: email, name: name);
   }
 }

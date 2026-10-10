@@ -62,7 +62,6 @@ Future<void> main() async {
 
         final secondClient = TwApiClient(urlDesign, Client(appHandler));
         final second = await secondClient.createSession();
-        googleOAuth.sessionId = 'updated-session-id';
         await googleCallback('updated-code');
 
         expect((await client.listSessions()).map((r) => r.id), [first!.id, second!.id]);
@@ -122,7 +121,6 @@ Name: Test User''');
         expect(updatedBearer, isNotEmpty);
 
         googleOAuth.name = 'Updated User';
-        googleOAuth.sessionId = 'updated-session-id';
         await googleCallback('updated-code', state: updatedState);
 
         final updatedFetchedSessions = await client.listSessions();
