@@ -22,7 +22,7 @@ import 'package:tw_server/src/vehicles/vehicles_dao.dart';
 class App(
   final AppConfig _config, {
   GoogleOAuth? googleOAuth,
-  final Handler _defaultHandler = plainNotFound,
+  final Handler _defaultHandler = _plainNotFound,
   final Log _log = const NoLog(),
 }) {
   static const _googleOAuthCallbackPath = '/auth/google/callback';
@@ -77,9 +77,10 @@ class App(
       });
 
     Future<SessionRecord?> getCallerUserId(Request rq) async {
+      const prefix = 'Bearer ';
       final sessionId = rq.headers['Authorization']?.firstOrNull;
       if (sessionId != null) {
-        final bearer = sessionId.startsWith('Bearer ') ? sessionId.substring(7) : null;
+        final bearer = sessionId.startsWith(prefix) ? sessionId.substring(prefix.length) : null;
         if (bearer != null) {
           return await sessionsDAO.fetchBySessionKey(bearer);
         }
@@ -113,3 +114,5 @@ class App(
 
   Future<Response> call(Request rq) => _handler(rq);
 }
+
+Future<Response> _plainNotFound(Request rq) async => plain(404, '404 Not Found');

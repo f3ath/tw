@@ -10,8 +10,7 @@ class SessionsController(final GoogleOAuth _googleOAuth, final SessionsDAO _sess
     extends BaseController {
   @override
   Future<Response> fetchCollection(Request request, Target target) async {
-    final userId = Context(request).userId;
-    final sessions = await _sessionsDAO.fetchByUserId(userId);
+    final sessions = await _sessionsDAO.fetchByUserId(Context(request).userId);
     return ok(
       OutboundDataDocument.collection(sessions.map((session) => _resource(target, session))),
     );
@@ -33,8 +32,7 @@ class SessionsController(final GoogleOAuth _googleOAuth, final SessionsDAO _sess
 
   @override
   Future<Response> deleteResource(Request request, ResourceTarget target) async {
-    final userId = Context(request).userId;
-    final sessions = await _sessionsDAO.fetchByUserId(userId);
+    final sessions = await _sessionsDAO.fetchByUserId(Context(request).userId);
     if (!sessions.any((session) => session.id == target.id)) {
       return notFound();
     }
