@@ -2,7 +2,6 @@ import 'package:http_interop/http_interop.dart';
 import 'package:http_interop_middleware/http_interop_middleware.dart';
 import 'package:json_api/routing.dart';
 import 'package:json_api/server.dart';
-import 'package:postgres/postgres.dart';
 import 'package:tw_server/src/app/app_config.dart';
 import 'package:tw_server/src/auth/google/google_oauth.dart';
 import 'package:tw_server/src/auth/google/google_oauth_controller.dart';
