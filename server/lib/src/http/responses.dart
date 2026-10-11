@@ -4,7 +4,6 @@ import 'package:http_interop/http_interop.dart';
 import 'package:json_api/document.dart';
 import 'package:json_api/server.dart';
 
-
 Response plain(int statusCode, String body) => Response(
   statusCode,
   Body.text(body, utf8),

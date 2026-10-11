@@ -4,9 +4,7 @@ import 'package:postgres/postgres.dart';
 import 'package:uuid/uuid.dart';
 
 class SessionsDAO(final Connection connection) {
-  static final _random = Random.secure();
   static const _uuid = Uuid();
-  static const _sessionKeyChars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
 
   Future<SessionRecord> create({String? nonce, String? sessionKey, String? userId}) async {
     final session = SessionRecord(
@@ -20,12 +18,7 @@ class SessionsDAO(final Connection connection) {
 INSERT INTO sessions (id, session_key, nonce, user_id)
 VALUES (@id:text, @session_key:text, @nonce:text, @user_id:text)
 '''),
-      parameters: {
-        'id': session.id,
-        'session_key': session.sessionKey,
-        'nonce': session.nonce,
-        'user_id': session.userId,
-      },
+      parameters: session.toMap(),
     );
     return session;
   }
@@ -39,10 +32,8 @@ WHERE id = @id:text
 '''),
       parameters: {'id': id},
     );
-    if (rows.isEmpty) {
-      return null;
-    }
-    return _sessionRecord(rows.single.toColumnMap());
+    if (rows.isEmpty) return null;
+    return SessionRecord.fromMap(rows.single.toColumnMap());
   }
 
   Future<SessionRecord?> fetchBySessionKey(String sessionKey) async {
@@ -54,11 +45,8 @@ WHERE session_key = @session_key:text
 '''),
       parameters: {'session_key': sessionKey},
     );
-    if (rows.isEmpty) {
-      return null;
-    }
-    final row = rows.single.toColumnMap();
-    return _sessionRecord(row);
+    if (rows.isEmpty) return null;
+    return SessionRecord.fromMap(rows.single.toColumnMap());
   }
 
   Future<SessionRecord?> fetchByNonce(String nonce) async {
@@ -70,10 +58,8 @@ WHERE nonce = @nonce:text
 '''),
       parameters: {'nonce': nonce},
     );
-    if (rows.isEmpty) {
-      return null;
-    }
-    return _sessionRecord(rows.single.toColumnMap());
+    if (rows.isEmpty) return null;
+    return SessionRecord.fromMap(rows.single.toColumnMap());
   }
 
   Future<List<SessionRecord>> fetchByUserId(String userId) async {
@@ -86,7 +72,7 @@ ORDER BY created_at
 '''),
       parameters: {'user_id': userId},
     );
-    return rows.map((row) => _sessionRecord(row.toColumnMap())).toList();
+    return rows.map((row) => SessionRecord.fromMap(row.toColumnMap())).toList();
   }
 
   Future<SessionRecord?> linkUserByNonce({required String nonce, required String userId}) async {
@@ -99,10 +85,8 @@ RETURNING id, session_key, nonce, user_id
 '''),
       parameters: {'nonce': nonce, 'user_id': userId},
     );
-    if (rows.isEmpty) {
-      return null;
-    }
-    return _sessionRecord(rows.single.toColumnMap());
+    if (rows.isEmpty) return null;
+    return SessionRecord.fromMap(rows.single.toColumnMap());
   }
 
   Future<bool> delete({required String id, required String userId}) async {
@@ -116,25 +100,36 @@ RETURNING id
     );
     return rows.isNotEmpty;
   }
+}
 
-  static String _newSessionKey() => String.fromCharCodes(
+String _newSessionKey() {
+  const sessionKeyChars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+
+  return String.fromCharCodes(
     List<int>.generate(
       64,
-      (_) => _sessionKeyChars.codeUnitAt(_random.nextInt(_sessionKeyChars.length)),
+      (_) => sessionKeyChars.codeUnitAt(Random.secure().nextInt(sessionKeyChars.length)),
     ),
   );
 }
-
-SessionRecord _sessionRecord(Map<String, dynamic> row) => SessionRecord(
-  id: row['id'] as String,
-  nonce: row['nonce'] as String?,
-  sessionKey: row['session_key'] as String,
-  userId: row['user_id'] as String?,
-);
 
 class const SessionRecord({
   required final String id,
   required final String sessionKey,
   final String? nonce,
   final String? userId,
-}) {}
+}) {
+  static SessionRecord fromMap(Map<String, dynamic> map) => SessionRecord(
+    id: map['id'] as String,
+    sessionKey: map['session_key'] as String,
+    nonce: map['nonce'] as String?,
+    userId: map['user_id'] as String?,
+  );
+
+  Map<String, dynamic> toMap() => {
+    'id': id,
+    'session_key': sessionKey,
+    'nonce': nonce,
+    'user_id': userId,
+  };
+}

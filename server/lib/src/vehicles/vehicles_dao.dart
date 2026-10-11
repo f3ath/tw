@@ -20,12 +20,7 @@ class VehiclesDAO(final Connection connection) {
 INSERT INTO vehicles (id, name, user_id, manufacture_date)
 VALUES (@id:text, @name:text, @user_id:text, @manufacture_date:date)
 '''),
-      parameters: {
-        'id': vehicle.id,
-        'name': vehicle.name,
-        'user_id': vehicle.userId,
-        'manufacture_date': vehicle.manufactureDate,
-      },
+      parameters: vehicle.toMap(),
     );
     return vehicle;
   }
@@ -40,7 +35,7 @@ ORDER BY created_at
 '''),
       parameters: {'user_id': userId},
     );
-    return rows.map((row) => _vehicleRecord(row.toColumnMap())).toList();
+    return rows.map((row) => VehicleRecord.fromMap(row.toColumnMap())).toList();
   }
 
   Future<VehicleRecord?> fetchByIdAndUserId({required String id, required String userId}) async {
@@ -55,7 +50,7 @@ WHERE id = @id:text AND user_id = @user_id:text
     if (rows.isEmpty) {
       return null;
     }
-    return _vehicleRecord(rows.single.toColumnMap());
+    return VehicleRecord.fromMap(rows.single.toColumnMap());
   }
 
   Future<VehicleRecord?> update({
@@ -77,7 +72,7 @@ RETURNING id, name, user_id, manufacture_date
     if (rows.isEmpty) {
       return null;
     }
-    return _vehicleRecord(rows.single.toColumnMap());
+    return VehicleRecord.fromMap(rows.single.toColumnMap());
   }
 
   Future<bool> delete({required String id, required String userId}) async {
@@ -93,16 +88,23 @@ RETURNING id
   }
 }
 
-VehicleRecord _vehicleRecord(Map<String, dynamic> row) => VehicleRecord(
-  id: row['id'] as String,
-  name: row['name'] as String,
-  userId: row['user_id'] as String,
-  manufactureDate: row['manufacture_date'] as DateTime,
-);
-
 class const VehicleRecord({
   required final String id,
   required final String name,
   required final String userId,
   required final DateTime manufactureDate,
-});
+}) {
+  static VehicleRecord fromMap(Map<String, dynamic> map) => VehicleRecord(
+    id: map['id'] as String,
+    name: map['name'] as String,
+    userId: map['user_id'] as String,
+    manufactureDate: map['manufacture_date'] as DateTime,
+  );
+
+  Map<String, dynamic> toMap() => {
+    'id': id,
+    'name': name,
+    'user_id': userId,
+    'manufacture_date': manufactureDate,
+  };
+}

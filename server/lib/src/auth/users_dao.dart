@@ -5,7 +5,7 @@ class UsersDAO(final Connection connection) {
   static const _uuid = Uuid();
 
   Future<UserRecord> createOrUpdate({required String email, required String name}) async {
-    final id = _uuid.v4();
+    final user = UserRecord(id: _uuid.v4(), email: email, name: name);
     final rows = await connection.execute(
       Sql.named('''
 INSERT INTO users (id, email, name)
@@ -13,9 +13,9 @@ VALUES (@id:text, @email:text, @name:text)
 ON CONFLICT (email) DO UPDATE SET name = excluded.name
 RETURNING id, email, name
 '''),
-      parameters: {'id': id, 'email': email, 'name': name},
+      parameters: user.toMap(),
     );
-    return _userRecord(rows.single.toColumnMap());
+    return UserRecord.fromMap(rows.single.toColumnMap());
   }
 
   Future<UserRecord?> fetchByEmail(String email) async {
@@ -30,15 +30,20 @@ WHERE email = @email:text
     if (rows.isEmpty) {
       return null;
     }
-    return _userRecord(rows.single.toColumnMap());
+    return UserRecord.fromMap(rows.single.toColumnMap());
   }
 }
-
-UserRecord _userRecord(Map<String, dynamic> row) =>
-    UserRecord(id: row['id'] as String, email: row['email'] as String, name: row['name'] as String);
 
 class const UserRecord({
   required final String id,
   required final String email,
   required final String name,
-});
+}) {
+  static UserRecord fromMap(Map<String, dynamic> map) => UserRecord(
+    id: map['id'] as String,
+    email: map['email'] as String,
+    name: map['name'] as String,
+  );
+
+  Map<String, dynamic> toMap() => {'id': id, 'email': email, 'name': name};
+}

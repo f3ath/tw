@@ -37,14 +37,7 @@ WHERE id = @vehicle_id:text AND user_id = @user_id:text
 INSERT INTO schedules (id, vehicle_id, name, interval_miles, interval_months, details)
 VALUES (@id:text, @vehicle_id:text, @name:text, @interval_miles:int4, @interval_months:int4, @details:text)
 '''),
-      parameters: {
-        'id': schedule.id,
-        'vehicle_id': schedule.vehicleId,
-        'name': schedule.name,
-        'interval_miles': schedule.intervalMiles,
-        'interval_months': schedule.intervalMonths,
-        'details': schedule.details,
-      },
+      parameters: schedule.toMap(),
     );
     return schedule;
   }
@@ -74,7 +67,7 @@ ORDER BY created_at
 '''),
       parameters: {'vehicle_id': vehicleId},
     );
-    return rows.map((row) => _scheduleRecord(row.toColumnMap())).toList();
+    return rows.map((row) => ScheduleRecord.fromMap(row.toColumnMap())).toList();
   }
 
   Future<ScheduleRecord?> update({
@@ -116,7 +109,7 @@ RETURNING id, vehicle_id, name, interval_miles, interval_months, details
     if (rows.isEmpty) {
       return null;
     }
-    return _scheduleRecord(rows.single.toColumnMap());
+    return ScheduleRecord.fromMap(rows.single.toColumnMap());
   }
 
   Future<bool> delete({required String id, required String userId}) async {
@@ -138,15 +131,6 @@ RETURNING id
   }
 }
 
-ScheduleRecord _scheduleRecord(Map<String, dynamic> row) => ScheduleRecord(
-  id: row['id'] as String,
-  vehicleId: row['vehicle_id'] as String,
-  name: row['name'] as String,
-  intervalMiles: row['interval_miles'] as int,
-  intervalMonths: row['interval_months'] as int,
-  details: row['details'] as String,
-);
-
 class const ScheduleRecord({
   required final String id,
   required final String vehicleId,
@@ -154,4 +138,22 @@ class const ScheduleRecord({
   required final int intervalMiles,
   required final int intervalMonths,
   required final String details,
-});
+}) {
+  static ScheduleRecord fromMap(Map<String, dynamic> map) => ScheduleRecord(
+    id: map['id'] as String,
+    vehicleId: map['vehicle_id'] as String,
+    name: map['name'] as String,
+    intervalMiles: map['interval_miles'] as int,
+    intervalMonths: map['interval_months'] as int,
+    details: map['details'] as String,
+  );
+
+  Map<String, dynamic> toMap() => {
+    'id': id,
+    'vehicle_id': vehicleId,
+    'name': name,
+    'interval_miles': intervalMiles,
+    'interval_months': intervalMonths,
+    'details': details,
+  };
+}
