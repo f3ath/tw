@@ -32,11 +32,9 @@ class SessionsController(final GoogleOAuth _googleOAuth, final SessionsDAO _sess
 
   @override
   Future<Response> deleteResource(Request request, ResourceTarget target) async {
-    final sessions = await _sessionsDAO.fetchByUserId(Context(request).userId);
-    if (!sessions.any((session) => session.id == target.id)) {
+    if (!await _sessionsDAO.delete(id: target.id, userId: Context(request).userId)) {
       return notFound();
     }
-    await _sessionsDAO.delete(target.id);
     return noContent();
   }
 

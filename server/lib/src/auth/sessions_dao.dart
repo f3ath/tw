@@ -88,10 +88,14 @@ class SessionsDAO(final Connection connection) {
     return _sessionRecord(rows.single.toColumnMap());
   }
 
-  Future<bool> delete(String id) async {
+  /// Deletes a session by its ID and user ID.
+  /// Returns true if a session was deleted, false otherwise.
+  Future<bool> delete({required String id, required String userId}) async {
     final rows = await connection.execute(
-      Sql.named('DELETE FROM sessions WHERE id = @id:text RETURNING id'),
-      parameters: {'id': id},
+      Sql.named(
+        'DELETE FROM sessions WHERE id = @id:text AND user_id = @user_id:text RETURNING id',
+      ),
+      parameters: {'id': id, 'user_id': userId},
     );
     return rows.isNotEmpty;
   }
