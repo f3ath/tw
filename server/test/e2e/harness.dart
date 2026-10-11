@@ -87,8 +87,16 @@ class TestApplication({
 
 Future<void> resetDatabaseSchema(AppConfig config) async {
   await withTestDatabase(config, (connection) async {
-    await connection.execute(Sql.named('DROP SCHEMA IF EXISTS public CASCADE'));
-    await connection.execute(Sql.named('CREATE SCHEMA IF NOT EXISTS public'));
+    await connection.execute(
+      Sql.named('''
+DROP SCHEMA IF EXISTS public CASCADE
+'''),
+    );
+    await connection.execute(
+      Sql.named('''
+CREATE SCHEMA IF NOT EXISTS public
+'''),
+    );
   });
 }
 

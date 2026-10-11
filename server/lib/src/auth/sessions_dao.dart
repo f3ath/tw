@@ -16,9 +16,10 @@ class SessionsDAO(final Connection connection) {
       userId: userId,
     );
     await connection.execute(
-      Sql.named(
-        'INSERT INTO sessions (id, session_key, nonce, user_id) VALUES (@id:text, @session_key:text, @nonce:text, @user_id:text)',
-      ),
+      Sql.named('''
+INSERT INTO sessions (id, session_key, nonce, user_id)
+VALUES (@id:text, @session_key:text, @nonce:text, @user_id:text)
+'''),
       parameters: {
         'id': session.id,
         'session_key': session.sessionKey,
@@ -31,7 +32,11 @@ class SessionsDAO(final Connection connection) {
 
   Future<SessionRecord?> fetch(String id) async {
     final rows = await connection.execute(
-      Sql.named('SELECT id, session_key, nonce, user_id FROM sessions WHERE id = @id:text'),
+      Sql.named('''
+SELECT id, session_key, nonce, user_id
+FROM sessions
+WHERE id = @id:text
+'''),
       parameters: {'id': id},
     );
     if (rows.isEmpty) {
@@ -42,9 +47,11 @@ class SessionsDAO(final Connection connection) {
 
   Future<SessionRecord?> fetchBySessionKey(String sessionKey) async {
     final rows = await connection.execute(
-      Sql.named(
-        'SELECT id, session_key, nonce, user_id FROM sessions WHERE session_key = @session_key:text',
-      ),
+      Sql.named('''
+SELECT id, session_key, nonce, user_id
+FROM sessions
+WHERE session_key = @session_key:text
+'''),
       parameters: {'session_key': sessionKey},
     );
     if (rows.isEmpty) {
@@ -56,7 +63,11 @@ class SessionsDAO(final Connection connection) {
 
   Future<SessionRecord?> fetchByNonce(String nonce) async {
     final rows = await connection.execute(
-      Sql.named('SELECT id, session_key, nonce, user_id FROM sessions WHERE nonce = @nonce:text'),
+      Sql.named('''
+SELECT id, session_key, nonce, user_id
+FROM sessions
+WHERE nonce = @nonce:text
+'''),
       parameters: {'nonce': nonce},
     );
     if (rows.isEmpty) {
@@ -67,9 +78,12 @@ class SessionsDAO(final Connection connection) {
 
   Future<List<SessionRecord>> fetchByUserId(String userId) async {
     final rows = await connection.execute(
-      Sql.named(
-        'SELECT id, session_key, nonce, user_id FROM sessions WHERE user_id = @user_id:text ORDER BY created_at',
-      ),
+      Sql.named('''
+SELECT id, session_key, nonce, user_id
+FROM sessions
+WHERE user_id = @user_id:text
+ORDER BY created_at
+'''),
       parameters: {'user_id': userId},
     );
     return rows.map((row) => _sessionRecord(row.toColumnMap())).toList();
@@ -77,9 +91,12 @@ class SessionsDAO(final Connection connection) {
 
   Future<SessionRecord?> linkUserByNonce({required String nonce, required String userId}) async {
     final rows = await connection.execute(
-      Sql.named(
-        'UPDATE sessions SET user_id = @user_id:text, nonce = NULL WHERE nonce = @nonce:text RETURNING id, session_key, nonce, user_id',
-      ),
+      Sql.named('''
+UPDATE sessions
+SET user_id = @user_id:text, nonce = NULL
+WHERE nonce = @nonce:text
+RETURNING id, session_key, nonce, user_id
+'''),
       parameters: {'nonce': nonce, 'user_id': userId},
     );
     if (rows.isEmpty) {
@@ -88,13 +105,13 @@ class SessionsDAO(final Connection connection) {
     return _sessionRecord(rows.single.toColumnMap());
   }
 
-  /// Deletes a session by its ID and user ID.
-  /// Returns true if a session was deleted, false otherwise.
   Future<bool> delete({required String id, required String userId}) async {
     final rows = await connection.execute(
-      Sql.named(
-        'DELETE FROM sessions WHERE id = @id:text AND user_id = @user_id:text RETURNING id',
-      ),
+      Sql.named('''
+DELETE FROM sessions
+WHERE id = @id:text AND user_id = @user_id:text
+RETURNING id
+'''),
       parameters: {'id': id, 'user_id': userId},
     );
     return rows.isNotEmpty;

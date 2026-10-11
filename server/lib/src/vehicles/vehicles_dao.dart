@@ -16,9 +16,10 @@ class VehiclesDAO(final Connection connection) {
       manufactureDate: manufactureDate,
     );
     await connection.execute(
-      Sql.named(
-        'INSERT INTO vehicles (id, name, user_id, manufacture_date) VALUES (@id:text, @name:text, @user_id:text, @manufacture_date:date)',
-      ),
+      Sql.named('''
+INSERT INTO vehicles (id, name, user_id, manufacture_date)
+VALUES (@id:text, @name:text, @user_id:text, @manufacture_date:date)
+'''),
       parameters: {
         'id': vehicle.id,
         'name': vehicle.name,
@@ -31,9 +32,12 @@ class VehiclesDAO(final Connection connection) {
 
   Future<List<VehicleRecord>> fetchByUserId(String userId) async {
     final rows = await connection.execute(
-      Sql.named(
-        'SELECT id, name, user_id, manufacture_date FROM vehicles WHERE user_id = @user_id:text ORDER BY created_at',
-      ),
+      Sql.named('''
+SELECT id, name, user_id, manufacture_date
+FROM vehicles
+WHERE user_id = @user_id:text
+ORDER BY created_at
+'''),
       parameters: {'user_id': userId},
     );
     return rows.map((row) => _vehicleRecord(row.toColumnMap())).toList();
@@ -41,9 +45,11 @@ class VehiclesDAO(final Connection connection) {
 
   Future<VehicleRecord?> fetchByIdAndUserId({required String id, required String userId}) async {
     final rows = await connection.execute(
-      Sql.named(
-        'SELECT id, name, user_id, manufacture_date FROM vehicles WHERE id = @id:text AND user_id = @user_id:text',
-      ),
+      Sql.named('''
+SELECT id, name, user_id, manufacture_date
+FROM vehicles
+WHERE id = @id:text AND user_id = @user_id:text
+'''),
       parameters: {'id': id, 'user_id': userId},
     );
     if (rows.isEmpty) {
@@ -76,9 +82,11 @@ RETURNING id, name, user_id, manufacture_date
 
   Future<bool> delete({required String id, required String userId}) async {
     final rows = await connection.execute(
-      Sql.named(
-        'DELETE FROM vehicles WHERE id = @id:text AND user_id = @user_id:text RETURNING id',
-      ),
+      Sql.named('''
+DELETE FROM vehicles
+WHERE id = @id:text AND user_id = @user_id:text
+RETURNING id
+'''),
       parameters: {'id': id, 'user_id': userId},
     );
     return rows.isNotEmpty;

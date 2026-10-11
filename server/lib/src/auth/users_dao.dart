@@ -20,7 +20,11 @@ RETURNING id, email, name
 
   Future<UserRecord?> fetchByEmail(String email) async {
     final rows = await connection.execute(
-      Sql.named('SELECT id, email, name FROM users WHERE email = @email:text'),
+      Sql.named('''
+SELECT id, email, name
+FROM users
+WHERE email = @email:text
+'''),
       parameters: {'email': email},
     );
     if (rows.isEmpty) {

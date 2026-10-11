@@ -13,7 +13,11 @@ class SchedulesDAO(final Connection connection) {
     required String details,
   }) async {
     final vehicleExists = await connection.execute(
-      Sql.named('SELECT id FROM vehicles WHERE id = @vehicle_id:text AND user_id = @user_id:text'),
+      Sql.named('''
+SELECT id
+FROM vehicles
+WHERE id = @vehicle_id:text AND user_id = @user_id:text
+'''),
       parameters: {'vehicle_id': vehicleId, 'user_id': userId},
     );
     if (vehicleExists.isEmpty) {
@@ -50,7 +54,11 @@ VALUES (@id:text, @vehicle_id:text, @name:text, @interval_miles:int4, @interval_
     required String userId,
   }) async {
     final vehicleExists = await connection.execute(
-      Sql.named('SELECT id FROM vehicles WHERE id = @vehicle_id:text AND user_id = @user_id:text'),
+      Sql.named('''
+SELECT id
+FROM vehicles
+WHERE id = @vehicle_id:text AND user_id = @user_id:text
+'''),
       parameters: {'vehicle_id': vehicleId, 'user_id': userId},
     );
     if (vehicleExists.isEmpty) {
