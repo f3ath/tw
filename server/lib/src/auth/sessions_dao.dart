@@ -103,13 +103,11 @@ RETURNING id
 }
 
 String _newSessionKey() {
-  const sessionKeyChars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+  const charset = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+  const length = 64;
 
   return String.fromCharCodes(
-    List<int>.generate(
-      64,
-      (_) => sessionKeyChars.codeUnitAt(Random.secure().nextInt(sessionKeyChars.length)),
-    ),
+    List<int>.generate(length, (_) => charset.codeUnitAt(Random.secure().nextInt(charset.length))),
   );
 }
 

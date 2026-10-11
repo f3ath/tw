@@ -10,33 +10,31 @@ class SchedulesController(final SchedulesDAO _schedulesDAO) extends BaseControll
   @override
   Future<Response> fetchCollection(Request request, Target target) async {
     final vehicleId = request.uri.queryParameters['vehicle_id'];
-    if (vehicleId == null) {
-      return notFound();
-    }
+    if (vehicleId == null) return notFound();
+
     final schedules = await _schedulesDAO.fetchByVehicleIdAndUserId(
       vehicleId: vehicleId,
       userId: Context(request).userId,
     );
-    if (schedules == null) {
-      return notFound();
-    }
+    if (schedules == null) return notFound();
+
     return ok(OutboundDataDocument.collection(schedules.map((it) => _resource(target, it))));
   }
 
   @override
   Future<Response> createResource(Request request, Target target) async {
     final resource = await request.document().then((it) => it.dataAsNewResource());
+    final attributes = resource.attributes;
     final schedule = await _schedulesDAO.create(
-      vehicleId: resource.attributes['vehicle_id'] as String,
+      vehicleId: attributes['vehicle_id'] as String,
       userId: Context(request).userId,
-      name: resource.attributes['name'] as String,
-      intervalMiles: resource.attributes['interval_miles'] as int,
-      intervalMonths: resource.attributes['interval_months'] as int,
-      details: resource.attributes['details'] as String,
+      name: attributes['name'] as String,
+      intervalMiles: attributes['interval_miles'] as int,
+      intervalMonths: attributes['interval_months'] as int,
+      details: attributes['details'] as String,
     );
-    if (schedule == null) {
-      return notFound();
-    }
+    if (schedule == null) return notFound();
+
     return created(
       OutboundDataDocument.resource(_resource(target, schedule)),
       '/${target.type}/${schedule.id}',
@@ -46,18 +44,18 @@ class SchedulesController(final SchedulesDAO _schedulesDAO) extends BaseControll
   @override
   Future<Response> updateResource(Request request, ResourceTarget target) async {
     final resource = await request.resource();
+    final attributes = resource.attributes;
     final schedule = await _schedulesDAO.update(
       id: target.id,
-      vehicleId: resource.attributes['vehicle_id'] as String,
+      vehicleId: attributes['vehicle_id'] as String,
       userId: Context(request).userId,
-      name: resource.attributes['name'] as String?,
-      intervalMiles: resource.attributes['interval_miles'] as int?,
-      intervalMonths: resource.attributes['interval_months'] as int?,
-      details: resource.attributes['details'] as String?,
+      name: attributes['name'] as String?,
+      intervalMiles: attributes['interval_miles'] as int?,
+      intervalMonths: attributes['interval_months'] as int?,
+      details: attributes['details'] as String?,
     );
-    if (schedule == null) {
-      return notFound();
-    }
+    if (schedule == null) return notFound();
+
     return ok(OutboundDataDocument.resource(_resource(target, schedule)));
   }
 
@@ -70,8 +68,10 @@ class SchedulesController(final SchedulesDAO _schedulesDAO) extends BaseControll
   }
 
   Resource _resource(Target target, ScheduleRecord schedule) => Resource(target.type, schedule.id)
-    ..attributes['name'] = schedule.name
-    ..attributes['interval_miles'] = schedule.intervalMiles
-    ..attributes['interval_months'] = schedule.intervalMonths
-    ..attributes['details'] = schedule.details;
+    ..attributes.addAll({
+      'name': schedule.name,
+      'interval_miles': schedule.intervalMiles,
+      'interval_months': schedule.intervalMonths,
+      'details': schedule.details,
+    });
 }

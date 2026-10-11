@@ -20,9 +20,7 @@ WHERE id = @vehicle_id:text AND user_id = @user_id:text
 '''),
       parameters: {'vehicle_id': vehicleId, 'user_id': userId},
     );
-    if (vehicleExists.isEmpty) {
-      return null;
-    }
+    if (vehicleExists.isEmpty) return null;
 
     final schedule = ScheduleRecord(
       id: _uuid.v4(),

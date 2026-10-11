@@ -8,10 +8,10 @@ Future<ProcessSignal> firstProcessSignal(Iterable<ProcessSignal> signals) {
 
   for (final signal in signals) {
     subscriptions.add(
-      signal.watch().listen((signal) {
+      signal.watch().listen((it) {
         if (completer.isCompleted) return;
-        completer.complete(signal);
-        for (final s in subscriptions) s.cancel();
+        completer.complete(it);
+        for (final sub in subscriptions) sub.cancel();
       }),
     );
   }

@@ -54,7 +54,7 @@ class LogRecord(
   final DateTime? time,
   final Object? error,
   final StackTrace? stackTrace,
-}) {}
+});
 
 class InMemoryLog() implements Log {
   final records = <LogRecord>[];
@@ -66,7 +66,5 @@ class InMemoryLog() implements Log {
     DateTime? time,
     Object? error,
     StackTrace? stackTrace,
-  }) {
-    records.add(LogRecord(level, message, time: time, error: error, stackTrace: stackTrace));
-  }
+  }) => records.add(LogRecord(level, message, time: time, error: error, stackTrace: stackTrace));
 }
