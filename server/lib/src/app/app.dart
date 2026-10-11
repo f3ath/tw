@@ -3,28 +3,41 @@ import 'package:http_interop_middleware/http_interop_middleware.dart';
 import 'package:json_api/routing.dart';
 import 'package:json_api/server.dart';
 import 'package:postgres/postgres.dart';
-import 'package:tw_server/src/application/app_config.dart';
+import 'package:tw_server/src/app/app_config.dart';
 import 'package:tw_server/src/auth/google/google_oauth.dart';
 import 'package:tw_server/src/auth/google/google_oauth_controller.dart';
 import 'package:tw_server/src/auth/sessions_controller.dart';
 import 'package:tw_server/src/auth/sessions_dao.dart';
 import 'package:tw_server/src/auth/users_dao.dart';
 import 'package:tw_server/src/db/apply_migrations.dart';
+import 'package:tw_server/src/db/connection_from_config.dart';
 import 'package:tw_server/src/http/context.dart';
 import 'package:tw_server/src/http/responses.dart';
 import 'package:tw_server/src/http/routing_handler.dart';
 import 'package:tw_server/src/log/log.dart';
-import 'package:tw_server/src/vehicles/vehicles_controller.dart';
-import 'package:tw_server/src/vehicles/vehicles_dao.dart';
 import 'package:tw_server/src/schedules/schedules_controller.dart';
 import 'package:tw_server/src/schedules/schedules_dao.dart';
+import 'package:tw_server/src/vehicles/vehicles_controller.dart';
+import 'package:tw_server/src/vehicles/vehicles_dao.dart';
 
-class App({
-  required final AppConfig _config,
+class App(
+  final AppConfig _config, {
   GoogleOAuth? googleOAuth,
   final Handler _defaultHandler = plainNotFound,
   final Log _log = const NoLog(),
 }) {
+  static const _googleOAuthCallbackPath = '/auth/google/callback';
+  final _routes = <(RouteMatcher, Handler)>[];
+  final GoogleOAuth _googleOAuth =
+      googleOAuth ??
+      GoogleOAuthClient(
+        clientId: _config.googleOAuthClientId,
+        clientSecret: _config.googleOAuthClientSecret,
+        redirectUri: _config.baseUri.replace(path: _googleOAuthCallbackPath).toString(),
+      );
+  late final Handler _handler;
+  var _isReady = false;
+
   this {
     _routes.addAll([
       (
@@ -33,6 +46,7 @@ class App({
       ),
       ((rq) => rq.uri.path == '/k8s/liveness', (_) async => Response(200, Body(), Headers())),
     ]);
+
     final loggingMiddleware = middleware(
       onRequest: (rq) async {
         _log.debug('Rq: ${rq.method} ${rq.uri} ${rq.headers}');
@@ -46,30 +60,8 @@ class App({
     _handler = loggingMiddleware(routingHandler(_routes, _defaultHandler));
   }
 
-  static const _googleOAuthCallbackPath = '/auth/google/callback';
-
-  final _routes = <(RouteMatcher, Handler)>[];
-  final GoogleOAuth _googleOAuth =
-      googleOAuth ??
-      GoogleOAuthClient(
-        clientId: _config.googleOAuthClientId,
-        clientSecret: _config.googleOAuthClientSecret,
-        redirectUri: _config.baseUri.replace(path: _googleOAuthCallbackPath).toString(),
-      );
-  late final Handler _handler;
-  var _isReady = false;
-
   Future<void> start() async {
-    final db = await Connection.open(
-      Endpoint(
-        host: _config.databaseHost,
-        port: _config.databasePort,
-        database: _config.databaseName,
-        username: _config.databaseUsername,
-        password: _config.databasePassword,
-      ),
-      settings: ConnectionSettings(sslMode: SslMode.disable),
-    );
+    final db = await connectionFromConfig(_config);
     await applyMigrations(db, _log);
 
     final sessionsDAO = SessionsDAO(db);
@@ -78,25 +70,26 @@ class App({
     final schedulesDAO = SchedulesDAO(db);
     final googleOAuthController = GoogleOAuthController(_googleOAuth, sessionsDAO, usersDAO);
 
-    final controller = MappingController();
-    controller.map['sessions'] = SessionsController(_googleOAuth, sessionsDAO);
-    controller.map['vehicles'] = VehiclesController(vehiclesDAO);
-    controller.map['schedules'] = SchedulesController(schedulesDAO);
+    final controller = MappingController()
+      ..map.addAll({
+        'sessions': SessionsController(_googleOAuth, sessionsDAO),
+        'vehicles': VehiclesController(vehiclesDAO),
+        'schedules': SchedulesController(schedulesDAO),
+      });
 
-    Future<String?> getCallerUserId(Request rq) async {
+    Future<SessionRecord?> getCallerUserId(Request rq) async {
       final sessionId = rq.headers['Authorization']?.firstOrNull;
       if (sessionId != null) {
         final bearer = sessionId.startsWith('Bearer ') ? sessionId.substring(7) : null;
         if (bearer != null) {
-          final session = await sessionsDAO.fetchBySessionKey(bearer);
-          return session?.userId;
+          return await sessionsDAO.fetchBySessionKey(bearer);
         }
       }
       return null;
     }
 
     Handler authenticationMiddleware(Handler inner) => (rq) async {
-      final userId = await getCallerUserId(rq);
+      final userId = (await getCallerUserId(rq))?.userId;
       if (userId != null) {
         Context(rq).userId = userId;
       }
@@ -114,7 +107,6 @@ class App({
 
     _routes.addAll([
       ((rq) => rq.uri.path.startsWith(_config.baseUri.path), jsonApiHandler),
-      ((rq) => rq.uri.path == '/auth', googleOAuthController.start),
       ((rq) => rq.uri.path == _googleOAuthCallbackPath, googleOAuthController.callback),
     ]);
     _isReady = true;

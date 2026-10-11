@@ -1,6 +1,6 @@
 import 'package:http_interop/http_interop.dart';
 import 'package:test/test.dart';
-import 'package:tw_server/src/application/app.dart';
+import 'package:tw_server/src/app/app.dart';
 
 import 'harness.dart';
 
@@ -11,7 +11,7 @@ Future<void> main() async {
     });
 
     test('liveness and readiness probes reflect application startup', () async {
-      final app = App(config: testConfig, googleOAuth: TestGoogleOAuth());
+      final app = App(testConfig, googleOAuth: TestGoogleOAuth());
 
       await app(get('/k8s/liveness')).then((r) {
         expect(r.statusCode, 200);

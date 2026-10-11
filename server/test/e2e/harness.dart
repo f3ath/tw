@@ -3,11 +3,12 @@ import 'package:http_interop/http_interop.dart';
 import 'package:http_interop_http/http_interop_http.dart';
 import 'package:json_api/routing.dart';
 import 'package:postgres/postgres.dart';
-import 'package:tw_server/tw_server.dart';
-import 'package:tw_server/src/application/app_config.dart';
-import 'package:tw_server/src/application/app.dart';
+import 'package:tw_server/src/app/app.dart';
+import 'package:tw_server/src/app/app_config.dart';
 import 'package:tw_server/src/auth/google/google_oauth.dart';
+import 'package:tw_server/src/db/connection_from_config.dart';
 import 'package:tw_server/src/http/http_server_harness.dart';
+import 'package:tw_server/tw_server.dart';
 
 final testConfig = AppConfig(
   baseUri: Uri(path: '/api/v0'),
@@ -21,7 +22,7 @@ final testConfig = AppConfig(
 );
 
 Future<Handler> testApplicationHandler(AppConfig config, GoogleOAuth googleOAuth) async {
-  final app = App(config: config, googleOAuth: googleOAuth);
+  final app = App(config, googleOAuth: googleOAuth);
   await app.start();
   return app.call;
 }
@@ -29,7 +30,7 @@ Future<Handler> testApplicationHandler(AppConfig config, GoogleOAuth googleOAuth
 Future<TestApplication> startTestApplication() async {
   await resetDatabaseSchema(testConfig);
   final googleOAuth = TestGoogleOAuth();
-  final app = App(config: testConfig, googleOAuth: googleOAuth);
+  final app = App(testConfig, googleOAuth: googleOAuth);
   await app.start();
 
   final server = HttpServerHarness();
@@ -95,16 +96,7 @@ Future<T> withTestDatabase<T>(
   AppConfig config,
   Future<T> Function(Connection connection) callback,
 ) async {
-  final connection = await Connection.open(
-    Endpoint(
-      host: config.databaseHost,
-      port: config.databasePort,
-      database: config.databaseName,
-      username: config.databaseUsername,
-      password: config.databasePassword,
-    ),
-    settings: ConnectionSettings(sslMode: SslMode.disable),
-  );
+  final connection = await connectionFromConfig(config);
   try {
     return await callback(connection);
   } finally {
@@ -115,6 +107,7 @@ Future<T> withTestDatabase<T>(
 class TestGoogleOAuth({var String email = 'user@example.com', var String name = 'Test User'})
     implements GoogleOAuth {
   Uri? _authorizationUri;
+
   Uri get authorizationUri => _authorizationUri!;
   final states = <String>[];
   Map<String, String>? queryParameters;

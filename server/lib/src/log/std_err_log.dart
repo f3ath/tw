@@ -3,9 +3,7 @@ import 'dart:io';
 import 'package:tw_server/src/log/log.dart';
 
 class StdErrLog({final LogLevel minLevel = LogLevel.trace, StringSink? sink}) implements Log {
-  this : _sink = sink ?? stderr;
-
-  final StringSink _sink;
+  final StringSink _sink = sink ?? stderr;
 
   @override
   void log(

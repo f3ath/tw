@@ -1,8 +1,8 @@
 import 'dart:io';
 
 import 'package:dotenv/dotenv.dart';
-import 'package:tw_server/src/application/app_config.dart';
-import 'package:tw_server/src/application/app.dart';
+import 'package:tw_server/src/app/app_config.dart';
+import 'package:tw_server/src/app/app.dart';
 import 'package:tw_server/src/http/http_server_harness.dart';
 import 'package:tw_server/src/io/process_signal.dart';
 import 'package:tw_server/src/log/log.dart';
@@ -22,9 +22,10 @@ Future<void> main(List<String> args) async {
     databaseUsername: 'tw',
     databasePassword: 'tw',
   );
+  print(config.googleOAuthClientId);
 
   final server = HttpServerHarness();
-  final app = App(config: config, log: log);
+  final app = App(config, log: log);
   log.info("Starting server...");
   await server.start(app.call);
   log.info('Starting application...');
