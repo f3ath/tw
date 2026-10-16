@@ -32,7 +32,7 @@ Future<void> main() async {
     setUp(() async {
       app = await startTestApplication();
       client = app.client;
-      jsonApi = RoutingClient(app.urlDesign, Client(app.clientHandler));
+      jsonApi = RoutingClient(app.urlDesign.uri, Client(app.clientHandler));
     });
 
     tearDown(() async {

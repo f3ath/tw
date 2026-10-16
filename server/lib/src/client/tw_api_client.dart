@@ -1,12 +1,11 @@
 import 'package:http_interop/http_interop.dart';
 import 'package:json_api/client.dart';
 import 'package:json_api/document.dart';
-import 'package:json_api/query.dart';
 import 'package:json_api/routing.dart';
 
 class TwApiClient(UriDesign urlDesign, Handler handler) {
   this {
-    _jsonApi = RoutingClient(urlDesign, Client(_authenticated(handler)));
+    _jsonApi = RoutingClient(urlDesign.uri, Client(_authenticated(handler)));
   }
 
   late final RoutingClient _jsonApi;
@@ -50,14 +49,8 @@ class TwApiClient(UriDesign urlDesign, Handler handler) {
     await _jsonApi.deleteResource('vehicles', id);
   }
 
-  Future<List<Resource>> listSchedules(String vehicleId) async => (await _jsonApi.fetchCollection(
-    'schedules',
-    query: [
-      Query({
-        'vehicle_id': [vehicleId],
-      }),
-    ],
-  )).collection;
+  Future<List<Resource>> listSchedules(String vehicleId) async =>
+      (await _jsonApi.fetchRelatedCollection('vehicles', vehicleId, 'schedule')).collection;
 
   Future<Resource> createSchedule(
     String vehicleId, {
@@ -68,8 +61,8 @@ class TwApiClient(UriDesign urlDesign, Handler handler) {
   }) async {
     final response = await _jsonApi.createNew(
       'schedules',
+      one: {'vehicle': Identifier('vehicles', vehicleId)},
       attributes: {
-        'vehicle_id': vehicleId,
         'name': name,
         'interval_miles': intervalMiles,
         'interval_months': intervalMonths,
@@ -87,20 +80,17 @@ class TwApiClient(UriDesign urlDesign, Handler handler) {
     int? intervalMonths,
     String? details,
   }) async {
-    final attributes = <String, Object?>{'vehicle_id': vehicleId};
-    if (name != null) {
-      attributes['name'] = name;
-    }
-    if (intervalMiles != null) {
-      attributes['interval_miles'] = intervalMiles;
-    }
-    if (intervalMonths != null) {
-      attributes['interval_months'] = intervalMonths;
-    }
-    if (details != null) {
-      attributes['details'] = details;
-    }
-    final response = await _jsonApi.updateResource('schedules', scheduleId, attributes: attributes);
+    final response = await _jsonApi.updateResource(
+      'schedules',
+      scheduleId,
+      one: {'vehicle': Identifier('vehicles', vehicleId)},
+      attributes: <String, Object?>{
+        'name': ?name,
+        'interval_miles': ?intervalMiles,
+        'interval_months': ?intervalMonths,
+        'details': ?details,
+      },
+    );
     return response.resource;
   }
 

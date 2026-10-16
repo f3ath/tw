@@ -69,12 +69,11 @@ class App(
     final schedulesDAO = SchedulesDAO(db);
     final googleOAuthController = GoogleOAuthController(_googleOAuth, sessionsDAO, usersDAO);
 
-    final controller = MappingController()
-      ..map.addAll({
-        'sessions': SessionsController(_googleOAuth, sessionsDAO),
-        'vehicles': VehiclesController(vehiclesDAO),
-        'schedules': SchedulesController(schedulesDAO),
-      });
+    final controllers = <String, Controller>{
+      'sessions': SessionsController(_googleOAuth, sessionsDAO),
+      'vehicles': VehiclesController(vehiclesDAO, schedulesDAO),
+      'schedules': SchedulesController(schedulesDAO),
+    };
 
     Future<SessionRecord?> getCallerUserId(Request rq) async {
       const prefix = 'Bearer ';
@@ -102,7 +101,7 @@ class App(
     };
 
     final jsonApiHandler = authenticationMiddleware(
-      router(controller, StandardUriDesign(_config.baseUri).matchTarget),
+      router((type) => controllers[type], StandardUriDesign(_config.baseUri).target),
     );
 
     _routes.addAll([

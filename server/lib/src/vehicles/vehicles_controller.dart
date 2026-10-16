@@ -3,10 +3,16 @@ import 'package:json_api/document.dart';
 import 'package:json_api/routing.dart';
 import 'package:json_api/server.dart';
 import 'package:tw_server/src/http/context.dart';
-import 'package:tw_server/src/json_api/request_ext.dart';
+import 'package:tw_server/src/json_api/base_controller.dart';
+import 'package:tw_server/src/schedules/schedule_resource.dart';
+import 'package:tw_server/src/schedules/schedules_dao.dart';
 import 'package:tw_server/src/vehicles/vehicles_dao.dart';
+import 'package:uuid/uuid.dart';
 
-class VehiclesController(final VehiclesDAO _vehiclesDAO) extends BaseController {
+class VehiclesController(final VehiclesDAO _vehiclesDAO, final SchedulesDAO _schedulesDAO)
+    extends BaseController {
+  static const _uuid = Uuid();
+
   @override
   Future<Response> fetchCollection(Request request, Target target) async {
     final userId = Context(request).userId;
@@ -15,10 +21,11 @@ class VehiclesController(final VehiclesDAO _vehiclesDAO) extends BaseController 
   }
 
   @override
-  Future<Response> createResource(Request request, Target target) async {
+  Future<Response> createResource(Request request, Target target, NewResource newResource) async {
     final userId = Context(request).userId;
-    final resource = await request.document().then((it) => it.dataAsNewResource());
+    final resource = newResource;
     final vehicle = await _vehiclesDAO.create(
+      id: _uuid.v4(),
       name: resource.attributes['name'] as String,
       userId: userId,
       manufactureDate: DateTime.parse(resource.attributes['manufacture_date'] as String),
@@ -40,9 +47,8 @@ class VehiclesController(final VehiclesDAO _vehiclesDAO) extends BaseController 
   }
 
   @override
-  Future<Response> updateResource(Request request, ResourceTarget target) async {
+  Future<Response> updateResource(Request request, ResourceTarget target, Resource resource) async {
     final userId = Context(request).userId;
-    final resource = await request.resource();
     final manufactureDate = resource.attributes.containsKey('manufacture_date')
         ? DateTime.parse(resource.attributes['manufacture_date'] as String)
         : null;
@@ -65,6 +71,19 @@ class VehiclesController(final VehiclesDAO _vehiclesDAO) extends BaseController 
       return notFound();
     }
     return noContent();
+  }
+
+  @override
+  Future<Response> fetchRelated(Request request, RelatedTarget target) async {
+    if (target.relationship != 'schedule') return notFound();
+
+    final schedules = await _schedulesDAO.fetchByVehicleIdAndUserId(
+      vehicleId: target.id,
+      userId: Context(request).userId,
+    );
+    if (schedules == null) return notFound();
+
+    return ok(OutboundDataDocument.collection(schedules.map(ScheduleResource.new)));
   }
 
   Resource _resource(Target target, VehicleRecord vehicle) => Resource(target.type, vehicle.id)

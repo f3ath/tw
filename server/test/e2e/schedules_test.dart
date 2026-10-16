@@ -80,9 +80,12 @@ Use 0W-20 synthetic oil.
 - Replace drain plug washer
 - Reset maintenance minder''',
       });
+      expect(created.relationships['vehicle']!.single.type, 'vehicles');
+      expect(created.relationships['vehicle']!.single.id, vehicle.id);
 
       final listed = await client.listSchedules(vehicle.id);
       expect(listed.map((r) => r.id), [created.id]);
+      expect(listed.single.relationships['vehicle']!.single.id, vehicle.id);
 
       final updated = await client.updateSchedule(
         vehicle.id,
@@ -99,6 +102,7 @@ Use 0W-20 synthetic oil.
         'interval_months': 12,
         'details': 'Replace oil, filter, and drain plug washer.',
       });
+      expect(updated.relationships['vehicle']!.single.id, vehicle.id);
 
       await client.deleteSchedule(created.id);
 

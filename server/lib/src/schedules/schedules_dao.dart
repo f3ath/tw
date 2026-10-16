@@ -1,10 +1,8 @@
 import 'package:postgres/postgres.dart';
-import 'package:uuid/uuid.dart';
 
 class SchedulesDAO(final Connection connection) {
-  static const _uuid = Uuid();
-
   Future<ScheduleRecord?> create({
+    required String id,
     required String vehicleId,
     required String userId,
     required String name,
@@ -23,7 +21,7 @@ WHERE id = @vehicle_id:text AND user_id = @user_id:text
     if (vehicleExists.isEmpty) return null;
 
     final schedule = ScheduleRecord(
-      id: _uuid.v4(),
+      id: id,
       vehicleId: vehicleId,
       name: name,
       intervalMiles: intervalMiles,
@@ -64,6 +62,20 @@ WHERE vehicle_id = @vehicle_id:text
 ORDER BY created_at
 '''),
       parameters: {'vehicle_id': vehicleId},
+    );
+    return rows.map((row) => ScheduleRecord.fromMap(row.toColumnMap())).toList();
+  }
+
+  Future<List<ScheduleRecord>> fetchByUserId(String userId) async {
+    final rows = await connection.execute(
+      Sql.named('''
+SELECT schedules.id, vehicle_id, schedules.name, interval_miles, interval_months, details
+FROM schedules
+INNER JOIN vehicles ON vehicles.id = schedules.vehicle_id
+WHERE vehicles.user_id = @user_id:text
+ORDER BY schedules.created_at
+'''),
+      parameters: {'user_id': userId},
     );
     return rows.map((row) => ScheduleRecord.fromMap(row.toColumnMap())).toList();
   }

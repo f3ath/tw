@@ -1,16 +1,14 @@
 import 'package:postgres/postgres.dart';
-import 'package:uuid/uuid.dart';
 
 class VehiclesDAO(final Connection connection) {
-  static const _uuid = Uuid();
-
   Future<VehicleRecord> create({
+    required String id,
     required String name,
     required String userId,
     required DateTime manufactureDate,
   }) async {
     final vehicle = VehicleRecord(
-      id: _uuid.v4(),
+      id: id,
       name: name,
       userId: userId,
       manufactureDate: manufactureDate,

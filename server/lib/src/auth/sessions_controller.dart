@@ -5,6 +5,7 @@ import 'package:json_api/server.dart';
 import 'package:tw_server/src/auth/google/google_oauth.dart';
 import 'package:tw_server/src/auth/sessions_dao.dart';
 import 'package:tw_server/src/http/context.dart';
+import 'package:tw_server/src/json_api/base_controller.dart';
 
 class SessionsController(final GoogleOAuth _googleOAuth, final SessionsDAO _sessionsDAO)
     extends BaseController {
@@ -17,7 +18,11 @@ class SessionsController(final GoogleOAuth _googleOAuth, final SessionsDAO _sess
   }
 
   @override
-  Future<Response> createResource(Request request, Target target) async {
+  Future<Response> createResource(
+    Request request,
+    CollectionTarget target,
+    NewResource newResource,
+  ) async {
     final session = await _sessionsDAO.create();
     final uri = _googleOAuth.startAuthorization(session.nonce!);
     return created(
