@@ -87,21 +87,24 @@ class App(
       return null;
     }
 
+    final UriDesign uriDesign = StandardUriDesign(_config.baseUri);
+
     Handler authenticationMiddleware(Handler inner) => (rq) async {
       final userId = (await getCallerUserId(rq))?.userId;
       if (userId != null) {
         Context(rq).userId = userId;
       }
 
+      final target = uriDesign.target(rq.uri);
       if (userId != null ||
-          (rq.uri.path == '${_config.baseUri.path}/sessions' && rq.method == 'post')) {
+          (rq.method == 'post' && target is CollectionTarget && target.type == 'sessions')) {
         return await inner(rq);
       }
       return unauthorized();
     };
 
     final jsonApiHandler = authenticationMiddleware(
-      router((type) => controllers[type], StandardUriDesign(_config.baseUri).target),
+      router((type) => controllers[type], uriDesign.target),
     );
 
     _routes.addAll([
