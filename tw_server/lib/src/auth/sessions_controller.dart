@@ -7,8 +7,11 @@ import 'package:tw_server/src/auth/request_ext.dart';
 import 'package:tw_server/src/auth/sessions_dao.dart';
 import 'package:tw_server/src/json_api/base_controller.dart';
 
-class SessionsController(final GoogleOAuth _googleOAuth, final SessionsDAO _sessionsDAO)
-    extends BaseController {
+class SessionsController(
+  final GoogleOAuth _googleOAuth,
+  final SessionsDAO _sessionsDAO,
+  final UriBuilder _uriFor,
+) extends BaseController {
   @override
   Future<Response> fetchCollection(Request request, Target target) async {
     final sessions = await _sessionsDAO.fetchByUserId(request.userId);
@@ -31,7 +34,7 @@ class SessionsController(final GoogleOAuth _googleOAuth, final SessionsDAO _sess
           ..attributes['redirect'] = uri.toString()
           ..attributes['http_authorization_bearer'] = session.sessionKey,
       ),
-      '/${target.type}/${session.id}',
+      _uriFor(ResourceTarget(target.type, session.id)).toString(),
     );
   }
 

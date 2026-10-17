@@ -63,7 +63,7 @@ class App(
     final googleOAuthController = GoogleOAuthController(_googleOAuth, sessionsDAO, usersDAO);
 
     final controllers = <String, Controller>{
-      'sessions': SessionsController(_googleOAuth, sessionsDAO),
+      'sessions': SessionsController(_googleOAuth, sessionsDAO, uriDesign.uri),
       'vehicles': VehiclesController(vehiclesDAO, schedulesDAO),
       'schedules': SchedulesController(schedulesDAO),
     };

@@ -10,23 +10,16 @@ class AppConfig({
   required final String databaseUsername,
   required final String databasePassword,
 }) {
-  /// Loads platform variables and optional dotenv files, with later files taking precedence.
-  factory fromEnv({Iterable<String> filenames = const ['.env']}) {
-    final env = DotEnv(includePlatformEnvironment: true)..load(filenames);
-    return AppConfig(
-      baseUri: Uri.parse(env.getOrElse('BASE_URI', () => 'http://localhost:8080/api/v0')),
-      googleOAuthClientId: env.required('GOOGLE_OAUTH_CLIENT_ID'),
-      googleOAuthClientSecret: env.required('GOOGLE_OAUTH_CLIENT_SECRET'),
-      databaseHost: env.getOrElse('DATABASE_HOST', () => 'localhost'),
-      databasePort: int.parse(env.getOrElse('DATABASE_PORT', () => '5432')),
-      databaseName: env.getOrElse('DATABASE_NAME', () => 'tw_e2e'),
-      databaseUsername: env.getOrElse('DATABASE_USERNAME', () => 'tw'),
-      databasePassword: env.getOrElse('DATABASE_PASSWORD', () => 'tw'),
-    );
-  }
+  factory from(ValueReader get) => AppConfig(
+    baseUri: Uri.parse(get('BASE_URI', orElse: () => 'http://localhost:8080/api/v0')),
+    googleOAuthClientId: get('GOOGLE_OAUTH_CLIENT_ID'),
+    googleOAuthClientSecret: get('GOOGLE_OAUTH_CLIENT_SECRET'),
+    databaseHost: get('DATABASE_HOST', orElse: () => 'localhost'),
+    databasePort: int.parse(get('DATABASE_PORT', orElse: () => '5432')),
+    databaseName: get('DATABASE_NAME', orElse: () => 'tw_e2e'),
+    databaseUsername: get('DATABASE_USERNAME', orElse: () => 'tw'),
+    databasePassword: get('DATABASE_PASSWORD', orElse: () => 'tw'),
+  );
 }
 
-extension on DotEnv {
-  String required(String key) =>
-      getOrElse(key, () => throw StateError('Missing required environment variable: $key'));
-}
+typedef ValueReader = String Function(String key, {String Function()? orElse});
