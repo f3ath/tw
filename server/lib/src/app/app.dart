@@ -1,16 +1,16 @@
 import 'package:http_interop/http_interop.dart';
-import 'package:http_interop_middleware/http_interop_middleware.dart';
 import 'package:json_api/routing.dart';
 import 'package:json_api/server.dart';
 import 'package:tw_server/src/app/app_config.dart';
 import 'package:tw_server/src/auth/google/google_oauth.dart';
 import 'package:tw_server/src/auth/google/google_oauth_controller.dart';
+import 'package:tw_server/src/auth/request_ext.dart';
 import 'package:tw_server/src/auth/sessions_controller.dart';
 import 'package:tw_server/src/auth/sessions_dao.dart';
 import 'package:tw_server/src/auth/users_dao.dart';
 import 'package:tw_server/src/db/apply_migrations.dart';
 import 'package:tw_server/src/db/connection_from_config.dart';
-import 'package:tw_server/src/http/context.dart';
+import 'package:tw_server/src/http/logging_middleware.dart';
 import 'package:tw_server/src/http/responses.dart';
 import 'package:tw_server/src/http/routing_handler.dart';
 import 'package:tw_server/src/log/log.dart';
@@ -18,6 +18,7 @@ import 'package:tw_server/src/schedules/schedules_controller.dart';
 import 'package:tw_server/src/schedules/schedules_dao.dart';
 import 'package:tw_server/src/vehicles/vehicles_controller.dart';
 import 'package:tw_server/src/vehicles/vehicles_dao.dart';
+import 'package:uuid/uuid.dart';
 
 class App(
   final AppConfig _config, {
@@ -46,20 +47,12 @@ class App(
       ((rq) => rq.uri.path == '/k8s/liveness', (_) async => Response(200, Body(), Headers())),
     ]);
 
-    final loggingMiddleware = middleware(
-      onRequest: (rq) async {
-        _log.debug('Rq: ${rq.method} ${rq.uri} ${rq.headers}');
-        return null;
-      },
-      onResponse: (rs, rq) async {
-        _log.debug('Rs: ${rs.statusCode} ${rs.headers}');
-        return null;
-      },
-    );
+    final loggingMiddleware = newLoggingMiddleware(_log, const Uuid().v4);
     _handler = loggingMiddleware(routingHandler(_routes, _defaultHandler));
   }
 
   Future<void> start() async {
+    final uriDesign = StandardUriDesign(_config.baseUri);
     final db = await connectionFromConfig(_config);
     await applyMigrations(db, _log);
 
@@ -75,29 +68,24 @@ class App(
       'schedules': SchedulesController(schedulesDAO),
     };
 
-    Future<SessionRecord?> getCallerUserId(Request rq) async {
-      const prefix = 'Bearer ';
-      final sessionId = rq.headers['Authorization']?.firstOrNull;
-      if (sessionId != null) {
-        final bearer = sessionId.startsWith(prefix) ? sessionId.substring(prefix.length) : null;
-        if (bearer != null) {
-          return await sessionsDAO.fetchBySessionKey(bearer);
-        }
-      }
-      return null;
+    Future<String?> getCallerUserId(Request rq) async {
+      final session = rq.session;
+      if (session == null) return null;
+      return (await sessionsDAO.fetchBySessionKey(session))?.userId;
     }
 
-    final UriDesign uriDesign = StandardUriDesign(_config.baseUri);
+    bool isCreateSession(Request rq) {
+      final target = uriDesign.target(rq.uri);
+      return rq.method == 'post' && target is CollectionTarget && target.type == 'sessions';
+    }
 
     Handler authenticationMiddleware(Handler inner) => (rq) async {
-      final userId = (await getCallerUserId(rq))?.userId;
+      final userId = await getCallerUserId(rq);
       if (userId != null) {
-        Context(rq).userId = userId;
+        rq.userId = userId;
       }
 
-      final target = uriDesign.target(rq.uri);
-      if (userId != null ||
-          (rq.method == 'post' && target is CollectionTarget && target.type == 'sessions')) {
+      if (userId != null || isCreateSession(rq)) {
         return await inner(rq);
       }
       return unauthorized();

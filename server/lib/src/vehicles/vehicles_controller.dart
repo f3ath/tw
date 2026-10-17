@@ -2,7 +2,7 @@ import 'package:http_interop/http_interop.dart';
 import 'package:json_api/document.dart';
 import 'package:json_api/routing.dart';
 import 'package:json_api/server.dart';
-import 'package:tw_server/src/http/context.dart';
+import 'package:tw_server/src/auth/request_ext.dart';
 import 'package:tw_server/src/json_api/base_controller.dart';
 import 'package:tw_server/src/schedules/schedule_resource.dart';
 import 'package:tw_server/src/schedules/schedules_dao.dart';
@@ -15,19 +15,17 @@ class VehiclesController(final VehiclesDAO _vehiclesDAO, final SchedulesDAO _sch
 
   @override
   Future<Response> fetchCollection(Request request, Target target) async {
-    final userId = Context(request).userId;
-    final vehicles = await _vehiclesDAO.fetchByUserId(userId);
+    final vehicles = await _vehiclesDAO.fetchByUserId(request.userId);
     return ok(OutboundDataDocument.collection(vehicles.map((it) => _resource(target, it))));
   }
 
   @override
   Future<Response> createResource(Request request, Target target, NewResource newResource) async {
-    final userId = Context(request).userId;
     final resource = newResource;
     final vehicle = await _vehiclesDAO.create(
       id: _uuid.v4(),
       name: resource.attributes['name'] as String,
-      userId: userId,
+      userId: request.userId,
       manufactureDate: DateTime.parse(resource.attributes['manufacture_date'] as String),
     );
     return created(
@@ -38,8 +36,7 @@ class VehiclesController(final VehiclesDAO _vehiclesDAO, final SchedulesDAO _sch
 
   @override
   Future<Response> fetchResource(Request request, ResourceTarget target) async {
-    final userId = Context(request).userId;
-    final vehicle = await _vehiclesDAO.fetchByIdAndUserId(id: target.id, userId: userId);
+    final vehicle = await _vehiclesDAO.fetchByIdAndUserId(id: target.id, userId: request.userId);
     if (vehicle == null) {
       return notFound();
     }
@@ -48,13 +45,12 @@ class VehiclesController(final VehiclesDAO _vehiclesDAO, final SchedulesDAO _sch
 
   @override
   Future<Response> updateResource(Request request, ResourceTarget target, Resource resource) async {
-    final userId = Context(request).userId;
     final manufactureDate = resource.attributes.containsKey('manufacture_date')
         ? DateTime.parse(resource.attributes['manufacture_date'] as String)
         : null;
     final vehicle = await _vehiclesDAO.update(
       id: target.id,
-      userId: userId,
+      userId: request.userId,
       name: resource.attributes['name'] as String?,
       manufactureDate: manufactureDate,
     );
@@ -66,8 +62,7 @@ class VehiclesController(final VehiclesDAO _vehiclesDAO, final SchedulesDAO _sch
 
   @override
   Future<Response> deleteResource(Request request, ResourceTarget target) async {
-    final userId = Context(request).userId;
-    if (!await _vehiclesDAO.delete(id: target.id, userId: userId)) {
+    if (!await _vehiclesDAO.delete(id: target.id, userId: request.userId)) {
       return notFound();
     }
     return noContent();
@@ -79,7 +74,7 @@ class VehiclesController(final VehiclesDAO _vehiclesDAO, final SchedulesDAO _sch
 
     final schedules = await _schedulesDAO.fetchByVehicleIdAndUserId(
       vehicleId: target.id,
-      userId: Context(request).userId,
+      userId: request.userId,
     );
     if (schedules == null) return notFound();
 

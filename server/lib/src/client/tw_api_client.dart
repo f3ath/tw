@@ -2,6 +2,7 @@ import 'package:http_interop/http_interop.dart';
 import 'package:json_api/client.dart';
 import 'package:json_api/document.dart';
 import 'package:json_api/routing.dart';
+import 'package:tw_server/src/auth/request_ext.dart';
 
 class TwApiClient(UriDesign urlDesign, Handler handler) {
   this {
@@ -116,7 +117,7 @@ class TwApiClient(UriDesign urlDesign, Handler handler) {
   Handler _authenticated(Handler inner) => (request) {
     final bearer = _session?.attributes['http_authorization_bearer'] as String?;
     if (bearer != null) {
-      request.headers['Authorization'] = ['Bearer $bearer'];
+      request.session = bearer;
     }
     return inner(request);
   };

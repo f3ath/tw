@@ -2,7 +2,7 @@ import 'package:http_interop/http_interop.dart';
 import 'package:json_api/document.dart';
 import 'package:json_api/routing.dart';
 import 'package:json_api/server.dart';
-import 'package:tw_server/src/http/context.dart';
+import 'package:tw_server/src/auth/request_ext.dart';
 import 'package:tw_server/src/json_api/base_controller.dart';
 import 'package:tw_server/src/schedules/schedule_resource.dart';
 import 'package:tw_server/src/schedules/schedules_dao.dart';
@@ -14,7 +14,7 @@ class SchedulesController(final SchedulesDAO _schedulesDAO) extends BaseControll
   @override
   Future<Response> fetchCollection(Request request, CollectionTarget target) async => ok(
     OutboundDataDocument.collection(
-      (await _schedulesDAO.fetchByUserId(Context(request).userId)).map(ScheduleResource.new),
+      (await _schedulesDAO.fetchByUserId(request.userId)).map(ScheduleResource.new),
     ),
   );
 
@@ -30,7 +30,7 @@ class SchedulesController(final SchedulesDAO _schedulesDAO) extends BaseControll
     final schedule = await _schedulesDAO.create(
       id: _uuid.v4(),
       vehicleId: vehicle.single.id!,
-      userId: Context(request).userId,
+      userId: request.userId,
       name: attributes['name'] as String,
       intervalMiles: attributes['interval_miles'] as int,
       intervalMonths: attributes['interval_months'] as int,
@@ -51,7 +51,7 @@ class SchedulesController(final SchedulesDAO _schedulesDAO) extends BaseControll
     final schedule = await _schedulesDAO.update(
       id: target.id,
       vehicleId: vehicle!.single.id,
-      userId: Context(request).userId,
+      userId: request.userId,
       name: attributes['name'] as String?,
       intervalMiles: attributes['interval_miles'] as int?,
       intervalMonths: attributes['interval_months'] as int?,
@@ -64,7 +64,7 @@ class SchedulesController(final SchedulesDAO _schedulesDAO) extends BaseControll
 
   @override
   Future<Response> deleteResource(Request request, ResourceTarget target) async {
-    if (!await _schedulesDAO.delete(id: target.id, userId: Context(request).userId)) {
+    if (!await _schedulesDAO.delete(id: target.id, userId: request.userId)) {
       return notFound();
     }
     return noContent();

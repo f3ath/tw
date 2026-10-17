@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:http/http.dart' as http;
 import 'package:http_interop/http_interop.dart';
 import 'package:http_interop_http/http_interop_http.dart';
@@ -8,6 +10,7 @@ import 'package:tw_server/src/app/app_config.dart';
 import 'package:tw_server/src/auth/google/google_oauth.dart';
 import 'package:tw_server/src/db/connection_from_config.dart';
 import 'package:tw_server/src/http/http_server_harness.dart';
+import 'package:tw_server/src/log/sink_log.dart';
 import 'package:tw_server/tw_server.dart';
 
 final testConfig = AppConfig(
@@ -21,16 +24,10 @@ final testConfig = AppConfig(
   databasePassword: 'tw',
 );
 
-Future<Handler> testApplicationHandler(AppConfig config, GoogleOAuth googleOAuth) async {
-  final app = App(config, googleOAuth: googleOAuth);
-  await app.start();
-  return app.call;
-}
-
 Future<TestApplication> startTestApplication() async {
   await resetDatabaseSchema(testConfig);
   final googleOAuth = TestGoogleOAuth();
-  final app = App(testConfig, googleOAuth: googleOAuth);
+  final app = App(testConfig, googleOAuth: googleOAuth, log: SinkLog(stderr));
   await app.start();
 
   final server = HttpServerHarness();
