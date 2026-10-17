@@ -13,7 +13,7 @@ dependencies:
       url: https://github.com/f3ath/json-api-dart
       ref: v9
   tw_server:
-    path: ../server
+    path: ../tw_server
 
 dev_dependencies:
   lints: ^6.0.0
