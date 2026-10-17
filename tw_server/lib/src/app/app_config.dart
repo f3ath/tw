@@ -1,4 +1,4 @@
-import 'package:dotenv/dotenv.dart';
+
 
 class AppConfig({
   required final Uri baseUri,
