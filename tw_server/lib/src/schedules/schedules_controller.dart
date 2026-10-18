@@ -13,11 +13,10 @@ class SchedulesController(final SchedulesTDAOProvider _ownedSchedules, final Uri
   static const _uuid = Uuid();
 
   @override
-  Future<Response> fetchCollection(Request request, CollectionTarget target) async => ok(
-    OutboundDataDocument.collection(
-      (await _ownedSchedules(request.userId).fetchAll()).map(ScheduleResource.new),
-    ),
-  );
+  Future<Response> fetchCollection(Request request, CollectionTarget target) async {
+    final all = await _ownedSchedules(request.userId).fetchAll();
+    return ok(OutboundDataDocument.collection(all.map(ScheduleResource.new)));
+  }
 
   @override
   Future<Response> createResource(
