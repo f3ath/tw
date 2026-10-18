@@ -18,7 +18,7 @@ class Database(final Connection _connection) {
   });
 }
 
-class ScopedDatabase(final String _userId, super.connection) extends Database {
+class ScopedDatabase(final String _tenantId, super.connection) extends Database {
   @override
   Future<Result> execute(
     Object query, {
@@ -27,9 +27,10 @@ class ScopedDatabase(final String _userId, super.connection) extends Database {
     QueryMode? queryMode,
     Duration? timeout,
   }) => _connection.runTx((session) async {
-    // await session.execute(
-    //   Sql.named("SELECT set_config('tw.tenant_id', @id:text,true)"),
-    // );
+    await session.execute(
+      Sql.named("SELECT set_config('tw.tenant_id', @tenant_id::uuid::text, true);"),
+      parameters: {'tenant_id': _tenantId},
+    );
     return await session.execute(
       query,
       parameters: parameters,

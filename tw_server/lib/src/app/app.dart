@@ -94,7 +94,7 @@ class App(
       final sessionsDAO = SessionsDAO(db, clock: _clock);
       final usersDAO = UsersDAO(db, clock: _clock);
       VehiclesTDAO vehiclesDAOProvider(String ownerId) =>
-          VehiclesTDAO(ScopedDatabase(ownerId, tenantConnection), ownerId, clock: _clock);
+          VehiclesTDAO(ScopedDatabase(ownerId, tenantConnection), clock: _clock);
       SchedulesTDAO schedulesDAOProvider(String ownerId) =>
           SchedulesTDAO(ScopedDatabase(ownerId, tenantConnection), ownerId, clock: _clock);
       final googleOAuthController = GoogleOAuthController(_googleOAuth, sessionsDAO, usersDAO);

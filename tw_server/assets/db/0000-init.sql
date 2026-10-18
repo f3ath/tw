@@ -1,3 +1,5 @@
+GRANT USAGE ON SCHEMA public TO tw_tenant;
+
 CREATE TABLE users
 (
     id         UUID PRIMARY KEY,
@@ -7,30 +9,52 @@ CREATE TABLE users
     updated_at timestamp   NOT NULL
 );
 
+GRANT SELECT, INSERT, UPDATE
+ON TABLE public.users
+TO tw_tenant;
+
 CREATE TABLE sessions
 (
     id          UUID PRIMARY KEY,
     session_key text UNIQUE NOT NULL,
     nonce       text UNIQUE,
-    user_id    UUID REFERENCES users (id) ON DELETE CASCADE,
+    user_id     UUID REFERENCES users (id) ON DELETE CASCADE,
     created_at  timestamp   NOT NULL,
     updated_at  timestamp   NOT NULL
 );
+
+GRANT SELECT, INSERT, UPDATE, DELETE
+ON TABLE public.sessions
+TO tw_tenant;
 
 CREATE TABLE vehicles
 (
     id               UUID PRIMARY KEY,
     name             text      NOT NULL,
-    owner_id         UUID      NOT NULL REFERENCES users (id) ON DELETE CASCADE,
+    owner_id         UUID      NOT NULL DEFAULT current_setting('tw.tenant_id')::uuid REFERENCES users (id) ON DELETE CASCADE,
     manufacture_date date      NOT NULL,
     created_at       timestamp NOT NULL,
     updated_at       timestamp NOT NULL,
     UNIQUE (owner_id, id)
 );
 
--- ALTER TABLE vehicles ENABLE ROW LEVEL SECURITY;
+GRANT SELECT, INSERT, UPDATE, DELETE
+ON TABLE public.vehicles
+TO tw_tenant;
 
--- ALTER TABLE vehicles FORCE ROW LEVEL SECURITY;
+ALTER TABLE vehicles
+    ENABLE ROW LEVEL SECURITY;
+
+ALTER TABLE vehicles
+    FORCE ROW LEVEL SECURITY;
+
+CREATE
+    POLICY owner_access
+    ON vehicles
+    FOR ALL
+    TO tw_tenant
+    USING (owner_id = current_setting('tw.tenant_id')::uuid)
+    WITH CHECK (owner_id = current_setting('tw.tenant_id')::uuid);
 
 CREATE TABLE schedules
 (
@@ -47,14 +71,6 @@ CREATE TABLE schedules
     FOREIGN KEY (owner_id, vehicle_id) REFERENCES vehicles (owner_id, id)
 );
 
--- ALTER TABLE schedules ENABLE ROW LEVEL SECURITY;
-
--- ALTER TABLE schedules FORCE ROW LEVEL SECURITY;
-
-GRANT USAGE
-ON SCHEMA public
-TO tw_tenant;
-
 GRANT SELECT, INSERT, UPDATE, DELETE
-ON ALL TABLES IN SCHEMA public
+ON TABLE public.schedules
 TO tw_tenant;
