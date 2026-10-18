@@ -1,5 +1,3 @@
-
-
 class AppConfig({
   required final Uri baseUri,
   required final String googleOAuthClientId,
