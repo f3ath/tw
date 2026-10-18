@@ -76,12 +76,13 @@ class VehiclesController(
   Future<Response> fetchRelated(Request request, RelatedTarget target) async {
     if (target.relationship != 'schedule') return notFound();
 
+    final vehicle = await _vehiclesDAO.fetchByIdAndUserId(id: target.id, userId: request.userId);
+    if (vehicle == null) return notFound();
+
     final schedules = await _schedulesDAO.fetchByVehicleIdAndUserId(
       vehicleId: target.id,
       userId: request.userId,
     );
-    if (schedules == null) return notFound();
-
     return ok(OutboundDataDocument.collection(schedules.map(ScheduleResource.new)));
   }
 }

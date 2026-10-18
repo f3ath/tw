@@ -33,14 +33,10 @@ RETURNING id
     return rows.isEmpty ? null : schedule;
   }
 
-  Future<List<ScheduleRecord>?> fetchByVehicleIdAndUserId({
+  Future<List<ScheduleRecord>> fetchByVehicleIdAndUserId({
     required String vehicleId,
     required String userId,
   }) async {
-    if (!await _vehicleExists(vehicleId: vehicleId, userId: userId)) {
-      return null;
-    }
-
     final rows = await connection.execute(
       Sql.named('''
 SELECT id, vehicle_id, name, interval_miles, interval_months, details
@@ -114,18 +110,6 @@ WHERE id = @id:text
 RETURNING id
 '''),
       parameters: {'id': id, 'owner_id': userId},
-    );
-    return rows.isNotEmpty;
-  }
-
-  Future<bool> _vehicleExists({required String vehicleId, required String userId}) async {
-    final rows = await connection.execute(
-      Sql.named('''
-SELECT id
-FROM vehicles
-WHERE id = @vehicle_id:text AND owner_id = @owner_id:text
-'''),
-      parameters: {'vehicle_id': vehicleId, 'owner_id': userId},
     );
     return rows.isNotEmpty;
   }
