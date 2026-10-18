@@ -82,7 +82,7 @@ class App(
       await applyMigrations(connection, _log);
       final db = Database(connection);
 
-      final sessionsDAO = SessionsDAO(connection, clock: _clock);
+      final sessionsDAO = SessionsDAO(db, clock: _clock);
       final usersDAO = UsersDAO(db, clock: _clock);
       VehiclesTDAO vehiclesDAOProvider(String ownerId) => VehiclesTDAO(db, ownerId, clock: _clock);
       SchedulesTDAO schedulesDAOProvider(String ownerId) =>

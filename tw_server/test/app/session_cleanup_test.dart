@@ -1,6 +1,7 @@
 import 'package:test/test.dart';
 import 'package:tw_server/src/app/app.dart';
 import 'package:tw_server/src/auth/sessions_dao.dart';
+import 'package:tw_server/src/db/database.dart';
 
 import 'harness.dart';
 
@@ -25,7 +26,7 @@ void main() {
     addTearDown(application.stop);
     await application.start();
     await withTestDatabase(config, (connection) async {
-      final sessions = SessionsDAO(connection, clock: clock);
+      final sessions = SessionsDAO(Database(connection), clock: clock);
       now = now.subtract(const Duration(minutes: 11));
       final expired = await sessions.create();
       now = now.add(const Duration(minutes: 11));
@@ -57,7 +58,7 @@ void main() {
       final current = DateTime.utc(2026, 1, 1, 12);
       var now = current;
       DateTime clock() => now;
-      final sessions = SessionsDAO(connection, clock: clock);
+      final sessions = SessionsDAO(Database(connection), clock: clock);
       now = current.subtract(const Duration(seconds: 901));
       final expired = await sessions.create();
       now = current.subtract(const Duration(seconds: 900));

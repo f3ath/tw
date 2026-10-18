@@ -12,7 +12,7 @@ CREATE TABLE sessions
     id          text PRIMARY KEY,
     session_key text UNIQUE NOT NULL,
     nonce       text UNIQUE,
-    owner_id    text REFERENCES users (id) ON DELETE CASCADE,
+    user_id    text REFERENCES users (id) ON DELETE CASCADE,
     created_at  timestamp   NOT NULL,
     updated_at  timestamp   NOT NULL
 );
@@ -28,6 +28,10 @@ CREATE TABLE vehicles
     UNIQUE (owner_id, id)
 );
 
+ALTER TABLE vehicles ENABLE ROW LEVEL SECURITY;
+
+ALTER TABLE vehicles FORCE ROW LEVEL SECURITY;
+
 CREATE TABLE schedules
 (
     id              text PRIMARY KEY,
@@ -42,3 +46,7 @@ CREATE TABLE schedules
     UNIQUE (owner_id, id),
     FOREIGN KEY (owner_id, vehicle_id) REFERENCES vehicles (owner_id, id)
 );
+
+ALTER TABLE schedules ENABLE ROW LEVEL SECURITY;
+
+ALTER TABLE schedules FORCE ROW LEVEL SECURITY;
