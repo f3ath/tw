@@ -26,8 +26,11 @@ class ScopedDatabase(final String _userId, super.connection) extends Database {
     bool ignoreRows = false,
     QueryMode? queryMode,
     Duration? timeout,
-  }) => _connection.runTx((session) {
-    return session.execute(
+  }) => _connection.runTx((session) async {
+    // await session.execute(
+    //   Sql.named("SELECT set_config('tw.tenant_id', @id:text,true)"),
+    // );
+    return await session.execute(
       query,
       parameters: parameters,
       ignoreRows: ignoreRows,

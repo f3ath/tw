@@ -26,9 +26,9 @@ class SchedulesTDAO(
     final rows = await _database.execute(
       Sql.named('''
 INSERT INTO schedules (id, owner_id, vehicle_id, name, interval_miles, interval_months, details, created_at, updated_at)
-SELECT @id:text, owner_id, id, @name:text, @interval_miles:int4, @interval_months:int4, @details:text, @now:timestamp, @now:timestamp
+SELECT @id:uuid, owner_id, id, @name:text, @interval_miles:int4, @interval_months:int4, @details:text, @now:timestamp, @now:timestamp
 FROM vehicles
-WHERE id = @vehicle_id:text AND owner_id = @owner_id:text
+WHERE id = @vehicle_id:uuid AND owner_id = @owner_id:uuid
 RETURNING id
 '''),
       parameters: {...schedule.toMap(), 'owner_id': _ownerId, 'now': _clock()},
@@ -41,7 +41,7 @@ RETURNING id
       Sql.named('''
 SELECT id, vehicle_id, name, interval_miles, interval_months, details
 FROM schedules
-WHERE vehicle_id = @vehicle_id:text AND owner_id = @owner_id:text
+WHERE vehicle_id = @vehicle_id:uuid AND owner_id = @owner_id:uuid
 ORDER BY created_at
 '''),
       parameters: {'vehicle_id': vehicleId, 'owner_id': _ownerId},
@@ -54,7 +54,7 @@ ORDER BY created_at
       Sql.named('''
 SELECT id, vehicle_id, name, interval_miles, interval_months, details
 FROM schedules
-WHERE owner_id = @owner_id:text
+WHERE owner_id = @owner_id:uuid
 ORDER BY created_at
 '''),
       parameters: {'owner_id': _ownerId},
@@ -78,9 +78,9 @@ SET name = COALESCE(@name:text, name),
     interval_months = COALESCE(@interval_months:int4, interval_months),
     details = COALESCE(@details:text, details),
     updated_at = @now:timestamp
-WHERE id = @id:text
-  AND vehicle_id = @vehicle_id:text
-  AND owner_id = @owner_id:text
+WHERE id = @id:uuid
+  AND vehicle_id = @vehicle_id:uuid
+  AND owner_id = @owner_id:uuid
 RETURNING id, vehicle_id, name, interval_miles, interval_months, details
 '''),
       parameters: {
@@ -104,8 +104,8 @@ RETURNING id, vehicle_id, name, interval_miles, interval_months, details
     final rows = await _database.execute(
       Sql.named('''
 DELETE FROM schedules
-WHERE id = @id:text
-  AND owner_id = @owner_id:text
+WHERE id = @id:uuid
+  AND owner_id = @owner_id:uuid
 RETURNING id
 '''),
       parameters: {'id': id, 'owner_id': _ownerId},

@@ -12,7 +12,7 @@ class UsersDAO(final Database database, {Clock clock = systemClock}) {
       Sql.named('''
 SELECT id, email, name
 FROM users
-WHERE id = @id:text
+WHERE id = @id:uuid
 '''),
       parameters: {'id': id},
     );
@@ -26,7 +26,7 @@ WHERE id = @id:text
     final rows = await database.execute(
       Sql.named('''
 INSERT INTO users (id, email, name, created_at, updated_at)
-VALUES (@id:text, @email:text, @name:text, @now:timestamp, @now:timestamp)
+VALUES (@id:uuid, @email:text, @name:text, @now:timestamp, @now:timestamp)
 ON CONFLICT (email) DO UPDATE
 SET name = EXCLUDED.name, updated_at = EXCLUDED.updated_at
 RETURNING id, email, name

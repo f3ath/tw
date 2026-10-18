@@ -22,7 +22,7 @@ class VehiclesTDAO(
     await _database.execute(
       Sql.named('''
 INSERT INTO vehicles (id, name, owner_id, manufacture_date, created_at, updated_at)
-VALUES (@id:text, @name:text, @owner_id:text, @manufacture_date:date, @now:timestamp, @now:timestamp)
+VALUES (@id:uuid, @name:text, @owner_id:uuid, @manufacture_date:date, @now:timestamp, @now:timestamp)
 '''),
       parameters: {...vehicle.toMap(), 'now': now},
     );
@@ -34,7 +34,7 @@ VALUES (@id:text, @name:text, @owner_id:text, @manufacture_date:date, @now:times
       Sql.named('''
 SELECT id, name, owner_id, manufacture_date
 FROM vehicles
-WHERE owner_id = @owner_id:text
+WHERE owner_id = @owner_id:uuid
 ORDER BY created_at
 '''),
       parameters: {'owner_id': _ownerId},
@@ -47,7 +47,7 @@ ORDER BY created_at
       Sql.named('''
 SELECT id, name, owner_id, manufacture_date
 FROM vehicles
-WHERE id = @id:text AND owner_id = @owner_id:text
+WHERE id = @id:uuid AND owner_id = @owner_id:uuid
 '''),
       parameters: {'id': id, 'owner_id': _ownerId},
     );
@@ -68,7 +68,7 @@ UPDATE vehicles
 SET name = COALESCE(@name:text, name),
     manufacture_date = COALESCE(@manufacture_date:date, manufacture_date),
     updated_at = @now:timestamp
-WHERE id = @id:text AND owner_id = @owner_id:text
+WHERE id = @id:uuid AND owner_id = @owner_id:uuid
 RETURNING id, name, owner_id, manufacture_date
 '''),
       parameters: {
@@ -89,7 +89,7 @@ RETURNING id, name, owner_id, manufacture_date
     final rows = await _database.execute(
       Sql.named('''
 DELETE FROM vehicles
-WHERE id = @id:text AND owner_id = @owner_id:text
+WHERE id = @id:uuid AND owner_id = @owner_id:uuid
 RETURNING id
 '''),
       parameters: {'id': id, 'owner_id': _ownerId},

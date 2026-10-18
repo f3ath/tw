@@ -1,6 +1,6 @@
 CREATE TABLE users
 (
-    id         text PRIMARY KEY,
+    id         UUID PRIMARY KEY,
     email      text UNIQUE NOT NULL,
     name       text        NOT NULL,
     created_at timestamp   NOT NULL,
@@ -9,19 +9,19 @@ CREATE TABLE users
 
 CREATE TABLE sessions
 (
-    id          text PRIMARY KEY,
+    id          UUID PRIMARY KEY,
     session_key text UNIQUE NOT NULL,
     nonce       text UNIQUE,
-    user_id    text REFERENCES users (id) ON DELETE CASCADE,
+    user_id    UUID REFERENCES users (id) ON DELETE CASCADE,
     created_at  timestamp   NOT NULL,
     updated_at  timestamp   NOT NULL
 );
 
 CREATE TABLE vehicles
 (
-    id               text PRIMARY KEY,
+    id               UUID PRIMARY KEY,
     name             text      NOT NULL,
-    owner_id         text      NOT NULL REFERENCES users (id) ON DELETE CASCADE,
+    owner_id         UUID      NOT NULL REFERENCES users (id) ON DELETE CASCADE,
     manufacture_date date      NOT NULL,
     created_at       timestamp NOT NULL,
     updated_at       timestamp NOT NULL,
@@ -34,9 +34,9 @@ CREATE TABLE vehicles
 
 CREATE TABLE schedules
 (
-    id              text PRIMARY KEY,
-    owner_id        text      NOT NULL REFERENCES users (id) ON DELETE CASCADE,
-    vehicle_id      text      NOT NULL REFERENCES vehicles (id) ON DELETE CASCADE,
+    id              UUID PRIMARY KEY,
+    owner_id        UUID      NOT NULL REFERENCES users (id) ON DELETE CASCADE,
+    vehicle_id      UUID      NOT NULL REFERENCES vehicles (id) ON DELETE CASCADE,
     name            text      NOT NULL,
     interval_miles  integer   NOT NULL,
     interval_months integer   NOT NULL,

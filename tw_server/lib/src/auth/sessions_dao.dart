@@ -14,7 +14,7 @@ class SessionsDAO(final Database database, {Clock clock = systemClock}) {
     await database.execute(
       Sql.named('''
 INSERT INTO sessions (id, session_key, nonce, user_id, created_at, updated_at)
-VALUES (@id:text, @session_key:text, @nonce:text, @user_id:text, @now:timestamp, @now:timestamp)
+VALUES (@id:uuid, @session_key:text, @nonce:text, @user_id:uuid, @now:timestamp, @now:timestamp)
 '''),
       parameters: {...session.toMap(), 'now': _clock()},
     );
@@ -26,7 +26,7 @@ VALUES (@id:text, @session_key:text, @nonce:text, @user_id:text, @now:timestamp,
       Sql.named('''
 SELECT id, session_key, nonce, user_id
 FROM sessions
-WHERE id = @id:text
+WHERE id = @id:uuid
 '''),
       parameters: {'id': id},
     );
@@ -65,7 +65,7 @@ WHERE nonce = @nonce:text
       Sql.named('''
 SELECT id, session_key, nonce, user_id
 FROM sessions
-WHERE user_id = @user_id:text
+WHERE user_id = @user_id:uuid
 ORDER BY created_at
 '''),
       parameters: {'user_id': userId},
@@ -77,7 +77,7 @@ ORDER BY created_at
     final rows = await database.execute(
       Sql.named('''
 UPDATE sessions
-SET user_id = @user_id:text, nonce = NULL, updated_at = @now:timestamp
+SET user_id = @user_id:uuid, nonce = NULL, updated_at = @now:timestamp
 WHERE nonce = @nonce:text
 RETURNING id, session_key, nonce, user_id
 '''),
@@ -102,7 +102,7 @@ WHERE user_id IS NULL
     final rows = await database.execute(
       Sql.named('''
 DELETE FROM sessions
-WHERE id = @id:text AND user_id = @user_id:text
+WHERE id = @id:uuid AND user_id = @user_id:uuid
 RETURNING id
 '''),
       parameters: {'id': id, 'user_id': userId},
