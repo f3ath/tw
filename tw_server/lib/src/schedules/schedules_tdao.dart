@@ -1,13 +1,11 @@
 import 'package:postgres/postgres.dart';
+import 'package:tw_server/src/db/database.dart';
 import 'package:tw_server/src/time/clock.dart';
 
-class SchedulesDAO(final Connection connection, {Clock clock = defaultClock}) {
-  final _clock = clock;
-
+class SchedulesTDAO(final Database _database, {final Clock _clock = systemClock}) {
   Future<ScheduleRecord?> create({
     required String id,
     required String vehicleId,
-    required String userId,
     required String name,
     required int intervalMiles,
     required int intervalMonths,
@@ -21,44 +19,39 @@ class SchedulesDAO(final Connection connection, {Clock clock = defaultClock}) {
       intervalMonths: intervalMonths,
       details: details,
     );
-    final rows = await connection.execute(
+    final rows = await _database.execute(
       Sql.named('''
 INSERT INTO schedules (id, owner_id, vehicle_id, name, interval_miles, interval_months, details, created_at, updated_at)
-SELECT @id:text, owner_id, id, @name:text, @interval_miles:int4, @interval_months:int4, @details:text, @now:timestamp, @now:timestamp
+SELECT @id:uuid, owner_id, id, @name:text, @interval_miles:int4, @interval_months:int4, @details:text, @now:timestamp, @now:timestamp
 FROM vehicles
-WHERE id = @vehicle_id:text AND owner_id = @owner_id:text
+WHERE id = @vehicle_id:uuid 
 RETURNING id
 '''),
-      parameters: {...schedule.toMap(), 'owner_id': userId, 'now': _clock()},
+      parameters: {...schedule.toMap(), 'now': _clock()},
     );
     return rows.isEmpty ? null : schedule;
   }
 
-  Future<List<ScheduleRecord>> fetchByVehicleIdAndUserId({
-    required String vehicleId,
-    required String userId,
-  }) async {
-    final rows = await connection.execute(
+  Future<List<ScheduleRecord>> fetchByVehicleId({required String vehicleId}) async {
+    final rows = await _database.execute(
       Sql.named('''
 SELECT id, vehicle_id, name, interval_miles, interval_months, details
 FROM schedules
-WHERE vehicle_id = @vehicle_id:text AND owner_id = @owner_id:text
+WHERE vehicle_id = @vehicle_id:uuid
 ORDER BY created_at
 '''),
-      parameters: {'vehicle_id': vehicleId, 'owner_id': userId},
+      parameters: {'vehicle_id': vehicleId},
     );
     return rows.map((row) => ScheduleRecord.fromMap(row.toColumnMap())).toList();
   }
 
-  Future<List<ScheduleRecord>> fetchByUserId(String userId) async {
-    final rows = await connection.execute(
+  Future<List<ScheduleRecord>> fetchAll() async {
+    final rows = await _database.execute(
       Sql.named('''
 SELECT id, vehicle_id, name, interval_miles, interval_months, details
 FROM schedules
-WHERE owner_id = @owner_id:text
 ORDER BY created_at
 '''),
-      parameters: {'owner_id': userId},
     );
     return rows.map((row) => ScheduleRecord.fromMap(row.toColumnMap())).toList();
   }
@@ -66,13 +59,12 @@ ORDER BY created_at
   Future<ScheduleRecord?> update({
     required String id,
     required String vehicleId,
-    required String userId,
     String? name,
     int? intervalMiles,
     int? intervalMonths,
     String? details,
   }) async {
-    final rows = await connection.execute(
+    final rows = await _database.execute(
       Sql.named('''
 UPDATE schedules
 SET name = COALESCE(@name:text, name),
@@ -80,15 +72,13 @@ SET name = COALESCE(@name:text, name),
     interval_months = COALESCE(@interval_months:int4, interval_months),
     details = COALESCE(@details:text, details),
     updated_at = @now:timestamp
-WHERE id = @id:text
-  AND vehicle_id = @vehicle_id:text
-  AND owner_id = @owner_id:text
+WHERE id = @id:uuid
+  AND vehicle_id = @vehicle_id:uuid
 RETURNING id, vehicle_id, name, interval_miles, interval_months, details
 '''),
       parameters: {
         'id': id,
         'vehicle_id': vehicleId,
-        'owner_id': userId,
         'name': name,
         'interval_miles': intervalMiles,
         'interval_months': intervalMonths,
@@ -102,15 +92,14 @@ RETURNING id, vehicle_id, name, interval_miles, interval_months, details
     return ScheduleRecord.fromMap(rows.single.toColumnMap());
   }
 
-  Future<bool> delete({required String id, required String userId}) async {
-    final rows = await connection.execute(
+  Future<bool> delete({required String id}) async {
+    final rows = await _database.execute(
       Sql.named('''
 DELETE FROM schedules
-WHERE id = @id:text
-  AND owner_id = @owner_id:text
+WHERE id = @id:uuid
 RETURNING id
 '''),
-      parameters: {'id': id, 'owner_id': userId},
+      parameters: {'id': id},
     );
     return rows.isNotEmpty;
   }
@@ -142,3 +131,5 @@ class const ScheduleRecord({
     'details': details,
   };
 }
+
+typedef SchedulesTDAOProvider = SchedulesTDAO Function(String ownerId);

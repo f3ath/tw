@@ -1,7 +1,7 @@
 import 'package:http_interop/http_interop.dart';
+import 'package:json_api/document.dart';
 import 'package:json_api/routing.dart';
 import 'package:json_api/server.dart';
-import 'package:postgres/postgres.dart';
 import 'package:tw_server/src/app/app_config.dart';
 import 'package:tw_server/src/auth/google/google_oauth.dart';
 import 'package:tw_server/src/auth/google/google_oauth_controller.dart';
@@ -12,6 +12,7 @@ import 'package:tw_server/src/auth/sessions_dao.dart';
 import 'package:tw_server/src/auth/users_dao.dart';
 import 'package:tw_server/src/db/apply_migrations.dart';
 import 'package:tw_server/src/db/connection_from_config.dart';
+import 'package:tw_server/src/db/database.dart';
 import 'package:tw_server/src/http/logging_middleware.dart';
 import 'package:tw_server/src/http/responses.dart';
 import 'package:tw_server/src/http/routing_handler.dart';
@@ -19,7 +20,7 @@ import 'package:tw_server/src/job/periodic_job.dart';
 import 'package:tw_server/src/json_api/resource_type.dart';
 import 'package:tw_server/src/log/log.dart';
 import 'package:tw_server/src/schedules/schedules_controller.dart';
-import 'package:tw_server/src/schedules/schedules_dao.dart';
+import 'package:tw_server/src/schedules/schedules_tdao.dart';
 import 'package:tw_server/src/time/clock.dart';
 import 'package:tw_server/src/vehicles/vehicles_controller.dart';
 import 'package:tw_server/src/vehicles/vehicles_dao.dart';
@@ -28,16 +29,20 @@ import 'package:uuid/uuid.dart';
 class App(
   final AppConfig _config, {
   GoogleOAuth? googleOAuth,
-  final Clock _clock = defaultClock,
-  Future<Connection> Function(AppConfig) connectionFactory = connectionFromConfig,
+  final Clock _clock = systemClock,
+  Future<SystemConnection> Function(AppConfig) systemConnectionFactory =
+      SystemConnection.fromConfig,
+  Future<TenantConnection> Function(AppConfig) tenantConnectionFactory =
+      TenantConnection.fromConfig,
   final Handler _defaultHandler = plainNotFound,
   final Log _log = const NoLog(),
 }) {
   static const _googleOAuthCallbackPath = '/auth/google/callback';
   final _routes = <(RouteMatcher, Handler)>[];
   final _applicationRoutes = <(RouteMatcher, Handler)>[];
-  final _connectionFactory = connectionFactory;
-  Connection? _connection;
+  final _systemConnectionFactory = systemConnectionFactory;
+  final _tenantConnectionFactory = tenantConnectionFactory;
+  TenantConnection? _tenantConnection;
   PeriodicJob? _sessionCleanup;
   Future<void>? _starting;
   Future<void>? _stopping;
@@ -73,16 +78,25 @@ class App(
   }
 
   Future<void> _start() async {
-    if (_connection != null) return;
+    if (_tenantConnection != null) return;
     final uriDesign = StandardUriDesign(_config.baseUri);
-    final db = await _connectionFactory(_config);
+    final systemConnection = await _systemConnectionFactory(_config);
     try {
-      await applyMigrations(db, _log);
+      await applyMigrations(systemConnection, _log);
+    } finally {
+      await systemConnection.close();
+    }
+
+    final tenantConnection = await _tenantConnectionFactory(_config);
+    try {
+      final db = Database(tenantConnection);
 
       final sessionsDAO = SessionsDAO(db, clock: _clock);
       final usersDAO = UsersDAO(db, clock: _clock);
-      final vehiclesDAO = VehiclesDAO(db, clock: _clock);
-      final schedulesDAO = SchedulesDAO(db, clock: _clock);
+      VehiclesDAO vehiclesDAOProvider(String ownerId) =>
+          VehiclesDAO(ScopedDatabase(ownerId, tenantConnection), clock: _clock);
+      SchedulesTDAO schedulesDAOProvider(String ownerId) =>
+          SchedulesTDAO(ScopedDatabase(ownerId, tenantConnection), clock: _clock);
       final googleOAuthController = GoogleOAuthController(_googleOAuth, sessionsDAO, usersDAO);
 
       final controllers = <String, Controller>{
@@ -92,8 +106,12 @@ class App(
           usersDAO,
           uriDesign.uri,
         ),
-        ResourceType.vehicles: VehiclesController(vehiclesDAO, schedulesDAO, uriDesign.uri),
-        ResourceType.schedules: SchedulesController(schedulesDAO, uriDesign.uri),
+        ResourceType.vehicles: VehiclesController(
+          vehiclesDAOProvider,
+          schedulesDAOProvider,
+          uriDesign.uri,
+        ),
+        ResourceType.schedules: SchedulesController(schedulesDAOProvider, uriDesign.uri),
       };
 
       Future<SessionRecord?> getCallerSession(Request rq) async {
@@ -118,7 +136,14 @@ class App(
           return null;
         },
       );
-      final handleErrors = errorConverter();
+      final handleErrors = errorConverter(
+        onError: (e, t) async {
+          _log.error('ERROR', error: e, stackTrace: t);
+          return internalServerError(
+            OutboundErrorDocument([ErrorObject(title: 'Internal Server Error')]),
+          );
+        },
+      );
 
       _applicationRoutes.addAll([
         (
@@ -128,7 +153,7 @@ class App(
         ((rq) => rq.uri.path == _googleOAuthCallbackPath, googleOAuthController.callback),
       ]);
       _routes.addAll(_applicationRoutes);
-      _connection = db;
+      _tenantConnection = tenantConnection;
       _sessionCleanup = PeriodicJob(
         () => sessionsDAO.deletePendingOlderThan(_config.pendingSessionMaxAge),
         interval: _config.sessionCleanupInterval,
@@ -136,7 +161,7 @@ class App(
       )..start();
       _isReady = true;
     } catch (_) {
-      await db.close();
+      await tenantConnection.close();
       rethrow;
     }
   }
@@ -159,8 +184,8 @@ class App(
     _applicationRoutes.clear();
     await _sessionCleanup?.stop();
     _sessionCleanup = null;
-    final connection = _connection;
-    _connection = null;
+    final connection = _tenantConnection;
+    _tenantConnection = null;
     await connection?.close();
   }
 

@@ -1,24 +1,20 @@
 import 'dart:math';
 
 import 'package:postgres/postgres.dart';
+import 'package:tw_server/src/db/database.dart';
 import 'package:tw_server/src/time/clock.dart';
 import 'package:uuid/uuid.dart';
 
-class SessionsDAO(final Connection connection, {Clock clock = defaultClock}) {
+class SessionsDAO(final Database database, {Clock clock = systemClock}) {
   final _clock = clock;
   static const _uuid = Uuid();
 
-  Future<SessionRecord> create({String? nonce, String? sessionKey, String? userId}) async {
-    final session = SessionRecord(
-      id: _uuid.v4(),
-      nonce: nonce ?? _uuid.v4(),
-      sessionKey: sessionKey ?? _newSessionKey(),
-      userId: userId,
-    );
-    await connection.execute(
+  Future<SessionRecord> create() async {
+    final session = SessionRecord(id: _uuid.v4(), nonce: _uuid.v4(), sessionKey: _newSessionKey());
+    await database.execute(
       Sql.named('''
-INSERT INTO sessions (id, session_key, nonce, owner_id, created_at, updated_at)
-VALUES (@id:text, @session_key:text, @nonce:text, @owner_id:text, @now:timestamp, @now:timestamp)
+INSERT INTO sessions (id, session_key, nonce, user_id, created_at, updated_at)
+VALUES (@id:uuid, @session_key:text, @nonce:text, @user_id:uuid, @now:timestamp, @now:timestamp)
 '''),
       parameters: {...session.toMap(), 'now': _clock()},
     );
@@ -26,11 +22,11 @@ VALUES (@id:text, @session_key:text, @nonce:text, @owner_id:text, @now:timestamp
   }
 
   Future<SessionRecord?> fetch(String id) async {
-    final rows = await connection.execute(
+    final rows = await database.execute(
       Sql.named('''
-SELECT id, session_key, nonce, owner_id
+SELECT id, session_key, nonce, user_id
 FROM sessions
-WHERE id = @id:text
+WHERE id = @id:uuid
 '''),
       parameters: {'id': id},
     );
@@ -39,9 +35,9 @@ WHERE id = @id:text
   }
 
   Future<SessionRecord?> fetchBySessionKey(String sessionKey) async {
-    final rows = await connection.execute(
+    final rows = await database.execute(
       Sql.named('''
-SELECT id, session_key, nonce, owner_id
+SELECT id, session_key, nonce, user_id
 FROM sessions
 WHERE session_key = @session_key:text
 '''),
@@ -52,9 +48,9 @@ WHERE session_key = @session_key:text
   }
 
   Future<SessionRecord?> fetchByNonce(String nonce) async {
-    final rows = await connection.execute(
+    final rows = await database.execute(
       Sql.named('''
-SELECT id, session_key, nonce, owner_id
+SELECT id, session_key, nonce, user_id
 FROM sessions
 WHERE nonce = @nonce:text
 '''),
@@ -65,37 +61,37 @@ WHERE nonce = @nonce:text
   }
 
   Future<List<SessionRecord>> fetchByUserId(String userId) async {
-    final rows = await connection.execute(
+    final rows = await database.execute(
       Sql.named('''
-SELECT id, session_key, nonce, owner_id
+SELECT id, session_key, nonce, user_id
 FROM sessions
-WHERE owner_id = @owner_id:text
+WHERE user_id = @user_id:uuid
 ORDER BY created_at
 '''),
-      parameters: {'owner_id': userId},
+      parameters: {'user_id': userId},
     );
     return rows.map((row) => SessionRecord.fromMap(row.toColumnMap())).toList();
   }
 
   Future<SessionRecord?> linkUserByNonce({required String nonce, required String userId}) async {
-    final rows = await connection.execute(
+    final rows = await database.execute(
       Sql.named('''
 UPDATE sessions
-SET owner_id = @owner_id:text, nonce = NULL, updated_at = @now:timestamp
+SET user_id = @user_id:uuid, nonce = NULL, updated_at = @now:timestamp
 WHERE nonce = @nonce:text
-RETURNING id, session_key, nonce, owner_id
+RETURNING id, session_key, nonce, user_id
 '''),
-      parameters: {'nonce': nonce, 'owner_id': userId, 'now': _clock()},
+      parameters: {'nonce': nonce, 'user_id': userId, 'now': _clock()},
     );
     if (rows.isEmpty) return null;
     return SessionRecord.fromMap(rows.single.toColumnMap());
   }
 
   Future<void> deletePendingOlderThan(Duration maxAge) async {
-    await connection.execute(
+    await database.execute(
       Sql.named('''
 DELETE FROM sessions
-WHERE owner_id IS NULL
+WHERE user_id IS NULL
   AND created_at < @cutoff:timestamp
 '''),
       parameters: {'cutoff': _clock().subtract(maxAge)},
@@ -103,13 +99,13 @@ WHERE owner_id IS NULL
   }
 
   Future<bool> delete({required String id, required String userId}) async {
-    final rows = await connection.execute(
+    final rows = await database.execute(
       Sql.named('''
 DELETE FROM sessions
-WHERE id = @id:text AND owner_id = @owner_id:text
+WHERE id = @id:uuid AND user_id = @user_id:uuid
 RETURNING id
 '''),
-      parameters: {'id': id, 'owner_id': userId},
+      parameters: {'id': id, 'user_id': userId},
     );
     return rows.isNotEmpty;
   }
@@ -134,13 +130,13 @@ class const SessionRecord({
     id: map['id'] as String,
     sessionKey: map['session_key'] as String,
     nonce: map['nonce'] as String?,
-    userId: map['owner_id'] as String?,
+    userId: map['user_id'] as String?,
   );
 
   Map<String, dynamic> toMap() => {
     'id': id,
     'session_key': sessionKey,
     'nonce': nonce,
-    'owner_id': userId,
+    'user_id': userId,
   };
 }

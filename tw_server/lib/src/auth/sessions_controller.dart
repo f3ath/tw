@@ -29,11 +29,9 @@ class SessionsController(
     NewResource newResource,
   ) async {
     final session = await _sessionsDAO.create();
-    final uri = _googleOAuth.startAuthorization(session.nonce!);
+    final redirect = _googleOAuth.startAuthorization(session.nonce!).toString();
     return created(
-      OutboundDataDocument.resource(
-        SessionResource(session)..attributes['redirect'] = uri.toString(),
-      ),
+      OutboundDataDocument.resource(SessionResource(session)..attributes['redirect'] = redirect),
       _uriFor(ResourceTarget(target.type, session.id)).toString(),
     );
   }
