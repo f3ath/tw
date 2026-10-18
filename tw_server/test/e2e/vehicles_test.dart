@@ -17,7 +17,7 @@ Future<void> main() async {
   }
 
   Map<String, List<String>> authHeaders(Resource session) => {
-    'Authorization': ['Bearer ${session.attributes['http_authorization_bearer'] as String}'],
+    'Authorization': ['Bearer ${session.attributes['key'] as String}'],
   };
 
   Matcher statusCode(int expected) => throwsA(
@@ -40,47 +40,54 @@ Future<void> main() async {
     });
 
     test('No Auth Header: Unauthorized', () async {
-      expect(() => jsonApi.fetchCollection('vehicles'), statusCode(401));
+      expect(() => jsonApi.fetchCollection(ResourceType.vehicles), statusCode(401));
       expect(
         () => jsonApi.createNew(
-          'vehicles',
+          ResourceType.vehicles,
           attributes: {'name': 'Civic', 'manufacture_date': '2020-05-01'},
         ),
         statusCode(401),
       );
-      expect(() => jsonApi.fetchResource('vehicles', 'vehicle-id'), statusCode(401));
+      expect(() => jsonApi.fetchResource(ResourceType.vehicles, 'vehicle-id'), statusCode(401));
       expect(
-        () => jsonApi.updateResource('vehicles', 'vehicle-id', attributes: {'name': 'Accord'}),
+        () => jsonApi.updateResource(
+          ResourceType.vehicles,
+          'vehicle-id',
+          attributes: {'name': 'Accord'},
+        ),
         statusCode(401),
       );
-      expect(() => jsonApi.deleteResource('vehicles', 'vehicle-id'), statusCode(401));
+      expect(() => jsonApi.deleteResource(ResourceType.vehicles, 'vehicle-id'), statusCode(401));
     });
 
     test('Vehicle Creation, Fetch, List, Update, Delete: Happy Path', () async {
       final session = await signIn(client, 'test-code');
 
       final created = await jsonApi.createNew(
-        'vehicles',
+        ResourceType.vehicles,
         attributes: {'name': 'Civic', 'manufacture_date': '2020-05-01'},
         headers: authHeaders(session),
       );
 
-      expect(created.resource.type, 'vehicles');
+      expect(created.resource.type, ResourceType.vehicles);
       expect(created.resource.attributes, {'name': 'Civic', 'manufacture_date': '2020-05-01'});
 
       final fetched = await jsonApi.fetchResource(
-        'vehicles',
+        ResourceType.vehicles,
         created.resource.id,
         headers: authHeaders(session),
       );
       expect(fetched.resource.id, created.resource.id);
       expect(fetched.resource.attributes, {'name': 'Civic', 'manufacture_date': '2020-05-01'});
 
-      final listed = await jsonApi.fetchCollection('vehicles', headers: authHeaders(session));
+      final listed = await jsonApi.fetchCollection(
+        ResourceType.vehicles,
+        headers: authHeaders(session),
+      );
       expect(listed.collection.map((r) => r.id), [created.resource.id]);
 
       final updated = await jsonApi.updateResource(
-        'vehicles',
+        ResourceType.vehicles,
         created.resource.id,
         attributes: {'name': 'Accord', 'manufacture_date': '2021-06-02'},
         headers: authHeaders(session),
@@ -88,14 +95,25 @@ Future<void> main() async {
       expect(updated.resource!.id, created.resource.id);
       expect(updated.resource!.attributes, {'name': 'Accord', 'manufacture_date': '2021-06-02'});
 
-      await jsonApi.deleteResource('vehicles', created.resource.id, headers: authHeaders(session));
+      await jsonApi.deleteResource(
+        ResourceType.vehicles,
+        created.resource.id,
+        headers: authHeaders(session),
+      );
 
       expect(
-        () => jsonApi.fetchResource('vehicles', created.resource.id, headers: authHeaders(session)),
+        () => jsonApi.fetchResource(
+          ResourceType.vehicles,
+          created.resource.id,
+          headers: authHeaders(session),
+        ),
         statusCode(404),
       );
       expect(
-        (await jsonApi.fetchCollection('vehicles', headers: authHeaders(session))).collection,
+        (await jsonApi.fetchCollection(
+          ResourceType.vehicles,
+          headers: authHeaders(session),
+        )).collection,
         isEmpty,
       );
     });
@@ -103,7 +121,7 @@ Future<void> main() async {
     test("Users can't access vehicles they don't own", () async {
       final firstSession = await signIn(client, 'test-code');
       final firstVehicle = await jsonApi.createNew(
-        'vehicles',
+        ResourceType.vehicles,
         attributes: {'name': 'Civic', 'manufacture_date': '2020-05-01'},
         headers: authHeaders(firstSession),
       );
@@ -115,7 +133,7 @@ Future<void> main() async {
 
       expect(
         () => jsonApi.fetchResource(
-          'vehicles',
+          ResourceType.vehicles,
           firstVehicle.resource.id,
           headers: authHeaders(secondSession),
         ),
@@ -123,7 +141,7 @@ Future<void> main() async {
       );
       expect(
         () => jsonApi.updateResource(
-          'vehicles',
+          ResourceType.vehicles,
           firstVehicle.resource.id,
           attributes: {'name': 'Accord', 'manufacture_date': '2021-06-02'},
           headers: authHeaders(secondSession),
@@ -132,7 +150,7 @@ Future<void> main() async {
       );
       expect(
         () => jsonApi.deleteResource(
-          'vehicles',
+          ResourceType.vehicles,
           firstVehicle.resource.id,
           headers: authHeaders(secondSession),
         ),
@@ -140,12 +158,15 @@ Future<void> main() async {
       );
 
       expect(
-        (await jsonApi.fetchCollection('vehicles', headers: authHeaders(secondSession))).collection,
+        (await jsonApi.fetchCollection(
+          ResourceType.vehicles,
+          headers: authHeaders(secondSession),
+        )).collection,
         isEmpty,
       );
 
       final fetchedByOwner = await jsonApi.fetchResource(
-        'vehicles',
+        ResourceType.vehicles,
         firstVehicle.resource.id,
         headers: authHeaders(firstSession),
       );

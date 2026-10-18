@@ -69,7 +69,7 @@ Use 0W-20 synthetic oil.
 - Reset maintenance minder''',
       );
 
-      expect(created.type, 'schedules');
+      expect(created.type, ResourceType.schedules);
       expect(created.attributes, {
         'name': 'Oil change',
         'interval_miles': 5000,
@@ -80,7 +80,7 @@ Use 0W-20 synthetic oil.
 - Replace drain plug washer
 - Reset maintenance minder''',
       });
-      expect(created.relationships['vehicle']!.single.type, 'vehicles');
+      expect(created.relationships['vehicle']!.single.type, ResourceType.vehicles);
       expect(created.relationships['vehicle']!.single.id, vehicle.id);
 
       final listed = await client.listSchedules(vehicle.id);

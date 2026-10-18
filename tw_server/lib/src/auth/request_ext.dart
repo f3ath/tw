@@ -1,13 +1,13 @@
 import 'package:http_interop/http_interop.dart';
 
 extension RequestExt on Request {
-  String? get session {
+  String? get sessionKey {
     final auth = headers['Authorization']?.firstOrNull;
     if (auth == null) return null;
     return auth.startsWith(_prefix) ? auth.substring(_prefix.length) : null;
   }
 
-  set session(String id) {
+  set sessionKey(String id) {
     headers['Authorization'] = ['$_prefix$id'];
   }
 

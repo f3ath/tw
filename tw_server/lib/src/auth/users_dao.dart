@@ -4,6 +4,19 @@ import 'package:uuid/uuid.dart';
 class UsersDAO(final Connection connection) {
   static const _uuid = Uuid();
 
+  Future<UserRecord?> fetch(String id) async {
+    final rows = await connection.execute(
+      Sql.named('''
+SELECT id, email, name
+FROM users
+WHERE id = @id:text
+'''),
+      parameters: {'id': id},
+    );
+    if (rows.isEmpty) return null;
+    return UserRecord.fromMap(rows.single.toColumnMap());
+  }
+
   Future<UserRecord> createOrUpdate({required String email, required String name}) async {
     final user = UserRecord(id: _uuid.v4(), email: email, name: name);
     final rows = await connection.execute(

@@ -5,6 +5,7 @@ import 'package:tw_server/src/app/app_config.dart';
 import 'package:tw_server/src/auth/google/google_oauth.dart';
 import 'package:tw_server/src/auth/google/google_oauth_controller.dart';
 import 'package:tw_server/src/auth/request_ext.dart';
+import 'package:tw_server/src/auth/session_access_policy.dart';
 import 'package:tw_server/src/auth/sessions_controller.dart';
 import 'package:tw_server/src/auth/sessions_dao.dart';
 import 'package:tw_server/src/auth/users_dao.dart';
@@ -13,6 +14,7 @@ import 'package:tw_server/src/db/connection_from_config.dart';
 import 'package:tw_server/src/http/logging_middleware.dart';
 import 'package:tw_server/src/http/responses.dart';
 import 'package:tw_server/src/http/routing_handler.dart';
+import 'package:tw_server/src/json_api/resource_type.dart';
 import 'package:tw_server/src/log/log.dart';
 import 'package:tw_server/src/schedules/schedules_controller.dart';
 import 'package:tw_server/src/schedules/schedules_dao.dart';
@@ -63,36 +65,32 @@ class App(
     final googleOAuthController = GoogleOAuthController(_googleOAuth, sessionsDAO, usersDAO);
 
     final controllers = <String, Controller>{
-      'sessions': SessionsController(_googleOAuth, sessionsDAO, uriDesign.uri),
-      'vehicles': VehiclesController(vehiclesDAO, schedulesDAO),
-      'schedules': SchedulesController(schedulesDAO),
+      ResourceType.sessions: SessionsController(_googleOAuth, sessionsDAO, usersDAO, uriDesign.uri),
+      ResourceType.vehicles: VehiclesController(vehiclesDAO, schedulesDAO),
+      ResourceType.schedules: SchedulesController(schedulesDAO),
     };
 
-    Future<String?> getCallerUserId(Request rq) async {
-      final session = rq.session;
+    Future<SessionRecord?> getCallerSession(Request rq) async {
+      final session = rq.sessionKey;
       if (session == null) return null;
-      return (await sessionsDAO.fetchBySessionKey(session))?.userId;
+      return sessionsDAO.fetchBySessionKey(session);
     }
 
-    bool isCreateSession(Request rq) {
-      final target = uriDesign.target(rq.uri);
-      return rq.method == 'post' && target is CollectionTarget && target.type == 'sessions';
-    }
+    const sessionAccessPolicy = SessionAccessPolicy();
 
-    Handler authenticationMiddleware(Handler inner) => (rq) async {
-      final userId = await getCallerUserId(rq);
-      if (userId != null) {
-        rq.userId = userId;
-      }
+    final jsonApiHandler = router(
+      getTarget: (httpRq) => uriDesign.target(httpRq.uri),
+      getController: (_, target) => controllers[target.type],
+      beforeDispatch: (jsonApiRq, _) async {
+        final session = await getCallerSession(jsonApiRq.httpRequest);
+        if (!sessionAccessPolicy.allows(jsonApiRq, session)) return unauthorized();
 
-      if (userId != null || isCreateSession(rq)) {
-        return await inner(rq);
-      }
-      return unauthorized();
-    };
-
-    final jsonApiHandler = authenticationMiddleware(
-      router((type) => controllers[type], uriDesign.target),
+        final userId = session?.userId;
+        if (userId != null) {
+          jsonApiRq.httpRequest.userId = userId;
+        }
+        return null;
+      },
     );
 
     _routes.addAll([
