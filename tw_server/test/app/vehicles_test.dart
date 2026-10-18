@@ -1,7 +1,7 @@
 import 'package:json_api/client.dart' hide Request;
 import 'package:json_api/document.dart';
 import 'package:test/test.dart';
-import 'package:tw_server/tw_server.dart';
+import 'package:tw_shared/api.dart';
 
 import 'harness.dart';
 

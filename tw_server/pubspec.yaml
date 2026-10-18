@@ -4,6 +4,8 @@ environment:
   sdk: ^3.13.0
 
 dependencies:
+  tw_shared:
+    path: ../tw_shared
   json_api:
     git:
       url: https://github.com/f3ath/json-api-dart

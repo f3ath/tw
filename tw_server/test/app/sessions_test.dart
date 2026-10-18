@@ -4,7 +4,7 @@ import 'package:http_interop/extensions.dart';
 import 'package:json_api/client.dart' hide Request;
 import 'package:json_api/document.dart';
 import 'package:test/test.dart';
-import 'package:tw_server/tw_server.dart';
+import 'package:tw_shared/api.dart';
 
 import 'harness.dart';
 
@@ -199,10 +199,10 @@ Future<void> main() async {
 
       final relatedUser = await client.fetchCurrentUser();
       expect(relatedUser, isNotNull);
-      expect(relatedUser!.type, user.type);
-      expect(relatedUser.id, user.id);
-      expect(relatedUser.attributes['email'], 'user@example.com');
-      expect(relatedUser.attributes['name'], 'Test User');
+      expect(relatedUser, isA<User>());
+      expect(relatedUser!.id, user.id);
+      expect(relatedUser.email, 'user@example.com');
+      expect(relatedUser.name, 'Test User');
 
       final r1 = await client.createSession();
       final updatedState = app.googleOAuth.states.last;

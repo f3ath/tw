@@ -3,7 +3,7 @@ import 'package:http_interop/http_interop.dart';
 import 'package:http_interop_http/http_interop_http.dart';
 import 'package:json_api/routing.dart';
 import 'package:tw_server/src/http/http_server_harness.dart';
-import 'package:tw_server/tw_server.dart';
+import 'package:tw_shared/api.dart';
 
 import '../app/harness.dart' as app_test;
 import '../app/harness.dart' hide startTestApplication;

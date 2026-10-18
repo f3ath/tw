@@ -5,7 +5,7 @@ import 'package:json_api/server.dart';
 import 'package:test/test.dart';
 import 'package:tw_server/src/auth/session_access_policy.dart';
 import 'package:tw_server/src/auth/sessions_dao.dart';
-import 'package:tw_server/src/json_api/resource_type.dart';
+import 'package:tw_shared/api.dart';
 
 Request httpRequest(String method) => Request(method, Uri(path: '/'), Body(), Headers());
 

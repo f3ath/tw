@@ -1,3 +1,3 @@
 library;
 
-export 'src/client/tw_api_client.dart';
+export 'package:tw_shared/api.dart';

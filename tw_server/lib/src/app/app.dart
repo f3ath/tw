@@ -17,13 +17,13 @@ import 'package:tw_server/src/http/logging_middleware.dart';
 import 'package:tw_server/src/http/responses.dart';
 import 'package:tw_server/src/http/routing_handler.dart';
 import 'package:tw_server/src/job/periodic_job.dart';
-import 'package:tw_server/src/json_api/resource_type.dart';
+import 'package:tw_shared/api.dart';
 import 'package:tw_server/src/log/log.dart';
 import 'package:tw_server/src/schedules/schedules_controller.dart';
 import 'package:tw_server/src/schedules/schedules_tdao.dart';
-import 'package:tw_server/src/time/clock.dart';
 import 'package:tw_server/src/vehicles/vehicles_controller.dart';
 import 'package:tw_server/src/vehicles/vehicles_dao.dart';
+import 'package:tw_shared/time.dart';
 import 'package:uuid/uuid.dart';
 
 class App(

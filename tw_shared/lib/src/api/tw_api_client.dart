@@ -2,8 +2,9 @@ import 'package:http_interop/http_interop.dart';
 import 'package:json_api/client.dart';
 import 'package:json_api/document.dart';
 import 'package:json_api/routing.dart';
-import 'package:tw_server/src/auth/request_ext.dart';
-import 'package:tw_server/src/json_api/resource_type.dart';
+
+import 'resource_type.dart';
+import 'user.dart';
 
 class TwApiClient(UriDesign urlDesign, Handler handler) {
   this {
@@ -32,16 +33,17 @@ class TwApiClient(UriDesign urlDesign, Handler handler) {
     return fetchSession(session.id);
   }
 
-  Future<Resource?> fetchCurrentUser() async {
+  Future<User?> fetchCurrentUser() async {
     final session = _session;
     if (session == null) {
       throw StateError('No session to fetch user for');
     }
-    return (await _jsonApi.fetchRelatedResource(
+    final resource = (await _jsonApi.fetchRelatedResource(
       ResourceType.sessions,
       session.id,
       'user',
     )).resource;
+    return resource == null ? null : User.fromResource(resource);
   }
 
   Future<Resource> createVehicle({required String name, required DateTime manufactureDate}) async {
@@ -149,7 +151,7 @@ class TwApiClient(UriDesign urlDesign, Handler handler) {
   Handler _authenticated(Handler inner) => (request) {
     final bearer = _session?.attributes['key'] as String?;
     if (bearer != null) {
-      request.sessionKey = bearer;
+      request.headers['Authorization'] = ['Bearer $bearer'];
     }
     return inner(request);
   };

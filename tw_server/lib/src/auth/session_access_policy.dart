@@ -1,7 +1,7 @@
 import 'package:json_api/routing.dart';
 import 'package:json_api/server.dart';
 import 'package:tw_server/src/auth/sessions_dao.dart';
-import 'package:tw_server/src/json_api/resource_type.dart';
+import 'package:tw_shared/api.dart';
 
 /// Controls access to API routes. Controllers enforce resource ownership.
 class const SessionAccessPolicy() {

@@ -7,7 +7,7 @@ import 'package:test/test.dart';
 import 'package:tw_server/src/app/app.dart';
 import 'package:tw_server/src/db/connection_from_config.dart';
 import 'package:tw_server/src/log/log.dart';
-import 'package:tw_server/tw_server.dart';
+import 'package:tw_shared/api.dart';
 
 import 'harness.dart';
 

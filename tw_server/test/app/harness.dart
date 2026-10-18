@@ -8,7 +8,7 @@ import 'package:tw_server/src/app/app_config.dart';
 import 'package:tw_server/src/auth/google/google_oauth.dart';
 import 'package:tw_server/src/db/connection_from_config.dart';
 import 'package:tw_server/src/log/sink_log.dart';
-import 'package:tw_server/tw_server.dart';
+import 'package:tw_shared/api.dart';
 
 final testConfig = createTestConfig();
 

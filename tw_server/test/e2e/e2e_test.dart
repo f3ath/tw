@@ -12,7 +12,7 @@ void main() {
     await client.createSession();
     expect((await app.googleCallback('test-code')).statusCode, 200);
     final user = await client.fetchCurrentUser();
-    expect(user!.attributes['email'], 'user@example.com');
+    expect(user!.email, 'user@example.com');
 
     final vehicle = await client.createVehicle(
       name: 'Civic',

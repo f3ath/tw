@@ -1,6 +1,6 @@
 import 'package:postgres/postgres.dart';
 import 'package:tw_server/src/db/database.dart';
-import 'package:tw_server/src/time/clock.dart';
+import 'package:tw_shared/time.dart';
 
 class VehiclesDAO(final ScopedDatabase _database, {final Clock _clock = systemClock}) {
   Future<VehicleRecord> create({

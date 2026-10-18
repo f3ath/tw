@@ -1,6 +1,6 @@
 import 'package:postgres/postgres.dart';
 import 'package:tw_server/src/db/database.dart';
-import 'package:tw_server/src/time/clock.dart';
+import 'package:tw_shared/time.dart';
 import 'package:uuid/uuid.dart';
 
 class UsersDAO(final Database database, {Clock clock = systemClock}) {

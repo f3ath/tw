@@ -6,8 +6,9 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:http_interop_http/http_interop_http.dart';
 import 'package:json_api/routing.dart';
-import 'package:tw_app/main.dart';
-import 'package:tw_server/client.dart';
+import 'package:tw_app/auth/login_control.dart';
+import 'package:tw_app/auth/login_controller.dart';
+import 'package:tw_shared/api.dart';
 
 void main() {
   late List<http.Request> requests;
@@ -51,10 +52,7 @@ void main() {
               : {
                   'type': 'users',
                   'id': 'user-1',
-                  'attributes': {
-                    'name': 'Ada Lovelace',
-                    'email': 'ada@example.com',
-                  },
+                  'attributes': {'name': 'Ada Lovelace', 'email': 'ada@example.com'},
                 },
         }),
         200,
@@ -69,24 +67,19 @@ void main() {
 
   tearDown(() => transport.close());
 
-  Future<void> showControl(
-    WidgetTester tester, {
-    bool openBrowser = true,
-  }) async {
+  Future<void> showControl(WidgetTester tester, {bool openBrowser = true}) async {
+    final controller = LoginController(
+      client: client,
+      openAuthorization: (uri) async {
+        expect(uri.host, 'accounts.google.com');
+        return openBrowser;
+      },
+    );
+    addTearDown(controller.dispose);
     await tester.pumpWidget(
       MaterialApp(
         home: Scaffold(
-          appBar: AppBar(
-            actions: [
-              LoginControl(
-                client: client,
-                openAuthorization: (uri) async {
-                  expect(uri.host, 'accounts.google.com');
-                  return openBrowser;
-                },
-              ),
-            ],
-          ),
+          appBar: AppBar(actions: [LoginControl(controller: controller)]),
         ),
       ),
     );
@@ -94,9 +87,7 @@ void main() {
     await tester.pump();
   }
 
-  testWidgets('signs in, displays name, and revokes session on logout', (
-    tester,
-  ) async {
+  testWidgets('signs in, displays name, and revokes session on logout', (tester) async {
     await showControl(tester);
     await tester.pumpAndSettle();
     expect(find.text('Ada Lovelace'), findsOneWidget);
@@ -112,9 +103,7 @@ void main() {
     expect(find.text('Log in'), findsOneWidget);
   });
 
-  testWidgets('waits for OAuth and allows retrying a blocked browser', (
-    tester,
-  ) async {
+  testWidgets('waits for OAuth and allows retrying a blocked browser', (tester) async {
     pending = true;
     await showControl(tester, openBrowser: false);
     expect(find.text('Open sign-in'), findsOneWidget);
@@ -133,9 +122,7 @@ void main() {
     expect(find.text('Could not sign in. Please try again.'), findsOneWidget);
   });
 
-  testWidgets('failed logout preserves account and allows retry', (
-    tester,
-  ) async {
+  testWidgets('failed logout preserves account and allows retry', (tester) async {
     await showControl(tester);
     await tester.pumpAndSettle();
     failLogout = true;

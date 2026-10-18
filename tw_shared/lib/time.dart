@@ -1,3 +1,5 @@
+library;
+
 /// Returns current UTC datetime
 typedef Clock = DateTime Function();
 
