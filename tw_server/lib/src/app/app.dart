@@ -114,9 +114,13 @@ class App(
           return null;
         },
       );
+      final handleErrors = errorConverter();
 
       _applicationRoutes.addAll([
-        ((rq) => rq.uri.path.startsWith(_config.baseUri.path), jsonApiHandler),
+        (
+          (rq) => rq.uri.path.startsWith(_config.baseUri.path),
+          handleErrors(corsMiddleware(jsonApiHandler)),
+        ),
         ((rq) => rq.uri.path == _googleOAuthCallbackPath, googleOAuthController.callback),
       ]);
       _routes.addAll(_applicationRoutes);

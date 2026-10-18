@@ -174,10 +174,13 @@ Future<void> main() async {
 
       await app.googleCallback('test-code', state: state).then((r) async {
         expect(r.statusCode, 200);
-        expect(await r.body.decode(utf8), '''
-Signed in with Google. Session: $bearer
-Email: user@example.com
-Name: Test User''');
+        expect(r.headers['content-type'], ['text/html; charset=utf-8']);
+        final page = await r.body.decode(utf8);
+        expect(page, contains('Thank you, Test User, you may close this page.'));
+        expect(page, contains('<span id="countdown">5</span>'));
+        expect(page, contains('window.close()'));
+        expect(page, isNot(contains(bearer!)));
+        expect(page, isNot(contains('user@example.com')));
         expect(app.googleOAuth.queryParameters, {'code': 'test-code', 'state': state});
       });
 
@@ -212,6 +215,23 @@ Name: Test User''');
       final updatedFetchedSessions = await client.listSessions();
       expect(updatedFetchedSessions.map((r) => r.id), [r0.id, r1.id]);
       expect(updatedFetchedSessions.map((r) => r.attributes['key']), [bearer, updatedBearer]);
+    });
+
+    test('Google callback escapes the name in the success page', () async {
+      await client.createSession();
+      app.googleOAuth.name = 'Alex <script>alert(1)</script> & Co';
+
+      final response = await app.googleCallback('test-code');
+      final page = await response.body.decode(utf8);
+
+      expect(response.statusCode, 200);
+      expect(
+        page,
+        contains(
+          'Thank you, Alex &lt;script&gt;alert(1)&lt;/script&gt; &amp; Co, you may close this page.',
+        ),
+      );
+      expect(page, isNot(contains(app.googleOAuth.name)));
     });
   });
 }

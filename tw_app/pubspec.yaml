@@ -32,6 +32,13 @@ dependencies:
     sdk: flutter
   tw_server:
     path: ../tw_server
+  http: ^1.6.0
+  http_interop_http: ^0.9.0
+  json_api:
+    git:
+      url: https://github.com/f3ath/json-api-dart
+      ref: v9
+  url_launcher: ^6.3.2
 
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.

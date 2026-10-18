@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:http_interop/http_interop.dart';
 import 'package:tw_server/src/auth/google/google_oauth.dart';
 import 'package:tw_server/src/auth/sessions_dao.dart';
@@ -24,9 +26,41 @@ class GoogleOAuthController(
       return plain(400, 'Invalid Google callback.');
     }
 
-    return plain(
+    return Response(
       200,
-      'Signed in with Google. Session: ${linkedSession.sessionKey}\nEmail: ${session.email}\nName: ${session.name}',
+      Body.text(_successPage(session.name), utf8),
+      Headers()..addAll({
+        'Content-Type': ['text/html; charset=utf-8'],
+      }),
     );
   }
 }
+
+String _successPage(String name) =>
+    '''
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Signed in</title>
+</head>
+<body>
+  <p>Thank you, ${const HtmlEscape(HtmlEscapeMode.element).convert(name)}, you may close this page.</p>
+  <p id="close-status">Closing automatically in <span id="countdown">5</span> seconds.</p>
+  <script>
+    let remaining = 5;
+    const countdown = document.getElementById('countdown');
+    const timer = window.setInterval(() => {
+      remaining -= 1;
+      countdown.textContent = remaining;
+      if (remaining === 0) {
+        window.clearInterval(timer);
+        document.getElementById('close-status').textContent = 'You may close this page.';
+        window.close();
+      }
+    }, 1000);
+  </script>
+</body>
+</html>
+''';
