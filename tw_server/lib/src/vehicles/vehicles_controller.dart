@@ -7,7 +7,7 @@ import 'package:tw_server/src/json_api/base_controller.dart';
 import 'package:tw_server/src/schedules/schedule_resource.dart';
 import 'package:tw_server/src/schedules/schedules_tdao.dart';
 import 'package:tw_server/src/vehicles/vehicle_resource.dart';
-import 'package:tw_server/src/vehicles/vehicles_tdao.dart';
+import 'package:tw_server/src/vehicles/vehicles_dao.dart';
 import 'package:uuid/uuid.dart';
 
 class VehiclesController(

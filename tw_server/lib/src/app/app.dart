@@ -23,7 +23,7 @@ import 'package:tw_server/src/schedules/schedules_controller.dart';
 import 'package:tw_server/src/schedules/schedules_tdao.dart';
 import 'package:tw_server/src/time/clock.dart';
 import 'package:tw_server/src/vehicles/vehicles_controller.dart';
-import 'package:tw_server/src/vehicles/vehicles_tdao.dart';
+import 'package:tw_server/src/vehicles/vehicles_dao.dart';
 import 'package:uuid/uuid.dart';
 
 class App(
@@ -93,10 +93,10 @@ class App(
 
       final sessionsDAO = SessionsDAO(db, clock: _clock);
       final usersDAO = UsersDAO(db, clock: _clock);
-      VehiclesTDAO vehiclesDAOProvider(String ownerId) =>
-          VehiclesTDAO(ScopedDatabase(ownerId, tenantConnection), clock: _clock);
+      VehiclesDAO vehiclesDAOProvider(String ownerId) =>
+          VehiclesDAO(ScopedDatabase(ownerId, tenantConnection), clock: _clock);
       SchedulesTDAO schedulesDAOProvider(String ownerId) =>
-          SchedulesTDAO(ScopedDatabase(ownerId, tenantConnection), ownerId, clock: _clock);
+          SchedulesTDAO(ScopedDatabase(ownerId, tenantConnection), clock: _clock);
       final googleOAuthController = GoogleOAuthController(_googleOAuth, sessionsDAO, usersDAO);
 
       final controllers = <String, Controller>{

@@ -2,7 +2,7 @@ import 'package:postgres/postgres.dart';
 import 'package:tw_server/src/db/database.dart';
 import 'package:tw_server/src/time/clock.dart';
 
-class VehiclesTDAO(final ScopedDatabase _database, {final Clock _clock = systemClock}) {
+class VehiclesDAO(final ScopedDatabase _database, {final Clock _clock = systemClock}) {
   Future<VehicleRecord> create({
     required String id,
     required String name,
@@ -94,4 +94,4 @@ class const VehicleRecord({
   );
 }
 
-typedef VehiclesTDAOProvider = VehiclesTDAO Function(String ownerId);
+typedef VehiclesTDAOProvider = VehiclesDAO Function(String ownerId);

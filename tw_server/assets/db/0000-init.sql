@@ -10,8 +10,8 @@ CREATE TABLE users
 );
 
 GRANT SELECT, INSERT, UPDATE
-ON TABLE public.users
-TO tw_tenant;
+    ON TABLE public.users
+    TO tw_tenant;
 
 CREATE TABLE sessions
 (
@@ -24,8 +24,8 @@ CREATE TABLE sessions
 );
 
 GRANT SELECT, INSERT, UPDATE, DELETE
-ON TABLE public.sessions
-TO tw_tenant;
+    ON TABLE public.sessions
+    TO tw_tenant;
 
 CREATE TABLE vehicles
 (
@@ -39,8 +39,8 @@ CREATE TABLE vehicles
 );
 
 GRANT SELECT, INSERT, UPDATE, DELETE
-ON TABLE public.vehicles
-TO tw_tenant;
+    ON TABLE public.vehicles
+    TO tw_tenant;
 
 ALTER TABLE vehicles
     ENABLE ROW LEVEL SECURITY;
@@ -59,7 +59,7 @@ CREATE
 CREATE TABLE schedules
 (
     id              UUID PRIMARY KEY,
-    owner_id        UUID      NOT NULL REFERENCES users (id) ON DELETE CASCADE,
+    owner_id        UUID      NOT NULL DEFAULT current_setting('tw.tenant_id')::uuid REFERENCES users (id) ON DELETE CASCADE,
     vehicle_id      UUID      NOT NULL REFERENCES vehicles (id) ON DELETE CASCADE,
     name            text      NOT NULL,
     interval_miles  integer   NOT NULL,
@@ -72,5 +72,19 @@ CREATE TABLE schedules
 );
 
 GRANT SELECT, INSERT, UPDATE, DELETE
-ON TABLE public.schedules
-TO tw_tenant;
+    ON TABLE public.schedules
+    TO tw_tenant;
+
+ALTER TABLE schedules
+    ENABLE ROW LEVEL SECURITY;
+
+ALTER TABLE schedules
+    FORCE ROW LEVEL SECURITY;
+
+CREATE
+    POLICY owner_access
+    ON schedules
+    FOR ALL
+    TO tw_tenant
+    USING (owner_id = current_setting('tw.tenant_id')::uuid)
+    WITH CHECK (owner_id = current_setting('tw.tenant_id')::uuid);

@@ -2,11 +2,7 @@ import 'package:postgres/postgres.dart';
 import 'package:tw_server/src/db/database.dart';
 import 'package:tw_server/src/time/clock.dart';
 
-class SchedulesTDAO(
-  final Database _database,
-  final String _ownerId, {
-  final Clock _clock = systemClock,
-}) {
+class SchedulesTDAO(final Database _database, {final Clock _clock = systemClock}) {
   Future<ScheduleRecord?> create({
     required String id,
     required String vehicleId,
@@ -28,10 +24,10 @@ class SchedulesTDAO(
 INSERT INTO schedules (id, owner_id, vehicle_id, name, interval_miles, interval_months, details, created_at, updated_at)
 SELECT @id:uuid, owner_id, id, @name:text, @interval_miles:int4, @interval_months:int4, @details:text, @now:timestamp, @now:timestamp
 FROM vehicles
-WHERE id = @vehicle_id:uuid AND owner_id = @owner_id:uuid
+WHERE id = @vehicle_id:uuid 
 RETURNING id
 '''),
-      parameters: {...schedule.toMap(), 'owner_id': _ownerId, 'now': _clock()},
+      parameters: {...schedule.toMap(), 'now': _clock()},
     );
     return rows.isEmpty ? null : schedule;
   }
@@ -41,10 +37,10 @@ RETURNING id
       Sql.named('''
 SELECT id, vehicle_id, name, interval_miles, interval_months, details
 FROM schedules
-WHERE vehicle_id = @vehicle_id:uuid AND owner_id = @owner_id:uuid
+WHERE vehicle_id = @vehicle_id:uuid
 ORDER BY created_at
 '''),
-      parameters: {'vehicle_id': vehicleId, 'owner_id': _ownerId},
+      parameters: {'vehicle_id': vehicleId},
     );
     return rows.map((row) => ScheduleRecord.fromMap(row.toColumnMap())).toList();
   }
@@ -54,10 +50,8 @@ ORDER BY created_at
       Sql.named('''
 SELECT id, vehicle_id, name, interval_miles, interval_months, details
 FROM schedules
-WHERE owner_id = @owner_id:uuid
 ORDER BY created_at
 '''),
-      parameters: {'owner_id': _ownerId},
     );
     return rows.map((row) => ScheduleRecord.fromMap(row.toColumnMap())).toList();
   }
@@ -80,13 +74,11 @@ SET name = COALESCE(@name:text, name),
     updated_at = @now:timestamp
 WHERE id = @id:uuid
   AND vehicle_id = @vehicle_id:uuid
-  AND owner_id = @owner_id:uuid
 RETURNING id, vehicle_id, name, interval_miles, interval_months, details
 '''),
       parameters: {
         'id': id,
         'vehicle_id': vehicleId,
-        'owner_id': _ownerId,
         'name': name,
         'interval_miles': intervalMiles,
         'interval_months': intervalMonths,
@@ -105,10 +97,9 @@ RETURNING id, vehicle_id, name, interval_miles, interval_months, details
       Sql.named('''
 DELETE FROM schedules
 WHERE id = @id:uuid
-  AND owner_id = @owner_id:uuid
 RETURNING id
 '''),
-      parameters: {'id': id, 'owner_id': _ownerId},
+      parameters: {'id': id},
     );
     return rows.isNotEmpty;
   }
