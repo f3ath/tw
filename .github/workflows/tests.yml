@@ -8,8 +8,8 @@ permissions:
   contents: read
 
 jobs:
-  test:
-    name: Dart tests
+  server-tests:
+    name: Server tests
     runs-on: ubuntu-latest
     timeout-minutes: 15
     defaults:
@@ -47,3 +47,25 @@ jobs:
       - name: Stop test database
         if: always()
         run: docker compose down --volumes
+
+  application-tests:
+    name: Application tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: tw_app
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Run tests
+        run: flutter test
