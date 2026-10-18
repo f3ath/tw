@@ -5,17 +5,17 @@ import 'package:json_api/server.dart';
 import 'package:tw_server/src/auth/request_ext.dart';
 import 'package:tw_server/src/json_api/base_controller.dart';
 import 'package:tw_server/src/schedules/schedule_resource.dart';
-import 'package:tw_server/src/schedules/schedules_dao.dart';
+import 'package:tw_server/src/schedules/schedules_tdao.dart';
 import 'package:uuid/uuid.dart';
 
-class SchedulesController(final SchedulesDAO _schedulesDAO, final UriBuilder _uriFor)
+class SchedulesController(final SchedulesTDAOProvider _ownedSchedules, final UriBuilder _uriFor)
     extends BaseController {
   static const _uuid = Uuid();
 
   @override
   Future<Response> fetchCollection(Request request, CollectionTarget target) async => ok(
     OutboundDataDocument.collection(
-      (await _schedulesDAO.fetchByUserId(request.userId)).map(ScheduleResource.new),
+      (await _ownedSchedules(request.userId).fetchAll()).map(ScheduleResource.new),
     ),
   );
 
@@ -28,10 +28,9 @@ class SchedulesController(final SchedulesDAO _schedulesDAO, final UriBuilder _ur
     final resource = newResource;
     final attributes = resource.attributes;
     final vehicle = resource.relationships['vehicle']!;
-    final schedule = await _schedulesDAO.create(
+    final schedule = await _ownedSchedules(request.userId).create(
       id: _uuid.v4(),
       vehicleId: vehicle.single.id!,
-      userId: request.userId,
       name: attributes['name'] as String,
       intervalMiles: attributes['interval_miles'] as int,
       intervalMonths: attributes['interval_months'] as int,
@@ -49,10 +48,9 @@ class SchedulesController(final SchedulesDAO _schedulesDAO, final UriBuilder _ur
   Future<Response> updateResource(Request request, ResourceTarget target, Resource resource) async {
     final attributes = resource.attributes;
     final vehicle = resource.one('vehicle');
-    final schedule = await _schedulesDAO.update(
+    final schedule = await _ownedSchedules(request.userId).update(
       id: target.id,
       vehicleId: vehicle!.single.id,
-      userId: request.userId,
       name: attributes['name'] as String?,
       intervalMiles: attributes['interval_miles'] as int?,
       intervalMonths: attributes['interval_months'] as int?,
@@ -65,7 +63,7 @@ class SchedulesController(final SchedulesDAO _schedulesDAO, final UriBuilder _ur
 
   @override
   Future<Response> deleteResource(Request request, ResourceTarget target) async {
-    if (!await _schedulesDAO.delete(id: target.id, userId: request.userId)) {
+    if (!await _ownedSchedules(request.userId).delete(id: target.id)) {
       return notFound();
     }
     return noContent();

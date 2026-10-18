@@ -4,17 +4,12 @@ import 'package:postgres/postgres.dart';
 import 'package:tw_server/src/time/clock.dart';
 import 'package:uuid/uuid.dart';
 
-class SessionsDAO(final Connection connection, {Clock clock = defaultClock}) {
+class SessionsDAO(final Connection connection, {Clock clock = systemClock}) {
   final _clock = clock;
   static const _uuid = Uuid();
 
-  Future<SessionRecord> create({String? nonce, String? sessionKey, String? userId}) async {
-    final session = SessionRecord(
-      id: _uuid.v4(),
-      nonce: nonce ?? _uuid.v4(),
-      sessionKey: sessionKey ?? _newSessionKey(),
-      userId: userId,
-    );
+  Future<SessionRecord> create() async {
+    final session = SessionRecord(id: _uuid.v4(), nonce: _uuid.v4(), sessionKey: _newSessionKey());
     await connection.execute(
       Sql.named('''
 INSERT INTO sessions (id, session_key, nonce, owner_id, created_at, updated_at)

@@ -1,6 +1,6 @@
 import 'package:json_api/document.dart';
 import 'package:tw_server/src/json_api/resource_type.dart';
-import 'package:tw_server/src/vehicles/vehicles_dao.dart';
+import 'package:tw_server/src/vehicles/vehicles_tdao.dart';
 
 class VehicleResource(VehicleRecord record) extends Resource {
   this : super(ResourceType.vehicles, record.id) {

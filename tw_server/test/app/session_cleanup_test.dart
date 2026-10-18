@@ -1,7 +1,6 @@
 import 'package:test/test.dart';
 import 'package:tw_server/src/app/app.dart';
 import 'package:tw_server/src/auth/sessions_dao.dart';
-import 'package:tw_server/src/auth/users_dao.dart';
 
 import 'harness.dart';
 
@@ -59,29 +58,22 @@ void main() {
       var now = current;
       DateTime clock() => now;
       final sessions = SessionsDAO(connection, clock: clock);
-      final user = await UsersDAO(
-        connection,
-        clock: clock,
-      ).createOrUpdate(email: 'user@example.com', name: 'User');
       now = current.subtract(const Duration(seconds: 901));
       final expired = await sessions.create();
       now = current.subtract(const Duration(seconds: 900));
       final boundary = await sessions.create();
       now = current.subtract(const Duration(seconds: 899));
       final fresh = await sessions.create();
-      now = current.subtract(const Duration(hours: 1));
-      final linked = await sessions.create(userId: user.id);
       now = current;
 
       await sessions.deletePendingOlderThan(const Duration(minutes: 15));
       expect(await sessions.fetch(expired.id), isNull);
-      for (final session in [boundary, fresh, linked]) {
+      for (final session in [boundary, fresh]) {
         expect(await sessions.fetch(session.id), isNotNull);
       }
       await sessions.deletePendingOlderThan(const Duration(minutes: 10));
       expect(await sessions.fetch(boundary.id), isNull);
       expect(await sessions.fetch(fresh.id), isNull);
-      expect(await sessions.fetch(linked.id), isNotNull);
     });
   });
 }

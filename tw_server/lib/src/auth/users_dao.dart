@@ -1,13 +1,14 @@
 import 'package:postgres/postgres.dart';
+import 'package:tw_server/src/db/database.dart';
 import 'package:tw_server/src/time/clock.dart';
 import 'package:uuid/uuid.dart';
 
-class UsersDAO(final Connection connection, {Clock clock = defaultClock}) {
+class UsersDAO(final Database database, {Clock clock = systemClock}) {
   final _clock = clock;
   static const _uuid = Uuid();
 
   Future<UserRecord?> fetch(String id) async {
-    final rows = await connection.execute(
+    final rows = await database.execute(
       Sql.named('''
 SELECT id, email, name
 FROM users
@@ -22,7 +23,7 @@ WHERE id = @id:text
   Future<UserRecord> createOrUpdate({required String email, required String name}) async {
     final user = UserRecord(id: _uuid.v4(), email: email, name: name);
     final now = _clock();
-    final rows = await connection.execute(
+    final rows = await database.execute(
       Sql.named('''
 INSERT INTO users (id, email, name, created_at, updated_at)
 VALUES (@id:text, @email:text, @name:text, @now:timestamp, @now:timestamp)
@@ -36,7 +37,7 @@ RETURNING id, email, name
   }
 
   Future<UserRecord?> fetchByEmail(String email) async {
-    final rows = await connection.execute(
+    final rows = await database.execute(
       Sql.named('''
 SELECT id, email, name
 FROM users

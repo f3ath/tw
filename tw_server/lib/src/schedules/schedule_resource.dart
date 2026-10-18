@@ -1,6 +1,6 @@
 import 'package:json_api/document.dart';
 import 'package:tw_server/src/json_api/resource_type.dart';
-import 'package:tw_server/src/schedules/schedules_dao.dart';
+import 'package:tw_server/src/schedules/schedules_tdao.dart';
 
 class ScheduleResource(ScheduleRecord record) extends Resource {
   this : super(ResourceType.schedules, record.id) {

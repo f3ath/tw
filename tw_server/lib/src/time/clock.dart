@@ -2,4 +2,4 @@
 typedef Clock = DateTime Function();
 
 /// Default implementation reads system time
-DateTime defaultClock() => DateTime.now().toUtc();
+DateTime systemClock() => DateTime.now().toUtc();

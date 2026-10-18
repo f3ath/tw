@@ -1,4 +1,5 @@
 import 'package:http_interop/http_interop.dart';
+import 'package:json_api/document.dart';
 import 'package:json_api/routing.dart';
 import 'package:json_api/server.dart';
 import 'package:postgres/postgres.dart';
@@ -12,6 +13,7 @@ import 'package:tw_server/src/auth/sessions_dao.dart';
 import 'package:tw_server/src/auth/users_dao.dart';
 import 'package:tw_server/src/db/apply_migrations.dart';
 import 'package:tw_server/src/db/connection_from_config.dart';
+import 'package:tw_server/src/db/database.dart';
 import 'package:tw_server/src/http/logging_middleware.dart';
 import 'package:tw_server/src/http/responses.dart';
 import 'package:tw_server/src/http/routing_handler.dart';
@@ -19,16 +21,16 @@ import 'package:tw_server/src/job/periodic_job.dart';
 import 'package:tw_server/src/json_api/resource_type.dart';
 import 'package:tw_server/src/log/log.dart';
 import 'package:tw_server/src/schedules/schedules_controller.dart';
-import 'package:tw_server/src/schedules/schedules_dao.dart';
+import 'package:tw_server/src/schedules/schedules_tdao.dart';
 import 'package:tw_server/src/time/clock.dart';
 import 'package:tw_server/src/vehicles/vehicles_controller.dart';
-import 'package:tw_server/src/vehicles/vehicles_dao.dart';
+import 'package:tw_server/src/vehicles/vehicles_tdao.dart';
 import 'package:uuid/uuid.dart';
 
 class App(
   final AppConfig _config, {
   GoogleOAuth? googleOAuth,
-  final Clock _clock = defaultClock,
+  final Clock _clock = systemClock,
   Future<Connection> Function(AppConfig) connectionFactory = connectionFromConfig,
   final Handler _defaultHandler = plainNotFound,
   final Log _log = const NoLog(),
@@ -75,14 +77,16 @@ class App(
   Future<void> _start() async {
     if (_connection != null) return;
     final uriDesign = StandardUriDesign(_config.baseUri);
-    final db = await _connectionFactory(_config);
+    final connection = await _connectionFactory(_config);
     try {
-      await applyMigrations(db, _log);
+      await applyMigrations(connection, _log);
+      final db = Database(connection);
 
-      final sessionsDAO = SessionsDAO(db, clock: _clock);
+      final sessionsDAO = SessionsDAO(connection, clock: _clock);
       final usersDAO = UsersDAO(db, clock: _clock);
-      final vehiclesDAO = VehiclesDAO(db, clock: _clock);
-      final schedulesDAO = SchedulesDAO(db, clock: _clock);
+      VehiclesTDAO vehiclesDAOProvider(String ownerId) => VehiclesTDAO(db, ownerId, clock: _clock);
+      SchedulesTDAO schedulesDAOProvider(String ownerId) =>
+          SchedulesTDAO(db, ownerId, clock: _clock);
       final googleOAuthController = GoogleOAuthController(_googleOAuth, sessionsDAO, usersDAO);
 
       final controllers = <String, Controller>{
@@ -92,8 +96,12 @@ class App(
           usersDAO,
           uriDesign.uri,
         ),
-        ResourceType.vehicles: VehiclesController(vehiclesDAO, schedulesDAO, uriDesign.uri),
-        ResourceType.schedules: SchedulesController(schedulesDAO, uriDesign.uri),
+        ResourceType.vehicles: VehiclesController(
+          vehiclesDAOProvider,
+          schedulesDAOProvider,
+          uriDesign.uri,
+        ),
+        ResourceType.schedules: SchedulesController(schedulesDAOProvider, uriDesign.uri),
       };
 
       Future<SessionRecord?> getCallerSession(Request rq) async {
@@ -118,7 +126,14 @@ class App(
           return null;
         },
       );
-      final handleErrors = errorConverter();
+      final handleErrors = errorConverter(
+        onError: (e, t) async {
+          _log.error('ERROR', error: e, stackTrace: t);
+          return internalServerError(
+            OutboundErrorDocument([ErrorObject(title: 'Internal Server Error')]),
+          );
+        },
+      );
 
       _applicationRoutes.addAll([
         (
@@ -128,7 +143,7 @@ class App(
         ((rq) => rq.uri.path == _googleOAuthCallbackPath, googleOAuthController.callback),
       ]);
       _routes.addAll(_applicationRoutes);
-      _connection = db;
+      _connection = connection;
       _sessionCleanup = PeriodicJob(
         () => sessionsDAO.deletePendingOlderThan(_config.pendingSessionMaxAge),
         interval: _config.sessionCleanupInterval,
@@ -136,7 +151,7 @@ class App(
       )..start();
       _isReady = true;
     } catch (_) {
-      await db.close();
+      await connection.close();
       rethrow;
     }
   }
