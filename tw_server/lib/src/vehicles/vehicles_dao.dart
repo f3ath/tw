@@ -3,6 +3,7 @@ import 'package:tw_server/src/time/clock.dart';
 
 class VehiclesDAO(final Connection connection, {Clock clock = defaultClock}) {
   final _clock = clock;
+
   Future<VehicleRecord> create({
     required String id,
     required String name,
