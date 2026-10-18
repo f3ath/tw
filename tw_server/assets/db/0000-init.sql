@@ -12,7 +12,7 @@ CREATE TABLE sessions
     id          text PRIMARY KEY,
     session_key text UNIQUE NOT NULL,
     nonce       text UNIQUE,
-    user_id     text REFERENCES users (id) ON DELETE CASCADE,
+    owner_id    text REFERENCES users (id) ON DELETE CASCADE,
     created_at  timestamp   NOT NULL,
     updated_at  timestamp   NOT NULL
 );
@@ -21,7 +21,7 @@ CREATE TABLE vehicles
 (
     id               text PRIMARY KEY,
     name             text      NOT NULL,
-    user_id          text      NOT NULL REFERENCES users (id) ON DELETE CASCADE,
+    owner_id         text      NOT NULL REFERENCES users (id) ON DELETE CASCADE,
     manufacture_date date      NOT NULL,
     created_at       timestamp NOT NULL,
     updated_at       timestamp NOT NULL

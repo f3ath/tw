@@ -16,9 +16,9 @@ class SchedulesDAO(final Connection connection, {Clock clock = defaultClock}) {
       Sql.named('''
 SELECT id
 FROM vehicles
-WHERE id = @vehicle_id:text AND user_id = @user_id:text
+WHERE id = @vehicle_id:text AND owner_id = @owner_id:text
 '''),
-      parameters: {'vehicle_id': vehicleId, 'user_id': userId},
+      parameters: {'vehicle_id': vehicleId, 'owner_id': userId},
     );
     if (vehicleExists.isEmpty) return null;
 
@@ -49,9 +49,9 @@ VALUES (@id:text, @vehicle_id:text, @name:text, @interval_miles:int4, @interval_
       Sql.named('''
 SELECT id
 FROM vehicles
-WHERE id = @vehicle_id:text AND user_id = @user_id:text
+WHERE id = @vehicle_id:text AND owner_id = @owner_id:text
 '''),
-      parameters: {'vehicle_id': vehicleId, 'user_id': userId},
+      parameters: {'vehicle_id': vehicleId, 'owner_id': userId},
     );
     if (vehicleExists.isEmpty) {
       return null;
@@ -75,10 +75,10 @@ ORDER BY created_at
 SELECT schedules.id, vehicle_id, schedules.name, interval_miles, interval_months, details
 FROM schedules
 INNER JOIN vehicles ON vehicles.id = schedules.vehicle_id
-WHERE vehicles.user_id = @user_id:text
+WHERE vehicles.owner_id = @owner_id:text
 ORDER BY schedules.created_at
 '''),
-      parameters: {'user_id': userId},
+      parameters: {'owner_id': userId},
     );
     return rows.map((row) => ScheduleRecord.fromMap(row.toColumnMap())).toList();
   }
@@ -106,14 +106,14 @@ WHERE id = @id:text
     SELECT 1
     FROM vehicles
     WHERE vehicles.id = schedules.vehicle_id
-      AND vehicles.user_id = @user_id:text
+      AND vehicles.owner_id = @owner_id:text
   )
 RETURNING id, vehicle_id, name, interval_miles, interval_months, details
 '''),
       parameters: {
         'id': id,
         'vehicle_id': vehicleId,
-        'user_id': userId,
+        'owner_id': userId,
         'name': name,
         'interval_miles': intervalMiles,
         'interval_months': intervalMonths,
@@ -136,11 +136,11 @@ WHERE id = @id:text
     SELECT 1
     FROM vehicles
     WHERE vehicles.id = schedules.vehicle_id
-      AND vehicles.user_id = @user_id:text
+      AND vehicles.owner_id = @owner_id:text
   )
 RETURNING id
 '''),
-      parameters: {'id': id, 'user_id': userId},
+      parameters: {'id': id, 'owner_id': userId},
     );
     return rows.isNotEmpty;
   }

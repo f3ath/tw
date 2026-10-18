@@ -17,8 +17,8 @@ class SessionsDAO(final Connection connection, {Clock clock = defaultClock}) {
     );
     await connection.execute(
       Sql.named('''
-INSERT INTO sessions (id, session_key, nonce, user_id, created_at, updated_at)
-VALUES (@id:text, @session_key:text, @nonce:text, @user_id:text, @now:timestamp, @now:timestamp)
+INSERT INTO sessions (id, session_key, nonce, owner_id, created_at, updated_at)
+VALUES (@id:text, @session_key:text, @nonce:text, @owner_id:text, @now:timestamp, @now:timestamp)
 '''),
       parameters: {...session.toMap(), 'now': _clock()},
     );
@@ -28,7 +28,7 @@ VALUES (@id:text, @session_key:text, @nonce:text, @user_id:text, @now:timestamp,
   Future<SessionRecord?> fetch(String id) async {
     final rows = await connection.execute(
       Sql.named('''
-SELECT id, session_key, nonce, user_id
+SELECT id, session_key, nonce, owner_id
 FROM sessions
 WHERE id = @id:text
 '''),
@@ -41,7 +41,7 @@ WHERE id = @id:text
   Future<SessionRecord?> fetchBySessionKey(String sessionKey) async {
     final rows = await connection.execute(
       Sql.named('''
-SELECT id, session_key, nonce, user_id
+SELECT id, session_key, nonce, owner_id
 FROM sessions
 WHERE session_key = @session_key:text
 '''),
@@ -54,7 +54,7 @@ WHERE session_key = @session_key:text
   Future<SessionRecord?> fetchByNonce(String nonce) async {
     final rows = await connection.execute(
       Sql.named('''
-SELECT id, session_key, nonce, user_id
+SELECT id, session_key, nonce, owner_id
 FROM sessions
 WHERE nonce = @nonce:text
 '''),
@@ -67,12 +67,12 @@ WHERE nonce = @nonce:text
   Future<List<SessionRecord>> fetchByUserId(String userId) async {
     final rows = await connection.execute(
       Sql.named('''
-SELECT id, session_key, nonce, user_id
+SELECT id, session_key, nonce, owner_id
 FROM sessions
-WHERE user_id = @user_id:text
+WHERE owner_id = @owner_id:text
 ORDER BY created_at
 '''),
-      parameters: {'user_id': userId},
+      parameters: {'owner_id': userId},
     );
     return rows.map((row) => SessionRecord.fromMap(row.toColumnMap())).toList();
   }
@@ -81,11 +81,11 @@ ORDER BY created_at
     final rows = await connection.execute(
       Sql.named('''
 UPDATE sessions
-SET user_id = @user_id:text, nonce = NULL, updated_at = @updated_at:timestamp
+SET owner_id = @owner_id:text, nonce = NULL, updated_at = @updated_at:timestamp
 WHERE nonce = @nonce:text
-RETURNING id, session_key, nonce, user_id
+RETURNING id, session_key, nonce, owner_id
 '''),
-      parameters: {'nonce': nonce, 'user_id': userId, 'updated_at': _clock()},
+      parameters: {'nonce': nonce, 'owner_id': userId, 'updated_at': _clock()},
     );
     if (rows.isEmpty) return null;
     return SessionRecord.fromMap(rows.single.toColumnMap());
@@ -95,7 +95,7 @@ RETURNING id, session_key, nonce, user_id
     await connection.execute(
       Sql.named('''
 DELETE FROM sessions
-WHERE user_id IS NULL
+WHERE owner_id IS NULL
   AND created_at < @cutoff:timestamp
 '''),
       parameters: {'cutoff': _clock().subtract(maxAge)},
@@ -106,10 +106,10 @@ WHERE user_id IS NULL
     final rows = await connection.execute(
       Sql.named('''
 DELETE FROM sessions
-WHERE id = @id:text AND user_id = @user_id:text
+WHERE id = @id:text AND owner_id = @owner_id:text
 RETURNING id
 '''),
-      parameters: {'id': id, 'user_id': userId},
+      parameters: {'id': id, 'owner_id': userId},
     );
     return rows.isNotEmpty;
   }
@@ -134,13 +134,13 @@ class const SessionRecord({
     id: map['id'] as String,
     sessionKey: map['session_key'] as String,
     nonce: map['nonce'] as String?,
-    userId: map['user_id'] as String?,
+    userId: map['owner_id'] as String?,
   );
 
   Map<String, dynamic> toMap() => {
     'id': id,
     'session_key': sessionKey,
     'nonce': nonce,
-    'user_id': userId,
+    'owner_id': userId,
   };
 }

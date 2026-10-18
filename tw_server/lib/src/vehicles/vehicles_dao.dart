@@ -18,8 +18,8 @@ class VehiclesDAO(final Connection connection, {Clock clock = defaultClock}) {
     final now = _clock();
     await connection.execute(
       Sql.named('''
-INSERT INTO vehicles (id, name, user_id, manufacture_date, created_at, updated_at)
-VALUES (@id:text, @name:text, @user_id:text, @manufacture_date:date, @now:timestamp, @now:timestamp)
+INSERT INTO vehicles (id, name, owner_id, manufacture_date, created_at, updated_at)
+VALUES (@id:text, @name:text, @owner_id:text, @manufacture_date:date, @now:timestamp, @now:timestamp)
 '''),
       parameters: {...vehicle.toMap(), 'now': now},
     );
@@ -29,12 +29,12 @@ VALUES (@id:text, @name:text, @user_id:text, @manufacture_date:date, @now:timest
   Future<List<VehicleRecord>> fetchByUserId(String userId) async {
     final rows = await connection.execute(
       Sql.named('''
-SELECT id, name, user_id, manufacture_date
+SELECT id, name, owner_id, manufacture_date
 FROM vehicles
-WHERE user_id = @user_id:text
+WHERE owner_id = @owner_id:text
 ORDER BY created_at
 '''),
-      parameters: {'user_id': userId},
+      parameters: {'owner_id': userId},
     );
     return rows.map((row) => VehicleRecord.fromMap(row.toColumnMap())).toList();
   }
@@ -42,11 +42,11 @@ ORDER BY created_at
   Future<VehicleRecord?> fetchByIdAndUserId({required String id, required String userId}) async {
     final rows = await connection.execute(
       Sql.named('''
-SELECT id, name, user_id, manufacture_date
+SELECT id, name, owner_id, manufacture_date
 FROM vehicles
-WHERE id = @id:text AND user_id = @user_id:text
+WHERE id = @id:text AND owner_id = @owner_id:text
 '''),
-      parameters: {'id': id, 'user_id': userId},
+      parameters: {'id': id, 'owner_id': userId},
     );
     if (rows.isEmpty) {
       return null;
@@ -66,12 +66,12 @@ UPDATE vehicles
 SET name = COALESCE(@name:text, name),
     manufacture_date = COALESCE(@manufacture_date:date, manufacture_date),
     updated_at = @updated_at:timestamp
-WHERE id = @id:text AND user_id = @user_id:text
-RETURNING id, name, user_id, manufacture_date
+WHERE id = @id:text AND owner_id = @owner_id:text
+RETURNING id, name, owner_id, manufacture_date
 '''),
       parameters: {
         'id': id,
-        'user_id': userId,
+        'owner_id': userId,
         'name': name,
         'manufacture_date': manufactureDate,
         'updated_at': _clock(),
@@ -87,10 +87,10 @@ RETURNING id, name, user_id, manufacture_date
     final rows = await connection.execute(
       Sql.named('''
 DELETE FROM vehicles
-WHERE id = @id:text AND user_id = @user_id:text
+WHERE id = @id:text AND owner_id = @owner_id:text
 RETURNING id
 '''),
-      parameters: {'id': id, 'user_id': userId},
+      parameters: {'id': id, 'owner_id': userId},
     );
     return rows.isNotEmpty;
   }
@@ -105,14 +105,14 @@ class const VehicleRecord({
   static VehicleRecord fromMap(Map<String, dynamic> map) => VehicleRecord(
     id: map['id'] as String,
     name: map['name'] as String,
-    userId: map['user_id'] as String,
+    userId: map['owner_id'] as String,
     manufactureDate: map['manufacture_date'] as DateTime,
   );
 
   Map<String, dynamic> toMap() => {
     'id': id,
     'name': name,
-    'user_id': userId,
+    'owner_id': userId,
     'manufacture_date': manufactureDate,
   };
 }
