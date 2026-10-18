@@ -81,11 +81,11 @@ ORDER BY created_at
     final rows = await connection.execute(
       Sql.named('''
 UPDATE sessions
-SET owner_id = @owner_id:text, nonce = NULL, updated_at = @updated_at:timestamp
+SET owner_id = @owner_id:text, nonce = NULL, updated_at = @now:timestamp
 WHERE nonce = @nonce:text
 RETURNING id, session_key, nonce, owner_id
 '''),
-      parameters: {'nonce': nonce, 'owner_id': userId, 'updated_at': _clock()},
+      parameters: {'nonce': nonce, 'owner_id': userId, 'now': _clock()},
     );
     if (rows.isEmpty) return null;
     return SessionRecord.fromMap(rows.single.toColumnMap());

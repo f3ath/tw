@@ -12,7 +12,7 @@ class VehiclesDAO(final Connection connection, {Clock clock = defaultClock}) {
     final vehicle = VehicleRecord(
       id: id,
       name: name,
-      userId: userId,
+      ownerId: userId,
       manufactureDate: manufactureDate,
     );
     final now = _clock();
@@ -65,7 +65,7 @@ WHERE id = @id:text AND owner_id = @owner_id:text
 UPDATE vehicles
 SET name = COALESCE(@name:text, name),
     manufacture_date = COALESCE(@manufacture_date:date, manufacture_date),
-    updated_at = @updated_at:timestamp
+    updated_at = @now:timestamp
 WHERE id = @id:text AND owner_id = @owner_id:text
 RETURNING id, name, owner_id, manufacture_date
 '''),
@@ -74,7 +74,7 @@ RETURNING id, name, owner_id, manufacture_date
         'owner_id': userId,
         'name': name,
         'manufacture_date': manufactureDate,
-        'updated_at': _clock(),
+        'now': _clock(),
       },
     );
     if (rows.isEmpty) {
@@ -99,20 +99,20 @@ RETURNING id
 class const VehicleRecord({
   required final String id,
   required final String name,
-  required final String userId,
+  required final String ownerId,
   required final DateTime manufactureDate,
 }) {
   static VehicleRecord fromMap(Map<String, dynamic> map) => VehicleRecord(
     id: map['id'] as String,
     name: map['name'] as String,
-    userId: map['owner_id'] as String,
+    ownerId: map['owner_id'] as String,
     manufactureDate: map['manufacture_date'] as DateTime,
   );
 
   Map<String, dynamic> toMap() => {
     'id': id,
     'name': name,
-    'owner_id': userId,
+    'owner_id': ownerId,
     'manufacture_date': manufactureDate,
   };
 }
