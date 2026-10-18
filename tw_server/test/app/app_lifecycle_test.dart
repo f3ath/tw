@@ -16,18 +16,25 @@ Request get(String path) => Request('get', Uri(path: path), Body(), Headers());
 void main() {
   late App app;
   late List<Connection> connections;
+  late List<Connection> systemConnections;
   late StartupLog log;
 
   setUp(() async {
     await resetDatabaseSchema(testConfig);
     connections = [];
+    systemConnections = [];
     log = StartupLog();
     app = App(
       testConfig,
       googleOAuth: TestGoogleOAuth(),
       log: log,
-      connectionFactory: (config) async {
-        final connection = await connectionFromConfig(config);
+      systemConnectionFactory: (config) async {
+        final connection = await SystemConnection.fromConfig(config);
+        systemConnections.add(connection);
+        return connection;
+      },
+      tenantConnectionFactory: (config) async {
+        final connection = await TenantConnection.fromConfig(config);
         connections.add(connection);
         return connection;
       },
@@ -36,15 +43,17 @@ void main() {
 
   tearDown(() async {
     await app.stop();
-    for (final connection in connections) {
+    for (final connection in [...connections, ...systemConnections]) {
       await connection.close();
     }
   });
 
-  test('Repeated and concurrent starts share one connection', () async {
+  test('Repeated and concurrent starts share one tenant connection', () async {
     await Future.wait([app.start(), app.start()]);
     await app.start();
 
+    expect(systemConnections, hasLength(1));
+    expect(systemConnections.single.isOpen, isFalse);
     expect(connections, hasLength(1));
     expect(connections.single.isOpen, isTrue);
     expect((await app(get('/k8s/readiness'))).statusCode, 200);
@@ -80,14 +89,17 @@ void main() {
     final stopping = app.stop();
     await Future.wait([starting, stopping]);
 
-    expect(connections.single.isOpen, isFalse);
+    expect(systemConnections.single.isOpen, isFalse);
+    expect(connections, isEmpty);
     expect((await app(get('/k8s/readiness'))).statusCode, 500);
     expect((await app(get('/api/v0/sessions'))).statusCode, 404);
 
     log.failure = null;
     await app.start();
 
-    expect(connections, hasLength(2));
+    expect(systemConnections, hasLength(2));
+    expect(systemConnections.every((connection) => !connection.isOpen), isTrue);
+    expect(connections, hasLength(1));
     expect(connections.last.isOpen, isTrue);
     expect((await app(get('/k8s/readiness'))).statusCode, 200);
   });
@@ -98,10 +110,15 @@ void main() {
     app = App(
       testConfig,
       googleOAuth: TestGoogleOAuth(),
-      connectionFactory: (config) async {
+      systemConnectionFactory: (config) async {
+        final connection = await SystemConnection.fromConfig(config);
+        systemConnections.add(connection);
+        return connection;
+      },
+      tenantConnectionFactory: (config) async {
         opening.complete();
         await proceed.future;
-        final connection = await connectionFromConfig(config);
+        final connection = await TenantConnection.fromConfig(config);
         connections.add(connection);
         return connection;
       },

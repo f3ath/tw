@@ -22,8 +22,10 @@ AppConfig createTestConfig({
   databaseHost: 'localhost',
   databasePort: 5432,
   databaseName: 'tw_e2e',
-  databaseUsername: 'tw',
-  databasePassword: 'tw',
+  databaseSystemUsername: 'tw_system',
+  databaseSystemPassword: 'tw_system',
+  databaseTenantUsername: 'tw_tenant',
+  databaseTenantPassword: 'tw_tenant',
   sessionCleanupInterval: sessionCleanupInterval,
   pendingSessionMaxAge: pendingSessionMaxAge,
 );
@@ -87,7 +89,7 @@ Future<T> withTestDatabase<T>(
   AppConfig config,
   Future<T> Function(Connection connection) callback,
 ) async {
-  final connection = await connectionFromConfig(config);
+  final connection = await SystemConnection.fromConfig(config);
   try {
     return await callback(connection);
   } finally {

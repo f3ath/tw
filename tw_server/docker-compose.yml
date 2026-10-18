@@ -4,12 +4,14 @@ services:
     command: ["postgres", "-c", "ssl=off"]
     environment:
       POSTGRES_DB: tw_e2e
-      POSTGRES_USER: tw
-      POSTGRES_PASSWORD: tw
+      POSTGRES_USER: tw_system
+      POSTGRES_PASSWORD: tw_system
     ports:
       - "5432:5432"
+    volumes:
+      - ./docker/init-users.sql:/docker-entrypoint-initdb.d/001-init-users.sql:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U tw -d tw_e2e"]
+      test: ["CMD-SHELL", "pg_isready -U tw_system -d tw_e2e"]
       interval: 2s
       timeout: 3s
       retries: 30

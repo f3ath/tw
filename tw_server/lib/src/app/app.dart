@@ -2,7 +2,6 @@ import 'package:http_interop/http_interop.dart';
 import 'package:json_api/document.dart';
 import 'package:json_api/routing.dart';
 import 'package:json_api/server.dart';
-import 'package:postgres/postgres.dart';
 import 'package:tw_server/src/app/app_config.dart';
 import 'package:tw_server/src/auth/google/google_oauth.dart';
 import 'package:tw_server/src/auth/google/google_oauth_controller.dart';
@@ -31,15 +30,19 @@ class App(
   final AppConfig _config, {
   GoogleOAuth? googleOAuth,
   final Clock _clock = systemClock,
-  Future<Connection> Function(AppConfig) connectionFactory = connectionFromConfig,
+  Future<SystemConnection> Function(AppConfig) systemConnectionFactory =
+      SystemConnection.fromConfig,
+  Future<TenantConnection> Function(AppConfig) tenantConnectionFactory =
+      TenantConnection.fromConfig,
   final Handler _defaultHandler = plainNotFound,
   final Log _log = const NoLog(),
 }) {
   static const _googleOAuthCallbackPath = '/auth/google/callback';
   final _routes = <(RouteMatcher, Handler)>[];
   final _applicationRoutes = <(RouteMatcher, Handler)>[];
-  final _connectionFactory = connectionFactory;
-  Connection? _connection;
+  final _systemConnectionFactory = systemConnectionFactory;
+  final _tenantConnectionFactory = tenantConnectionFactory;
+  TenantConnection? _tenantConnection;
   PeriodicJob? _sessionCleanup;
   Future<void>? _starting;
   Future<void>? _stopping;
@@ -75,12 +78,18 @@ class App(
   }
 
   Future<void> _start() async {
-    if (_connection != null) return;
+    if (_tenantConnection != null) return;
     final uriDesign = StandardUriDesign(_config.baseUri);
-    final connection = await _connectionFactory(_config);
+    final systemConnection = await _systemConnectionFactory(_config);
     try {
-      await applyMigrations(connection, _log);
-      final db = Database(connection);
+      await applyMigrations(systemConnection, _log);
+    } finally {
+      await systemConnection.close();
+    }
+
+    final tenantConnection = await _tenantConnectionFactory(_config);
+    try {
+      final db = Database(tenantConnection);
 
       final sessionsDAO = SessionsDAO(db, clock: _clock);
       final usersDAO = UsersDAO(db, clock: _clock);
@@ -143,7 +152,7 @@ class App(
         ((rq) => rq.uri.path == _googleOAuthCallbackPath, googleOAuthController.callback),
       ]);
       _routes.addAll(_applicationRoutes);
-      _connection = connection;
+      _tenantConnection = tenantConnection;
       _sessionCleanup = PeriodicJob(
         () => sessionsDAO.deletePendingOlderThan(_config.pendingSessionMaxAge),
         interval: _config.sessionCleanupInterval,
@@ -151,7 +160,7 @@ class App(
       )..start();
       _isReady = true;
     } catch (_) {
-      await connection.close();
+      await tenantConnection.close();
       rethrow;
     }
   }
@@ -174,8 +183,8 @@ class App(
     _applicationRoutes.clear();
     await _sessionCleanup?.stop();
     _sessionCleanup = null;
-    final connection = _connection;
-    _connection = null;
+    final connection = _tenantConnection;
+    _tenantConnection = null;
     await connection?.close();
   }
 
