@@ -14,6 +14,8 @@ Response plain(int statusCode, String body) => Response(
   }),
 );
 
+Future<Response> plainNotFound(Request rq) async => plain(404, '404 Not Found');
+
 // JSON API responses
 
 Response unauthorized([OutboundErrorDocument? document]) => response(401, document: document);

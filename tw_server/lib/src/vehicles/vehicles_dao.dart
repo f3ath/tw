@@ -1,6 +1,8 @@
 import 'package:postgres/postgres.dart';
+import 'package:tw_server/src/time/clock.dart';
 
-class VehiclesDAO(final Connection connection) {
+class VehiclesDAO(final Connection connection, {Clock clock = defaultClock}) {
+  final _clock = clock;
   Future<VehicleRecord> create({
     required String id,
     required String name,
@@ -13,12 +15,13 @@ class VehiclesDAO(final Connection connection) {
       userId: userId,
       manufactureDate: manufactureDate,
     );
+    final now = _clock();
     await connection.execute(
       Sql.named('''
-INSERT INTO vehicles (id, name, user_id, manufacture_date)
-VALUES (@id:text, @name:text, @user_id:text, @manufacture_date:date)
+INSERT INTO vehicles (id, name, user_id, manufacture_date, created_at, updated_at)
+VALUES (@id:text, @name:text, @user_id:text, @manufacture_date:date, @now:timestamp, @now:timestamp)
 '''),
-      parameters: vehicle.toMap(),
+      parameters: {...vehicle.toMap(), 'now': now},
     );
     return vehicle;
   }
@@ -61,11 +64,18 @@ WHERE id = @id:text AND user_id = @user_id:text
       Sql.named('''
 UPDATE vehicles
 SET name = COALESCE(@name:text, name),
-    manufacture_date = COALESCE(@manufacture_date:date, manufacture_date)
+    manufacture_date = COALESCE(@manufacture_date:date, manufacture_date),
+    updated_at = @updated_at:timestamp
 WHERE id = @id:text AND user_id = @user_id:text
 RETURNING id, name, user_id, manufacture_date
 '''),
-      parameters: {'id': id, 'user_id': userId, 'name': name, 'manufacture_date': manufactureDate},
+      parameters: {
+        'id': id,
+        'user_id': userId,
+        'name': name,
+        'manufacture_date': manufactureDate,
+        'updated_at': _clock(),
+      },
     );
     if (rows.isEmpty) {
       return null;

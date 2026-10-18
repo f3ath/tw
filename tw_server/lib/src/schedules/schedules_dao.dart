@@ -1,6 +1,8 @@
 import 'package:postgres/postgres.dart';
+import 'package:tw_server/src/time/clock.dart';
 
-class SchedulesDAO(final Connection connection) {
+class SchedulesDAO(final Connection connection, {Clock clock = defaultClock}) {
+  final _clock = clock;
   Future<ScheduleRecord?> create({
     required String id,
     required String vehicleId,
@@ -28,12 +30,13 @@ WHERE id = @vehicle_id:text AND user_id = @user_id:text
       intervalMonths: intervalMonths,
       details: details,
     );
+    final now = _clock();
     await connection.execute(
       Sql.named('''
-INSERT INTO schedules (id, vehicle_id, name, interval_miles, interval_months, details)
-VALUES (@id:text, @vehicle_id:text, @name:text, @interval_miles:int4, @interval_months:int4, @details:text)
+INSERT INTO schedules (id, vehicle_id, name, interval_miles, interval_months, details, created_at, updated_at)
+VALUES (@id:text, @vehicle_id:text, @name:text, @interval_miles:int4, @interval_months:int4, @details:text, @now:timestamp, @now:timestamp)
 '''),
-      parameters: schedule.toMap(),
+      parameters: {...schedule.toMap(), 'now': now},
     );
     return schedule;
   }
@@ -95,7 +98,8 @@ UPDATE schedules
 SET name = COALESCE(@name:text, name),
     interval_miles = COALESCE(@interval_miles:int4, interval_miles),
     interval_months = COALESCE(@interval_months:int4, interval_months),
-    details = COALESCE(@details:text, details)
+    details = COALESCE(@details:text, details),
+    updated_at = @updated_at:timestamp
 WHERE id = @id:text
   AND vehicle_id = @vehicle_id:text
   AND EXISTS (
@@ -114,6 +118,7 @@ RETURNING id, vehicle_id, name, interval_miles, interval_months, details
         'interval_miles': intervalMiles,
         'interval_months': intervalMonths,
         'details': details,
+        'updated_at': _clock(),
       },
     );
     if (rows.isEmpty) {

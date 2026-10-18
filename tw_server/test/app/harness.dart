@@ -1,5 +1,3 @@
-import 'dart:io';
-
 import 'package:http_interop/http_interop.dart';
 import 'package:json_api/routing.dart';
 import 'package:postgres/postgres.dart';
@@ -7,10 +5,14 @@ import 'package:tw_server/src/app/app.dart';
 import 'package:tw_server/src/app/app_config.dart';
 import 'package:tw_server/src/auth/google/google_oauth.dart';
 import 'package:tw_server/src/db/connection_from_config.dart';
-import 'package:tw_server/src/log/sink_log.dart';
 import 'package:tw_server/tw_server.dart';
 
-final testConfig = AppConfig(
+final testConfig = createTestConfig();
+
+AppConfig createTestConfig({
+  Duration sessionCleanupInterval = const Duration(minutes: 1),
+  Duration pendingSessionMaxAge = const Duration(minutes: 15),
+}) => AppConfig(
   baseUri: Uri(path: '/api/v0'),
   googleOAuthClientId: 'test-client-id',
   googleOAuthClientSecret: 'test-client-secret',
@@ -19,12 +21,14 @@ final testConfig = AppConfig(
   databaseName: 'tw_e2e',
   databaseUsername: 'tw',
   databasePassword: 'tw',
+  sessionCleanupInterval: sessionCleanupInterval,
+  pendingSessionMaxAge: pendingSessionMaxAge,
 );
 
 Future<TestApplication> startTestApplication() async {
   await resetDatabaseSchema(testConfig);
   final googleOAuth = TestGoogleOAuth();
-  final app = App(testConfig, googleOAuth: googleOAuth, log: SinkLog(stderr));
+  final app = App(testConfig, googleOAuth: googleOAuth);
   await app.start();
 
   final urlDesign = StandardUriDesign(testConfig.baseUri);

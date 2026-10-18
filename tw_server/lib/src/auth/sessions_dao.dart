@@ -1,9 +1,11 @@
 import 'dart:math';
 
 import 'package:postgres/postgres.dart';
+import 'package:tw_server/src/time/clock.dart';
 import 'package:uuid/uuid.dart';
 
-class SessionsDAO(final Connection connection) {
+class SessionsDAO(final Connection connection, {Clock clock = defaultClock}) {
+  final _clock = clock;
   static const _uuid = Uuid();
 
   Future<SessionRecord> create({String? nonce, String? sessionKey, String? userId}) async {
@@ -15,10 +17,10 @@ class SessionsDAO(final Connection connection) {
     );
     await connection.execute(
       Sql.named('''
-INSERT INTO sessions (id, session_key, nonce, user_id)
-VALUES (@id:text, @session_key:text, @nonce:text, @user_id:text)
+INSERT INTO sessions (id, session_key, nonce, user_id, created_at, updated_at)
+VALUES (@id:text, @session_key:text, @nonce:text, @user_id:text, @now:timestamp, @now:timestamp)
 '''),
-      parameters: session.toMap(),
+      parameters: {...session.toMap(), 'now': _clock()},
     );
     return session;
   }
@@ -79,14 +81,25 @@ ORDER BY created_at
     final rows = await connection.execute(
       Sql.named('''
 UPDATE sessions
-SET user_id = @user_id:text, nonce = NULL
+SET user_id = @user_id:text, nonce = NULL, updated_at = @updated_at:timestamp
 WHERE nonce = @nonce:text
 RETURNING id, session_key, nonce, user_id
 '''),
-      parameters: {'nonce': nonce, 'user_id': userId},
+      parameters: {'nonce': nonce, 'user_id': userId, 'updated_at': _clock()},
     );
     if (rows.isEmpty) return null;
     return SessionRecord.fromMap(rows.single.toColumnMap());
+  }
+
+  Future<void> deletePendingOlderThan(Duration maxAge) async {
+    await connection.execute(
+      Sql.named('''
+DELETE FROM sessions
+WHERE user_id IS NULL
+  AND created_at < @cutoff:timestamp
+'''),
+      parameters: {'cutoff': _clock().subtract(maxAge)},
+    );
   }
 
   Future<bool> delete({required String id, required String userId}) async {

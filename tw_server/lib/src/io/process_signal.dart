@@ -11,7 +11,9 @@ Future<ProcessSignal> firstProcessSignal(Iterable<ProcessSignal> signals) {
       signal.watch().listen((it) {
         if (completer.isCompleted) return;
         completer.complete(it);
-        for (final sub in subscriptions) sub.cancel();
+        for (final sub in subscriptions) {
+          sub.cancel();
+        }
       }),
     );
   }
