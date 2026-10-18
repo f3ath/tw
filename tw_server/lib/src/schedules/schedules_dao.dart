@@ -33,10 +33,10 @@ WHERE id = @vehicle_id:text AND owner_id = @owner_id:text
     final now = _clock();
     await connection.execute(
       Sql.named('''
-INSERT INTO schedules (id, vehicle_id, name, interval_miles, interval_months, details, created_at, updated_at)
-VALUES (@id:text, @vehicle_id:text, @name:text, @interval_miles:int4, @interval_months:int4, @details:text, @now:timestamp, @now:timestamp)
+INSERT INTO schedules (id, owner_id, vehicle_id, name, interval_miles, interval_months, details, created_at, updated_at)
+VALUES (@id:text, @owner_id:text, @vehicle_id:text, @name:text, @interval_miles:int4, @interval_months:int4, @details:text, @now:timestamp, @now:timestamp)
 '''),
-      parameters: {...schedule.toMap(), 'now': now},
+      parameters: {...schedule.toMap(), 'owner_id': userId, 'now': now},
     );
     return schedule;
   }

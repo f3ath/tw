@@ -24,17 +24,21 @@ CREATE TABLE vehicles
     owner_id         text      NOT NULL REFERENCES users (id) ON DELETE CASCADE,
     manufacture_date date      NOT NULL,
     created_at       timestamp NOT NULL,
-    updated_at       timestamp NOT NULL
+    updated_at       timestamp NOT NULL,
+    UNIQUE (owner_id, id)
 );
 
 CREATE TABLE schedules
 (
     id              text PRIMARY KEY,
+    owner_id        text      NOT NULL REFERENCES users (id) ON DELETE CASCADE,
     vehicle_id      text      NOT NULL REFERENCES vehicles (id) ON DELETE CASCADE,
     name            text      NOT NULL,
     interval_miles  integer   NOT NULL,
     interval_months integer   NOT NULL,
     details         text      NOT NULL,
     created_at      timestamp NOT NULL,
-    updated_at      timestamp NOT NULL
+    updated_at      timestamp NOT NULL,
+    UNIQUE (owner_id, id),
+    FOREIGN KEY (owner_id, vehicle_id) REFERENCES vehicles (owner_id, id)
 );
