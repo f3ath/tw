@@ -6,17 +6,21 @@ import 'package:tw_server/src/auth/request_ext.dart';
 import 'package:tw_server/src/json_api/base_controller.dart';
 import 'package:tw_server/src/schedules/schedule_resource.dart';
 import 'package:tw_server/src/schedules/schedules_dao.dart';
+import 'package:tw_server/src/vehicles/vehicle_resource.dart';
 import 'package:tw_server/src/vehicles/vehicles_dao.dart';
 import 'package:uuid/uuid.dart';
 
-class VehiclesController(final VehiclesDAO _vehiclesDAO, final SchedulesDAO _schedulesDAO)
-    extends BaseController {
+class VehiclesController(
+  final VehiclesDAO _vehiclesDAO,
+  final SchedulesDAO _schedulesDAO,
+  final UriBuilder _uriFor,
+) extends BaseController {
   static const _uuid = Uuid();
 
   @override
   Future<Response> fetchCollection(Request request, Target target) async {
     final vehicles = await _vehiclesDAO.fetchByUserId(request.userId);
-    return ok(OutboundDataDocument.collection(vehicles.map((it) => _resource(target, it))));
+    return ok(OutboundDataDocument.collection(vehicles.map(VehicleResource.new)));
   }
 
   @override
@@ -29,8 +33,8 @@ class VehiclesController(final VehiclesDAO _vehiclesDAO, final SchedulesDAO _sch
       manufactureDate: DateTime.parse(resource.attributes['manufacture_date'] as String),
     );
     return created(
-      OutboundDataDocument.resource(_resource(target, vehicle)),
-      '/${target.type}/${vehicle.id}',
+      OutboundDataDocument.resource(VehicleResource(vehicle)),
+      _uriFor(ResourceTarget(target.type, vehicle.id)).toString(),
     );
   }
 
@@ -40,7 +44,7 @@ class VehiclesController(final VehiclesDAO _vehiclesDAO, final SchedulesDAO _sch
     if (vehicle == null) {
       return notFound();
     }
-    return ok(OutboundDataDocument.resource(_resource(target, vehicle)));
+    return ok(OutboundDataDocument.resource(VehicleResource(vehicle)));
   }
 
   @override
@@ -57,7 +61,7 @@ class VehiclesController(final VehiclesDAO _vehiclesDAO, final SchedulesDAO _sch
     if (vehicle == null) {
       return notFound();
     }
-    return ok(OutboundDataDocument.resource(_resource(target, vehicle)));
+    return ok(OutboundDataDocument.resource(VehicleResource(vehicle)));
   }
 
   @override
@@ -80,8 +84,4 @@ class VehiclesController(final VehiclesDAO _vehiclesDAO, final SchedulesDAO _sch
 
     return ok(OutboundDataDocument.collection(schedules.map(ScheduleResource.new)));
   }
-
-  Resource _resource(Target target, VehicleRecord vehicle) => Resource(target.type, vehicle.id)
-    ..attributes['name'] = vehicle.name
-    ..attributes['manufacture_date'] = vehicle.manufactureDate.toIso8601String().split('T').first;
 }

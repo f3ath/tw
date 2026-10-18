@@ -51,6 +51,12 @@ Future<void> main() async {
     });
 
     test('Create, List, Update, Delete: Happy Path', () async {
+      String? location;
+      client = TwApiClient(app.urlDesign, (request) async {
+        final response = await app.clientHandler(request);
+        location = response.headers['location']?.single;
+        return response;
+      });
       await signIn(client, 'test-code');
       final vehicle = await client.createVehicle(
         name: 'Civic',
@@ -70,6 +76,7 @@ Use 0W-20 synthetic oil.
       );
 
       expect(created.type, ResourceType.schedules);
+      expect(location, '${testConfig.baseUri}/schedules/${created.id}');
       expect(created.attributes, {
         'name': 'Oil change',
         'interval_miles': 5000,

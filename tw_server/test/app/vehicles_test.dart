@@ -71,6 +71,10 @@ Future<void> main() async {
 
       expect(created.resource.type, ResourceType.vehicles);
       expect(created.resource.attributes, {'name': 'Civic', 'manufacture_date': '2020-05-01'});
+      expect(
+        created.rawResponse.httpResponse.headers['location']!.single,
+        '${testConfig.baseUri}/vehicles/${created.resource.id}',
+      );
 
       final fetched = await jsonApi.fetchResource(
         ResourceType.vehicles,

@@ -8,7 +8,8 @@ import 'package:tw_server/src/schedules/schedule_resource.dart';
 import 'package:tw_server/src/schedules/schedules_dao.dart';
 import 'package:uuid/uuid.dart';
 
-class SchedulesController(final SchedulesDAO _schedulesDAO) extends BaseController {
+class SchedulesController(final SchedulesDAO _schedulesDAO, final UriBuilder _uriFor)
+    extends BaseController {
   static const _uuid = Uuid();
 
   @override
@@ -40,7 +41,7 @@ class SchedulesController(final SchedulesDAO _schedulesDAO) extends BaseControll
 
     return created(
       OutboundDataDocument.resource(ScheduleResource(schedule)),
-      '/${target.type}/${schedule.id}',
+      _uriFor(ResourceTarget(target.type, schedule.id)).toString(),
     );
   }
 

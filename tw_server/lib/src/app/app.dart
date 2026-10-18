@@ -1,6 +1,7 @@
 import 'package:http_interop/http_interop.dart';
 import 'package:json_api/routing.dart';
 import 'package:json_api/server.dart';
+import 'package:postgres/postgres.dart';
 import 'package:tw_server/src/app/app_config.dart';
 import 'package:tw_server/src/auth/google/google_oauth.dart';
 import 'package:tw_server/src/auth/google/google_oauth_controller.dart';
@@ -25,11 +26,17 @@ import 'package:uuid/uuid.dart';
 class App(
   final AppConfig _config, {
   GoogleOAuth? googleOAuth,
+  Future<Connection> Function(AppConfig) connectionFactory = connectionFromConfig,
   final Handler _defaultHandler = _plainNotFound,
   final Log _log = const NoLog(),
 }) {
   static const _googleOAuthCallbackPath = '/auth/google/callback';
   final _routes = <(RouteMatcher, Handler)>[];
+  final _applicationRoutes = <(RouteMatcher, Handler)>[];
+  final _connectionFactory = connectionFactory;
+  Connection? _connection;
+  Future<void>? _starting;
+  Future<void>? _stopping;
   final GoogleOAuth _googleOAuth =
       googleOAuth ??
       GoogleOAuthClient(
@@ -53,51 +60,93 @@ class App(
     _handler = loggingMiddleware(routingHandler(_routes, _defaultHandler));
   }
 
-  Future<void> start() async {
+  Future<void> start() {
+    final stopping = _stopping;
+    if (stopping != null) return stopping.then((_) => start());
+    return _starting ??= _start().whenComplete(() {
+      _starting = null;
+    });
+  }
+
+  Future<void> _start() async {
+    if (_connection != null) return;
     final uriDesign = StandardUriDesign(_config.baseUri);
-    final db = await connectionFromConfig(_config);
-    await applyMigrations(db, _log);
+    final db = await _connectionFactory(_config);
+    try {
+      await applyMigrations(db, _log);
 
-    final sessionsDAO = SessionsDAO(db);
-    final usersDAO = UsersDAO(db);
-    final vehiclesDAO = VehiclesDAO(db);
-    final schedulesDAO = SchedulesDAO(db);
-    final googleOAuthController = GoogleOAuthController(_googleOAuth, sessionsDAO, usersDAO);
+      final sessionsDAO = SessionsDAO(db);
+      final usersDAO = UsersDAO(db);
+      final vehiclesDAO = VehiclesDAO(db);
+      final schedulesDAO = SchedulesDAO(db);
+      final googleOAuthController = GoogleOAuthController(_googleOAuth, sessionsDAO, usersDAO);
 
-    final controllers = <String, Controller>{
-      ResourceType.sessions: SessionsController(_googleOAuth, sessionsDAO, usersDAO, uriDesign.uri),
-      ResourceType.vehicles: VehiclesController(vehiclesDAO, schedulesDAO),
-      ResourceType.schedules: SchedulesController(schedulesDAO),
-    };
+      final controllers = <String, Controller>{
+        ResourceType.sessions: SessionsController(
+          _googleOAuth,
+          sessionsDAO,
+          usersDAO,
+          uriDesign.uri,
+        ),
+        ResourceType.vehicles: VehiclesController(vehiclesDAO, schedulesDAO, uriDesign.uri),
+        ResourceType.schedules: SchedulesController(schedulesDAO, uriDesign.uri),
+      };
 
-    Future<SessionRecord?> getCallerSession(Request rq) async {
-      final session = rq.sessionKey;
-      if (session == null) return null;
-      return sessionsDAO.fetchBySessionKey(session);
+      Future<SessionRecord?> getCallerSession(Request rq) async {
+        final session = rq.sessionKey;
+        if (session == null) return null;
+        return sessionsDAO.fetchBySessionKey(session);
+      }
+
+      const sessionAccessPolicy = SessionAccessPolicy();
+
+      final jsonApiHandler = router(
+        getTarget: (httpRq) => uriDesign.target(httpRq.uri),
+        getController: (_, target) => controllers[target.type],
+        beforeDispatch: (jsonApiRq, _) async {
+          final session = await getCallerSession(jsonApiRq.httpRequest);
+          if (!sessionAccessPolicy.allows(jsonApiRq, session)) return unauthorized();
+
+          final userId = session?.userId;
+          if (userId != null) {
+            jsonApiRq.httpRequest.userId = userId;
+          }
+          return null;
+        },
+      );
+
+      _applicationRoutes.addAll([
+        ((rq) => rq.uri.path.startsWith(_config.baseUri.path), jsonApiHandler),
+        ((rq) => rq.uri.path == _googleOAuthCallbackPath, googleOAuthController.callback),
+      ]);
+      _routes.addAll(_applicationRoutes);
+      _connection = db;
+      _isReady = true;
+    } catch (_) {
+      await db.close();
+      rethrow;
     }
+  }
 
-    const sessionAccessPolicy = SessionAccessPolicy();
+  Future<void> stop() => _stopping ??= _stop().whenComplete(() {
+    _stopping = null;
+  });
 
-    final jsonApiHandler = router(
-      getTarget: (httpRq) => uriDesign.target(httpRq.uri),
-      getController: (_, target) => controllers[target.type],
-      beforeDispatch: (jsonApiRq, _) async {
-        final session = await getCallerSession(jsonApiRq.httpRequest);
-        if (!sessionAccessPolicy.allows(jsonApiRq, session)) return unauthorized();
-
-        final userId = session?.userId;
-        if (userId != null) {
-          jsonApiRq.httpRequest.userId = userId;
-        }
-        return null;
-      },
-    );
-
-    _routes.addAll([
-      ((rq) => rq.uri.path.startsWith(_config.baseUri.path), jsonApiHandler),
-      ((rq) => rq.uri.path == _googleOAuthCallbackPath, googleOAuthController.callback),
-    ]);
-    _isReady = true;
+  Future<void> _stop() async {
+    _isReady = false;
+    try {
+      await _starting;
+    } catch (_) {
+      // Failed startup already closes its connection.
+    }
+    _isReady = false;
+    for (final route in _applicationRoutes) {
+      _routes.remove(route);
+    }
+    _applicationRoutes.clear();
+    final connection = _connection;
+    _connection = null;
+    await connection?.close();
   }
 
   Future<Response> call(Request rq) => _handler(rq);

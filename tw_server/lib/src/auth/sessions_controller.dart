@@ -6,9 +6,9 @@ import 'package:tw_server/src/auth/google/google_oauth.dart';
 import 'package:tw_server/src/auth/request_ext.dart';
 import 'package:tw_server/src/auth/session_resource.dart';
 import 'package:tw_server/src/auth/sessions_dao.dart';
+import 'package:tw_server/src/auth/user_resource.dart';
 import 'package:tw_server/src/auth/users_dao.dart';
 import 'package:tw_server/src/json_api/base_controller.dart';
-import 'package:tw_server/src/json_api/resource_type.dart';
 
 class SessionsController(
   final GoogleOAuth _googleOAuth,
@@ -62,13 +62,7 @@ class SessionsController(
     if (userId == null) return ok(OutboundDataDocument.resource(null));
     final user = await _usersDAO.fetch(userId);
     if (user == null) return notFound();
-    return ok(
-      OutboundDataDocument.resource(
-        Resource(ResourceType.users, user.id)
-          ..attributes['email'] = user.email
-          ..attributes['name'] = user.name,
-      ),
-    );
+    return ok(OutboundDataDocument.resource(UserResource(user)));
   }
 
   Future<SessionRecord?> _fetchAccessibleSession(Request request, String id) async {

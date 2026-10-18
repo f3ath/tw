@@ -14,16 +14,23 @@ Future<void> main(List<String> args) async {
   final dotEnv = DotEnv(includePlatformEnvironment: true)..load();
   final appConfig = AppConfig.from(dotEnv.get);
   final app = App(appConfig, log: log);
-  log.info("Starting server...");
-  await server.start(app.call);
-  log.info('Starting application...');
-  await app.start();
-  log.info("Application started.");
+  try {
+    log.info("Starting server...");
+    await server.start(app.call);
+    log.info('Starting application...');
+    await app.start();
+    log.info("Application started.");
 
-  final sig = await firstProcessSignal([ProcessSignal.sigterm, ProcessSignal.sigint]);
-  log.info("Received signal: $sig");
-  await server.stop();
-  log.info('Server stopped.');
+    final sig = await firstProcessSignal([ProcessSignal.sigterm, ProcessSignal.sigint]);
+    log.info("Received signal: $sig");
+  } finally {
+    try {
+      await server.stop();
+    } finally {
+      await app.stop();
+    }
+    log.info('Server stopped.');
+  }
 }
 
 extension on DotEnv {
