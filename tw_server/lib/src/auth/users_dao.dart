@@ -22,7 +22,6 @@ WHERE id = @id:uuid
 
   Future<UserRecord> createOrUpdate({required String email, required String name}) async {
     final user = UserRecord(id: _uuid.v4(), email: email, name: name);
-    final now = _clock();
     final rows = await database.execute(
       Sql.named('''
 INSERT INTO users (id, email, name, created_at, updated_at)
@@ -31,7 +30,7 @@ ON CONFLICT (email) DO UPDATE
 SET name = EXCLUDED.name, updated_at = EXCLUDED.updated_at
 RETURNING id, email, name
 '''),
-      parameters: {...user.toMap(), 'now': now},
+      parameters: {...user.toMap(), 'now': _clock()},
     );
     return UserRecord.fromMap(rows.single.toColumnMap());
   }
