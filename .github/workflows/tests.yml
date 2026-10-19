@@ -14,7 +14,7 @@ jobs:
     timeout-minutes: 15
     defaults:
       run:
-        working-directory: tw_server
+        working-directory: server
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -28,17 +28,17 @@ jobs:
         run: dart pub get
 
       - name: Check formatting
-        run: dart format --output=none --set-exit-if-changed .
+        run: make -C .. format-check-server
 
       - name: Analyze
-        run: dart analyze
+        run: make -C .. analyze-server
 
       - name: Start test database
-        run: docker compose up -d --wait --wait-timeout 90 postgres
+        run: make -C .. db-start
 
       # Application test suites share a database and apply migrations at startup.
       - name: Run tests
-        run: dart test --concurrency=1
+        run: make -C .. test-server
 
       - name: Show database logs on failure
         if: failure()
@@ -46,7 +46,7 @@ jobs:
 
       - name: Stop test database
         if: always()
-        run: docker compose down --volumes
+        run: make -C .. db-stop
 
   application-tests:
     name: Application tests
@@ -54,7 +54,7 @@ jobs:
     timeout-minutes: 15
     defaults:
       run:
-        working-directory: tw_app
+        working-directory: app
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -68,4 +68,4 @@ jobs:
         run: flutter pub get
 
       - name: Run tests
-        run: flutter test
+        run: make -C .. test-app

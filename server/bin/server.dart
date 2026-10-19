@@ -1,0 +1,41 @@
+import 'dart:io';
+
+import 'package:dotenv/dotenv.dart';
+import 'package:server/src/app/app.dart';
+import 'package:server/src/app/app_config.dart';
+import 'package:server/src/http/http_server_harness.dart';
+import 'package:server/src/io/process_signal.dart';
+import 'package:server/src/log/log.dart';
+import 'package:server/src/log/sink_log.dart';
+
+Future<void> main(List<String> args) async {
+  final log = SinkLog(stderr, minLevel: LogLevel.debug);
+  final server = HttpServerHarness();
+  final dotEnv = DotEnv(includePlatformEnvironment: true)..load();
+  final appConfig = AppConfig.from(dotEnv.get);
+  final app = App(appConfig, log: log);
+  try {
+    log.info("Starting server...");
+    await server.start(app.call);
+    log.info('Starting application...');
+    await app.start();
+    log.info("Application started.");
+
+    final sig = await firstProcessSignal([ProcessSignal.sigterm, ProcessSignal.sigint]);
+    log.info("Received signal: $sig");
+  } finally {
+    try {
+      await server.stop();
+    } finally {
+      await app.stop();
+    }
+    log.info('Server stopped.');
+  }
+}
+
+extension on DotEnv {
+  String get(String key, {String Function()? orElse}) => getOrElse(
+    key,
+    orElse ?? () => throw StateError('Missing required environment variable: $key'),
+  );
+}
