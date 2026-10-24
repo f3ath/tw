@@ -7,7 +7,7 @@ import 'package:server/src/auth/session_access_policy.dart';
 import 'package:server/src/auth/sessions_dao.dart';
 import 'package:shared/api.dart';
 
-Request httpRequest(String method) => Request(method, Uri(path: '/'), Body(), Headers());
+Request httpRequest(String method) => Request(method, Uri(path: '/'), Body.empty(), Headers());
 
 CreateResourceRequest create(String type) => CreateResourceRequest(
   httpRequest('post'),

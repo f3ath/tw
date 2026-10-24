@@ -11,7 +11,7 @@ import 'package:shared/api.dart';
 
 import 'harness.dart';
 
-Request get(String path) => Request('get', Uri(path: path), Body(), Headers());
+Request get(String path) => Request('get', Uri(path: path), Body.empty(), Headers());
 
 void main() {
   late App app;

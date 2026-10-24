@@ -33,4 +33,4 @@ Future<void> main() async {
   });
 }
 
-Request get(String path) => Request('get', Uri.parse(path), Body(), Headers());
+Request get(String path) => Request('get', Uri.parse(path), Body.empty(), Headers());

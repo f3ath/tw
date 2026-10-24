@@ -28,7 +28,7 @@ class GoogleOAuthController(
 
     return Response(
       200,
-      Body.text(_successPage(session.name), utf8),
+      Body.text(_successPage(session.name)),
       Headers()..addAll({
         'Content-Type': ['text/html; charset=utf-8'],
       }),

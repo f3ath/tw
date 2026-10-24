@@ -35,7 +35,7 @@ Future<TestApplication> startTestApplication() async {
 Future<Response> oneOffHttpHandler(Request request) async {
   final client = http.Client();
   try {
-    return await client.handleInterop(request);
+    return await client.sendInterop(request);
   } finally {
     client.close();
   }

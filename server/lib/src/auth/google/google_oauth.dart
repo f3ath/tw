@@ -10,17 +10,17 @@ abstract interface class GoogleOAuth() {
 }
 
 class GoogleOAuthClient({
-  required final String clientId,
-  required final String clientSecret,
-  required final String redirectUri,
-  final AuthEndpoints authEndpoints = const GoogleAuthEndpoints(),
+  required final String _clientId,
+  required final String _clientSecret,
+  required final String _redirectUri,
+  final AuthEndpoints _authEndpoints = const GoogleAuthEndpoints(),
 }) implements GoogleOAuth {
   static final _userInfoEndpoint = Uri.parse('https://openidconnect.googleapis.com/v1/userinfo');
 
-  Uri _googleAuthorizationUrl(String state) => authEndpoints.authorizationEndpoint.replace(
+  Uri _googleAuthorizationUrl(String state) => _authEndpoints.authorizationEndpoint.replace(
     queryParameters: {
-      'client_id': clientId,
-      'redirect_uri': redirectUri,
+      'client_id': _clientId,
+      'redirect_uri': _redirectUri,
       'response_type': 'code',
       'scope': 'openid email profile',
       'state': state,
@@ -52,10 +52,10 @@ class GoogleOAuthClient({
     try {
       final credentials = await obtainAccessCredentialsViaCodeExchange(
         client,
-        ClientId(clientId, clientSecret),
+        ClientId(_clientId, _clientSecret),
         code,
-        redirectUrl: redirectUri,
-        authEndpoints: authEndpoints,
+        redirectUrl: _redirectUri,
+        authEndpoints: _authEndpoints,
       );
       final authClient = authenticatedClient(client, credentials);
       try {

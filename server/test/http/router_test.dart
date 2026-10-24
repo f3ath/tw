@@ -3,9 +3,9 @@ import 'package:test/test.dart';
 import 'package:server/src/http/routing_handler.dart' as http_router;
 
 Request request(String uri, {String method = 'GET'}) =>
-    Request(method, Uri.parse(uri), Body(), Headers());
+    Request(method, Uri.parse(uri), Body.empty(), Headers());
 
-Response response(int status) => Response(status, Body(), Headers());
+Response response(int status) => Response(status, Body.empty(), Headers());
 
 void main() {
   group('router', () {

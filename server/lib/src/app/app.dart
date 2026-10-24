@@ -60,9 +60,9 @@ class App(
     _routes.addAll([
       (
         (rq) => rq.uri.path == '/k8s/readiness',
-        (_) async => Response(_isReady ? 200 : 500, Body(), Headers()),
+        (_) async => Response(_isReady ? 200 : 500, Body.empty(), Headers()),
       ),
-      ((rq) => rq.uri.path == '/k8s/liveness', (_) async => Response(200, Body(), Headers())),
+      ((rq) => rq.uri.path == '/k8s/liveness', (_) async => Response(200, Body.empty(), Headers())),
     ]);
 
     final loggingMiddleware = newLoggingMiddleware(_log, const Uuid().v4);

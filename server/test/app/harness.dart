@@ -62,7 +62,7 @@ class TestApplication({
         path: '/auth/google/callback',
         queryParameters: {'code': code, 'state': state ?? googleOAuth.states.last},
       ),
-      Body(),
+      Body.empty(),
       Headers(),
     ),
   );
