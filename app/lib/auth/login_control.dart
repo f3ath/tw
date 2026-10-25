@@ -2,9 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:app/auth/login_controller.dart';
 import 'package:app/auth/login_state.dart';
 
-class const LoginControl({super.key, required this.controller}) extends StatefulWidget {
-  final LoginController controller;
-
+class const LoginControl({super.key, required final LoginController controller}) extends StatefulWidget {
   @override
   State<LoginControl> createState() => _LoginControlState();
 }

@@ -14,8 +14,7 @@ class LoginController({
 }) extends ChangeNotifier {
   LoginState _state = const SignedOut();
   String? _error;
-  Timer? _pollTimer;
-  Completer<void>? _pollWait;
+  final _pollDelay = _CancellableDelay();
   Future<void>? _pendingLogin;
   var _attempt = 0;
   var _disposed = false;
@@ -46,10 +45,7 @@ class LoginController({
       if (!_isActive(attempt)) return;
       final session = await _client.createSession();
       if (!_isActive(attempt)) return;
-      final uri = Uri.tryParse(session?.attributes['redirect'] as String? ?? '');
-      if (uri == null || !uri.hasAuthority || !const ['http', 'https'].contains(uri.scheme)) {
-        throw StateError('Missing authorization URL');
-      }
+      final uri = _authorizationUri(session?.attributes['redirect'] as String?);
       _transition(AwaitingAuthorization(uri));
       if (!_isActive(attempt)) return;
       final opened = await _tryOpenAuthorization(uri);
@@ -58,25 +54,37 @@ class LoginController({
         _reportError('Select Open sign-in to continue in your browser.');
       }
 
-      final deadline = _clock().add(_signInTimeout);
-      while (_isActive(attempt) && _clock().isBefore(deadline)) {
-        final user = await _client.fetchCurrentUser();
-        if (!_isActive(attempt)) return;
-        if (user != null) {
-          _transition(SignedIn(user.displayName));
-          return;
-        }
-        final remaining = deadline.difference(_clock());
-        if (remaining <= Duration.zero) break;
-        await _waitForPoll(remaining < _pollInterval ? remaining : _pollInterval);
-      }
-      if (_isActive(attempt)) {
-        _transition(const SignedOut(), error: 'Sign-in timed out. Please try again.');
-      }
+      await _pollForUser(attempt);
     } catch (_) {
       if (_isActive(attempt)) {
         _transition(const SignedOut(), error: 'Could not sign in. Please try again.');
       }
+    }
+  }
+
+  static Uri _authorizationUri(String? redirect) {
+    final uri = Uri.tryParse(redirect ?? '');
+    if (uri == null || !uri.hasAuthority || !const ['http', 'https'].contains(uri.scheme)) {
+      throw StateError('Missing authorization URL');
+    }
+    return uri;
+  }
+
+  Future<void> _pollForUser(int attempt) async {
+    final deadline = _clock().add(_signInTimeout);
+    while (_isActive(attempt) && _clock().isBefore(deadline)) {
+      final user = await _client.fetchCurrentUser();
+      if (!_isActive(attempt)) return;
+      if (user != null) {
+        _transition(SignedIn(user.displayName));
+        return;
+      }
+      final remaining = deadline.difference(_clock());
+      if (remaining <= Duration.zero) break;
+      await _pollDelay.wait(remaining < _pollInterval ? remaining : _pollInterval);
+    }
+    if (_isActive(attempt)) {
+      _transition(const SignedOut(), error: 'Sign-in timed out. Please try again.');
     }
   }
 
@@ -118,7 +126,7 @@ class LoginController({
       return;
     }
     _attempt++;
-    _cancelPollWait();
+    _pollDelay.cancel();
     _transition(const SignedOut());
   }
 
@@ -135,29 +143,30 @@ class LoginController({
     notifyListeners();
   }
 
-  Future<void> _waitForPoll(Duration duration) {
-    final wait = Completer<void>();
-    _pollWait = wait;
-    _pollTimer = Timer(duration, () {
-      _pollTimer = null;
-      _pollWait = null;
-      wait.complete();
-    });
-    return wait.future;
-  }
-
-  void _cancelPollWait() {
-    _pollTimer?.cancel();
-    _pollTimer = null;
-    _pollWait?.complete();
-    _pollWait = null;
-  }
-
   @override
   void dispose() {
     _disposed = true;
     _attempt++;
-    _cancelPollWait();
+    _pollDelay.cancel();
     super.dispose();
+  }
+}
+
+class _CancellableDelay() {
+  Timer? _timer;
+  Completer<void>? _pending;
+
+  Future<void> wait(Duration duration) {
+    final wait = Completer<void>();
+    _pending = wait;
+    _timer = Timer(duration, cancel);
+    return wait.future;
+  }
+
+  void cancel() {
+    _timer?.cancel();
+    _timer = null;
+    _pending?.complete();
+    _pending = null;
   }
 }

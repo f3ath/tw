@@ -9,5 +9,5 @@ TwApiClient createApiClient(http.Client transport) => TwApiClient(
       const String.fromEnvironment('TW_SERVER_URL', defaultValue: 'http://localhost:8080/api/v0'),
     ),
   ),
-  (request) => transport.handleInterop(request).timeout(const Duration(seconds: 15)),
+  (request) => transport.sendInterop(request).timeout(const Duration(seconds: 15)),
 );
