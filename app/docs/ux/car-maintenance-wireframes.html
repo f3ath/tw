@@ -1,0 +1,171 @@
+<div id="maintenance-wireframes">
+<style>
+#maintenance-wireframes{font:14px/1.5 Arial,sans-serif;color:light-dark(#242424,#ededed);color-scheme:light dark}
+#maintenance-wireframes *{box-sizing:border-box}
+#maintenance-wireframes .review{display:flex;flex-wrap:wrap;gap:12px;align-items:end;padding:12px 0 20px}
+#maintenance-wireframes label{display:block;font-weight:500}
+#maintenance-wireframes select,#maintenance-wireframes input,#maintenance-wireframes textarea{font:inherit;padding:10px;border:1px solid light-dark(#777,#999);border-radius:4px;background:light-dark(#fff,#262626);color:inherit;max-width:100%;min-height:44px}
+#maintenance-wireframes button{font:inherit;color:inherit;border:1px solid light-dark(#777,#999);background:light-dark(#fff,#292929);border-radius:20px;padding:10px 18px;min-height:44px}
+#maintenance-wireframes button.strong{background:light-dark(#343434,#ddd);color:light-dark(#fff,#222);border-color:transparent}
+#maintenance-wireframes button.plain{border-color:transparent;background:transparent}
+#maintenance-wireframes button:disabled{opacity:.5}
+#maintenance-wireframes .product{background:light-dark(#fafafa,#202020);border:1px solid light-dark(#777,#999);border-radius:12px;overflow:hidden;margin:0 auto;max-width:100%}
+#maintenance-wireframes .product.phone{max-width:390px}
+#maintenance-wireframes .appbar{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;padding:16px;border-bottom:1px solid light-dark(#bbb,#666);background:light-dark(#f0f0f0,#282828)}
+#maintenance-wireframes h2,#maintenance-wireframes h3,#maintenance-wireframes h4{font-size:inherit;font-weight:500;margin:0}
+#maintenance-wireframes h2{font-size:20px}#maintenance-wireframes h3{margin:20px 0 8px;font-size:16px}
+#maintenance-wireframes p{margin:6px 0 12px}
+#maintenance-wireframes .muted{color:light-dark(#555,#bbb);font-size:12px}
+#maintenance-wireframes .workspace{display:flex;min-height:520px}
+#maintenance-wireframes aside{flex:0 0 152px;padding:16px 8px;border-right:1px solid light-dark(#bbb,#666)}
+#maintenance-wireframes aside button{display:block;width:100%;margin:0 0 8px;text-align:left;border:0;border-radius:24px}
+#maintenance-wireframes button[aria-selected=true]{background:light-dark(#d8d8d8,#555);font-weight:500}
+#maintenance-wireframes main{padding:20px;min-width:0;flex:1}
+#maintenance-wireframes .content{max-width:700px;margin:auto}
+#maintenance-wireframes .row{display:flex;gap:12px;flex-wrap:wrap;align-items:center;justify-content:space-between}
+#maintenance-wireframes .left{justify-content:flex-start}
+#maintenance-wireframes .list{margin:12px 0;padding:0;list-style:none;border-top:1px solid light-dark(#ccc,#666)}
+#maintenance-wireframes .list>li{border-bottom:1px solid light-dark(#ccc,#666);padding:14px 0}
+#maintenance-wireframes .list>li>button{width:100%;text-align:left;border:0;border-radius:0;background:transparent;padding:4px 0}
+#maintenance-wireframes .due-preview{list-style:none;padding:0;margin:12px 0 0}
+#maintenance-wireframes .due-preview li{padding:8px 0}
+#maintenance-wireframes .tag{display:inline-block;padding:2px 8px;border:1px solid light-dark(#888,#999);border-radius:4px;font-size:12px;margin:4px 6px 0 0}
+#maintenance-wireframes .banner{padding:12px 16px;background:light-dark(#e5e5e5,#3c3c3c);border-bottom:1px solid light-dark(#999,#777)}
+#maintenance-wireframes .tabs{display:flex;border-bottom:1px solid light-dark(#aaa,#777);gap:4px;padding:0 8px}
+#maintenance-wireframes .tabs button{border:0;border-radius:0;flex:1}
+#maintenance-wireframes .bottom-nav{display:flex;justify-content:center;gap:16px;padding:12px 16px;border-top:1px solid light-dark(#bbb,#666);background:light-dark(#f0f0f0,#282828)}
+#maintenance-wireframes .bottom-nav button{flex:1;max-width:240px;border:0}
+#maintenance-wireframes .field{margin:16px 0}#maintenance-wireframes .field input,#maintenance-wireframes .field textarea,#maintenance-wireframes .field select{width:100%;margin-top:4px}
+#maintenance-wireframes .two{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+#maintenance-wireframes .check{font-weight:400;display:flex;gap:12px;align-items:center;padding:10px 0;min-height:48px}
+#maintenance-wireframes .check input{width:20px;min-height:20px;height:20px;flex-shrink:0}
+#maintenance-wireframes .actions{display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap;margin-top:24px}
+#maintenance-wireframes .empty{text-align:center;padding:48px 8px}
+#maintenance-wireframes .account{padding:16px;border-bottom:1px solid light-dark(#aaa,#777)}
+#maintenance-wireframes .custom{display:flex;gap:8px;align-items:start;margin:8px 0}#maintenance-wireframes .custom input{flex:1;min-width:0}
+#maintenance-wireframes .error{padding:12px;border:1px solid currentColor;margin:12px 0}
+#maintenance-wireframes .toast{margin-top:12px;padding:12px;background:light-dark(#333,#ddd);color:light-dark(#fff,#222)}
+#maintenance-wireframes dialog{font:inherit;color:inherit;max-width:min(440px,90%);background:light-dark(#fff,#292929);border:1px solid light-dark(#888,#aaa);border-radius:16px;padding:24px}
+#maintenance-wireframes dialog::backdrop{background:#0006}
+#maintenance-wireframes .phone .two{grid-template-columns:1fr;gap:0}
+@media(max-width:650px){#maintenance-wireframes aside{display:none}#maintenance-wireframes .two{grid-template-columns:1fr;gap:0}#maintenance-wireframes main{padding:16px}#maintenance-wireframes .review label{flex:1 1 150px}#maintenance-wireframes .review select{width:100%}}
+</style>
+<div class="review">
+<label>Screen<select id="wf-screen"><option value="garage">Vehicles</option><option value="settings">Settings</option><option value="login">Google sign-in</option><option value="vehicle-form">Add vehicle</option><option value="due">Vehicle · Due</option><option value="schedule">Vehicle · Schedule</option><option value="history">Vehicle · History</option><option value="service-form">Log service</option><option value="service">Service detail</option><option value="item">Schedule item detail</option><option value="item-form">Add schedule item</option></select></label>
+<label>Layout<select id="wf-layout"><option value="wide">Wide screen</option><option value="phone">Phone</option></select></label>
+<label>State<select id="wf-state"><option value="normal">Loaded</option><option value="empty">Empty</option><option value="offline">Offline · cached</option><option value="error">Load failed · no cache</option><option value="loading">Loading</option></select></label>
+</div>
+<div id="wf-product" class="product"></div>
+<dialog id="wf-dialog"><div id="wf-dialog-content"></div></dialog>
+<script>
+(()=>{
+ const root=document.getElementById('maintenance-wireframes');
+ const product=root.querySelector('#wf-product');
+ const screenPicker=root.querySelector('#wf-screen');
+ const layoutPicker=root.querySelector('#wf-layout');
+ const statePicker=root.querySelector('#wf-state');
+ const dialog=root.querySelector('#wf-dialog');
+ let screen='garage', tab='due', vehicle='4Runner', archived=false, editing=false, account=false, customCount=0, saved='', formDirty=false;
+ let serverAddress='http://localhost:8080';
+ const vehicleTabs=['due','schedule','history'];
+ const cap=s=>s[0].toUpperCase()+s.slice(1);
+ const button=(text,action,kind='',write=false)=>`<button type="button" class="${kind}" data-action="${action}" ${write&&statePicker.value==='offline'?'disabled title="Connection required"':''}>${text}</button>`;
+ const go=(next)=>{screen=next; screenPicker.value=next; account=false;saved='';formDirty=false;render()};
+ const dateField=(value='2026-10-24')=>`<div class="field"><label for="wf-date">Date</label><input id="wf-date" type="date" value="${value}" max="2026-10-24" required></div>`;
+ const mileageField=(value='')=>`<div class="field"><label for="wf-mileage">Odometer · mi</label><input id="wf-mileage" type="number" min="0" step="1" required value="${value}" inputmode="numeric" placeholder="Enter actual reading"><div class="muted">Estimated now: 91,240 mi. Enter the actual reading.</div></div>`;
+ const itemRow=(name,status,detail)=>`<li>${button(`<div class="row"><span>${name}</span><span class="tag">${status}</span></div><div class="muted">${detail}</div>`,'item')}</li>`;
+ function vehiclePreview(name,estimate,recorded,action,items){
+  return `<li>${button(`<h3>${name}</h3><p>Estimated: ${estimate} mi</p><div class="muted">Recorded: ${recorded}</div>`,action)}<ul class="due-preview" aria-label="Top due maintenance for ${name}">${items.slice(0,3).map(i=>`<li><div class="row"><span>${i[0]}</span><span class="tag">${i[1]}</span></div><div class="muted">${i[2]}</div></li>`).join('')}</ul>${items.length>3?button(`${items.length-3} more...`,action,'plain'):''}</li>`;
+ }
+ function garage(){return `${statePicker.value==='empty'?`<div class="empty"><h3>No vehicles yet</h3><p>Add your first vehicle to track maintenance.</p></div>`:`<ul class="list">${vehiclePreview('4Runner','91,240','91,000 mi · Oct 20, 2026','open-4runner',[
+ ['Engine oil & filter','Overdue','By 240 mi · Date limit exceeded by 20 days'],
+ ['Brake fluid','Overdue','By 14 days'],
+ ['Tire rotation','Due soon','In 760 mi'],
+ ['Cabin air filter','Due soon','In 24 days'],
+ ['Engine air filter','Due soon','In 900 mi']
+ ])}${vehiclePreview('Santa Fe','90,480','90,300 mi · Oct 16, 2026','open-santa',[
+ ['Engine oil & filter','Due soon','In 520 mi · Nov 8, 2026'],
+ ['Cabin air filter','Due soon','In 24 days · Nov 17, 2026']
+ ])}</ul>`}<div class="actions left">${button('Add vehicle','vehicle-form','strong',true)}</div>`}
+
+ function vehicleHeader(){return `<div class="row"><div><h3>${vehicle}</h3><p>Estimated: ${vehicle==='4Runner'?'91,240':'90,480'} mi</p><div class="muted">Latest recorded: ${vehicle==='4Runner'?'91,000 mi · Oct 20':'90,300 mi · Oct 16'}, 2026</div></div><div>${button('Update mileage','mileage','',true)}${button('Vehicle settings','vehicle-edit','plain',true)}</div></div>`}
+ function due(){return vehicleHeader()+`<div class="row"><h3>Maintenance due</h3>${button('Log service','service-form','strong',true)}</div>`+(statePicker.value==='empty'?`<div class="empty"><h3>No schedule yet</h3><p>Add recurring maintenance for this vehicle.</p>${button('Add maintenance item','item-form','',true)}</div>`:vehicle==='Santa Fe'?`<h3>Overdue · 0</h3><p>No overdue maintenance.</p><h3>Due soon · 2</h3><ul class="list">${itemRow('Engine oil & filter','Due soon','In 520 mi · Nov 8, 2026')}${itemRow('Cabin air filter','Due soon','In 24 days · Nov 17, 2026')}</ul>`:`<h3>Overdue · 2</h3><ul class="list">${itemRow('Engine oil & filter','Overdue','By 240 mi · Date limit exceeded by 20 days')}${itemRow('Brake fluid','Overdue','By 14 days · Due Oct 10, 2026')}</ul><h3>Due soon · 3</h3><ul class="list">${itemRow('Tire rotation','Due soon','In 760 mi · Date limit in 2 months')}${itemRow('Cabin air filter','Due soon','In 24 days')}${itemRow('Engine air filter','Due soon','In 900 mi')}</ul>`)}
+ function schedule(){return `<div class="row"><h3>${vehicle} · Schedule</h3>${button('Add item','item-form','strong',true)}</div><div class="row left" role="group" aria-label="Schedule filter">${button('Active','active',archived?'':'strong')}${button('Archived','archived',archived?'strong':'')}</div>${archived?`<ul class="list">${itemRow('Engine air filter','Archived','Every 30,000 mi')}</ul>`:statePicker.value==='empty'?`<div class="empty"><p>No maintenance items yet.</p></div>`:`<ul class="list">${itemRow('Brake fluid','Overdue','Every 24 months')}${itemRow('Engine oil & filter','Overdue','Every 5,000 mi or 6 months')}${itemRow('Tire rotation','Due soon','Every 5,000 mi or 6 months')}</ul>`}`}
+ function history(){return `<div class="row"><h3>${vehicle} · History</h3>${button('Log service','service-form','strong',true)}</div>${statePicker.value==='empty'?`<div class="empty"><p>No service records.</p></div>`:`<ul class="list"><li>${button('<div class="row"><span>Oct 20, 2026</span><span>91,000 mi</span></div><div class="muted">Mileage update · no operations</div>','mileage-detail')}</li><li>${button('<div class="row"><span>Apr 7, 2026</span><span>86,000 mi</span></div><div class="muted">Engine oil & filter · Replace wiper blades</div>','service')}</li></ul>`}`}
+ function serviceForm(){return `<form id="wf-service-form"><p>${vehicle}</p><div class="two">${dateField(editing?'2026-04-07':undefined)}${mileageField(editing?'86000':'')}</div><div id="wf-suggestions" ${editing?'hidden':''}><h3>Overdue suggestions</h3><p class="muted">Select only the work you performed.</p><label class="check"><input type="checkbox" name="operation" value="oil">Engine oil & filter</label><label class="check"><input type="checkbox" name="operation" value="brakes">Brake fluid</label></div><div id="wf-all-items" ${editing?'':'hidden'}><h3>Scheduled maintenance</h3><label class="check"><input type="checkbox" name="operation" value="oil-past" ${editing?'checked':''}>Engine oil & filter</label><label class="check"><input type="checkbox" name="operation" value="brakes-past">Brake fluid</label></div><h3 id="wf-other-title">${editing?'':'Other scheduled maintenance'}</h3><label class="check"><input type="checkbox" name="operation" value="tires">Tire rotation · due soon</label><h3>Custom operations</h3><div id="wf-custom">${editing?'<div class="custom"><input aria-label="Custom operation" value="Replace wiper blades"><button type="button" data-action="remove-custom">Remove</button></div>':''}</div>${button('Add custom operation','add-custom')}<p id="wf-selection" class="muted">${editing?'2 operations':'No operations selected. Save as a mileage-only entry.'}</p><div id="wf-form-error" role="alert"></div><div class="actions">${button('Cancel','back','plain')}<button type="submit" class="strong" ${statePicker.value==='offline'?'disabled':''}>Save service</button></div></form>`}
+ function vehicleForm(){return `<form id="wf-vehicle-form"><div class="field"><label for="wf-name">Display name</label><input id="wf-name" required value="${editing?vehicle:''}" placeholder="e.g. 4Runner"></div><div class="field"><label for="wf-manufactured">Manufacture date</label><input id="wf-manufactured" type="date" max="2026-10-24" required value="${editing?'2022-01-15':''}"></div><div class="field"><label for="wf-unit">Distance unit</label>${editing?'<input id="wf-unit" value="Miles" readonly aria-readonly="true">':'<select id="wf-unit"><option>Miles</option><option>Kilometers</option></select>'}</div>${editing?'<p class="muted">Distance unit is fixed after creation. Use Update mileage for a new reading.</p>':`<div class="field"><label for="wf-initial">Current odometer</label><input id="wf-initial" type="number" min="0" step="1" required inputmode="numeric"></div><p class="muted">Creates a mileage-only service dated today.</p>`}<div class="actions">${button('Cancel','back','plain')}<button type="submit" class="strong" ${statePicker.value==='offline'?'disabled':''}>Save vehicle</button></div></form>`}
+ function item(){return `<div class="row"><h3>${archived?'Engine air filter':'Engine oil & filter'}</h3>${button('Edit','item-edit','',true)}</div><p>${archived?'Every 30,000 mi':'Every 5,000 mi or 6 months (180 days), whichever comes first'}</p><span class="tag">${archived?'Archived':'Overdue by 240 mi'}</span>${archived?'':`<h3>Next due</h3><p>91,000 mi · Oct 4, 2026</p><h3>Last completed</h3><p>Apr 7, 2026 · 86,000 mi</p>`}<h3>Service history</h3><ul class="list"><li>${button('Apr 7, 2026 · 86,000 mi','service')}</li><li>${button('Oct 7, 2025 · 81,000 mi','service')}</li></ul><div class="actions">${button(archived?'Restore item':'Archive item',archived?'restore':'archive','',true)}</div>`}
+ function itemForm(){return `<form id="wf-item-form"><div class="field"><label for="wf-description">Description</label><input id="wf-description" required value="${editing?'Engine oil & filter':''}"></div><div class="two"><div class="field"><label for="wf-distance">Every · mi</label><input id="wf-distance" type="number" min="1" step="1" value="${editing?'5000':''}" inputmode="numeric"></div><div class="field"><label for="wf-months">Every · months</label><input id="wf-months" type="number" min="1" step="1" value="${editing?'6':''}" inputmode="numeric"></div></div><p class="muted">Enter at least one interval. When both are set, maintenance is due when either limit is reached. One month = 30 days.</p>${editing?'<p class="muted">Changes recalculate when this item is due.</p>':''}<div id="wf-item-error" role="alert"></div><div class="actions">${button('Cancel','back','plain')}<button type="submit" class="strong" ${statePicker.value==='offline'?'disabled':''}>Save item</button></div></form>`}
+ let mileageDetail=false;
+ function service(){return `<div class="row"><h3>${mileageDetail?'Oct 20, 2026':'Apr 7, 2026'}</h3>${button('Edit','service-edit','',true)}</div><p>${mileageDetail?'91,000':'86,000'} mi</p><h3>${mileageDetail?'Mileage update':'Operations'}</h3>${mileageDetail?'<p>No maintenance operations recorded.</p>':`<ul class="list"><li>${button('Engine oil & filter','item')}</li><li>Replace wiper blades <span class="tag">Custom</span></li></ul>`}<div class="actions">${button('Delete service','delete-service','',true)}</div>`}
+ function settings(){return `<form id="wf-settings-form"><div class="field"><label for="wf-server-address">Server address</label><input id="wf-server-address" type="url" required inputmode="url" autocomplete="url" spellcheck="false"></div><div id="wf-settings-error" role="alert"></div><div class="actions"><button type="submit" class="strong">Save</button></div></form>`}
+ function render(){
+  const isVehicle=vehicleTabs.includes(screen); if(isVehicle)tab=screen;
+  product.className='product '+(layoutPicker.value==='phone'?'phone':'');
+  const titles={garage:'Vehicles',settings:'Settings',login:'DIY maintenance','vehicle-form':editing?'Edit vehicle':'Add vehicle',due:vehicle,schedule:vehicle,history:vehicle,'service-form':editing?'Edit service':'Log service',service:'Service detail',item:'Maintenance item','item-form':editing?'Edit schedule item':'Add schedule item'};
+  const back=screen!=='garage'&&screen!=='settings'&&screen!=='login'?button('‹ Back','back','plain'):'';
+  const small=layoutPicker.value==='phone'||window.innerWidth<650;
+  let html=`<header class="appbar"><div class="row left">${back}<h2>${titles[screen]}</h2></div>${screen==='login'?'':`<div class="row left">${button('Account','account','plain')}</div>`}</header>`;
+  if(account)html+=`<div class="account"><p>Signed in with Google</p><p class="muted">owner@example.com</p>${button('Sign out','signout')}</div>`;
+  if(statePicker.value==='offline')html+='<div class="banner" role="status">Offline · showing saved data<br><span class="muted">Last updated Oct 24, 2026, 9:00 AM. Connect to make changes.</span></div>';
+  if(small&&isVehicle)html+=`<nav class="tabs" aria-label="Vehicle sections">${vehicleTabs.map(t=>`<button type="button" data-action="${t}" aria-selected="${screen===t}">${cap(t)}</button>`).join('')}</nav>`;
+  html+='<div class="workspace">';
+  if(!small&&isVehicle)html+=`<aside aria-label="Vehicle navigation">${vehicleTabs.map(t=>`<button type="button" data-action="${t}" aria-selected="${screen===t}">${cap(t)}</button>`).join('')}</aside>`;
+  html+='<main><div class="content">';
+  if(screen==='settings')html+=settings();
+  else if(statePicker.value==='loading')html+='<div class="empty" role="status">Loading…</div>';
+  else if(statePicker.value==='error')html+=`<div class="empty" role="alert"><h3>Couldn't load this screen</h3><p>No saved data available.</p>${button('Retry','retry')}</div>`;
+  else if(screen==='login')html+=`<div class="empty"><h3>Keep track of your car's maintenance</h3><p>See what's due and record the work you perform.</p>${button('Continue with Google','signin','strong')}<p class="muted">Your session will be remembered on this device.</p></div>`;
+  else html+=({garage, due, schedule, history, 'vehicle-form':vehicleForm, 'service-form':serviceForm, service, item, 'item-form':itemForm}[screen]||garage)();
+  if(saved)html+=`<div class="toast" role="status">${saved}</div>`;
+  html+='</div></main></div>';
+  if(screen!=='login')html+=`<nav class="bottom-nav" aria-label="Main navigation"><button type="button" data-action="garage" ${screen!=='settings'?'aria-current="page"':''} aria-selected="${screen!=='settings'}">Vehicles</button><button type="button" data-action="settings" ${screen==='settings'?'aria-current="page"':''} aria-selected="${screen==='settings'}">Settings</button></nav>`;
+  product.innerHTML=html;customCount=0;
+  if(screen==='settings')root.querySelector('#wf-server-address').value=serverAddress;
+ }
+ function confirmAction(title,text,onConfirm){root.querySelector('#wf-dialog-content').innerHTML=`<h3>${title}</h3><p>${text}</p><div class="actions"><button type="button" id="wf-keep">Cancel</button><button type="button" class="strong" id="wf-confirm">Confirm</button></div>`;dialog.showModal();root.querySelector('#wf-keep').onclick=()=>dialog.close();root.querySelector('#wf-confirm').onclick=()=>{dialog.close();onConfirm()}}
+ function navigate(next){if(formDirty)confirmAction('Discard changes?','Your unsaved changes will be lost.',()=>go(next));else go(next)}
+ root.addEventListener('click',e=>{
+  const b=e.target.closest('[data-action]');if(!b||b.disabled)return;const a=b.dataset.action;
+  if(a==='back'){navigate(['due','schedule','history','vehicle-form'].includes(screen)?'garage':screen==='item-form'?'schedule':screen==='item'?'schedule':screen==='service'?'history':'due');return}
+  if(a==='account'){account=!account;render();return}
+  if(a==='open-4runner'||a==='open-santa'){vehicle=a==='open-4runner'?'4Runner':'Santa Fe';go('due');return}
+  if(a==='signin'){go('garage');saved='Demo sign-in complete. No real account connection.';render();return}
+  if(a==='signout'){const leave=()=>go('login');if(formDirty)confirmAction('Discard changes and sign out?','Unsaved changes will be lost.',leave);else leave();return}
+  if(a==='retry'){statePicker.value='normal';render();return}
+  if(a==='active'||a==='archived'){archived=a==='archived';render();return}
+  if(a==='vehicle-edit'){editing=true;go('vehicle-form');return}
+  if(a==='service-edit'){editing=true;go('service-form');return}
+  if(a==='item-edit'){editing=true;go('item-form');return}
+  if(a==='mileage'){editing=false;go('service-form');return}
+  if(a==='mileage-detail'){mileageDetail=true;go('service');return}
+  if(a==='service'){mileageDetail=false;go('service');return}
+  if(a==='archive'){confirmAction('Archive this item?','It will stop appearing as due. Its service history will be kept.',()=>{archived=true;go('item');saved='Item archived · illustrative state';render()});return}
+  if(a==='restore'){archived=false;go('item');saved='Item restored · status recalculated';render();return}
+  if(a==='delete-service'){confirmAction('Delete this service?','Due dates and estimated mileage will be recalculated.',()=>{go('history');saved='Deletion confirmed in demo; sample history remains illustrative.';render()});return}
+  if(a==='add-custom'){customCount++;const wrap=document.createElement('div');wrap.className='custom';wrap.innerHTML=`<input aria-label="Custom operation ${customCount}" placeholder="Describe the work"><button type="button" data-action="remove-custom">Remove</button>`;root.querySelector('#wf-custom').appendChild(wrap);wrap.querySelector('input').focus();formDirty=true;return}
+  if(a==='remove-custom'){b.parentElement.remove();formDirty=true;updateCount();return}
+  if(['service-form','vehicle-form','item-form'].includes(a))editing=false;
+  if(screenPicker.querySelector(`option[value="${a}"]`))navigate(a);
+ });
+ function updateCount(){const out=root.querySelector('#wf-selection');if(!out)return;const checked=Array.from(root.querySelectorAll('input[name=operation]:checked')).filter(x=>!x.closest('[hidden]')).length;const customs=Array.from(root.querySelectorAll('#wf-custom input')).filter(x=>x.value.trim()).length;const n=checked+customs;out.textContent=n?`${n} operation${n===1?'':'s'} selected`:'No operations selected. Save as a mileage-only entry.'}
+ root.addEventListener('input',e=>{if(e.target.closest('form'))formDirty=true;updateCount()});
+ root.addEventListener('change',e=>{if(e.target.id==='wf-date'){
+  const past=e.target.value<'2026-10-24'; const suggested=root.querySelector('#wf-suggestions'),all=root.querySelector('#wf-all-items');
+  if(suggested&&all){const oil=root.querySelector('[value=oil]'),oldOil=root.querySelector('[value=oil-past]'),brake=root.querySelector('[value=brakes]'),oldBrake=root.querySelector('[value=brakes-past]');
+   if(past){oldOil.checked=oil.checked||oldOil.checked;oldBrake.checked=brake.checked||oldBrake.checked}else{ oil.checked=oldOil.checked||oil.checked;brake.checked=oldBrake.checked||brake.checked}
+   suggested.hidden=past;all.hidden=!past;root.querySelector('#wf-other-title').textContent=past?'':'Other scheduled maintenance';updateCount();}
+ }});
+ root.addEventListener('submit',e=>{
+  e.preventDefault();const id=e.target.id;
+  if(id==='wf-settings-form'){const value=root.querySelector('#wf-server-address').value.trim();let url;try{url=new URL(value)}catch{}if(!url||!['http:','https:'].includes(url.protocol)||!url.hostname){root.querySelector('#wf-settings-error').innerHTML='<p class="error">Enter an HTTP or HTTPS server address.</p>';return}serverAddress=value;formDirty=false;saved='Server address saved · demo setting';render();return}
+  if(id==='wf-service-form'){const date=root.querySelector('#wf-date').value;const miles=Number(root.querySelector('#wf-mileage').value);if(date==='2026-10-24'&&miles<91000){root.querySelector('#wf-form-error').innerHTML='<p class="error">Odometer must be at least 91,000 mi, recorded Oct 20. Check the reading or date.</p>';return}formDirty=false;go('service');saved='Service saved · demo values are illustrative';render()}
+  if(id==='wf-vehicle-form'){formDirty=false;go(editing?'due':'schedule');saved=editing?'Vehicle updated':'Vehicle added. A mileage-only entry was created. Add your first schedule item.';render()}
+  if(id==='wf-item-form'){if(!root.querySelector('#wf-distance').value&&!root.querySelector('#wf-months').value){root.querySelector('#wf-item-error').innerHTML='<p class="error">Enter a distance interval, a month interval, or both.</p>';return}formDirty=false;archived=false;go('item');saved='Schedule item saved · illustrative state';render()}
+ });
+ screenPicker.addEventListener('change',()=>{editing=false;navigate(screenPicker.value)});layoutPicker.addEventListener('change',render);statePicker.addEventListener('change',render);
+ let prevSmall=window.innerWidth<650;window.addEventListener('resize',()=>{const small=window.innerWidth<650;if(small!==prevSmall){prevSmall=small;render()}});
+ render();
+})();
+</script>
+</div>

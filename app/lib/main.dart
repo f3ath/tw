@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:app/app.dart';
+
+import 'app/composition.dart';
+import 'app/torque_wrench_app.dart';
 
 void main() {
-  runApp(const TwApp());
+  WidgetsFlutterBinding.ensureInitialized();
+  runApp(TorqueWrenchApp(composition: Composition.local()));
 }
