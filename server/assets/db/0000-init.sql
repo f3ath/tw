@@ -88,3 +88,36 @@ CREATE
     TO tw_tenant
     USING (owner_id = current_setting('tw.tenant_id')::uuid)
     WITH CHECK (owner_id = current_setting('tw.tenant_id')::uuid);
+
+CREATE TABLE services
+(
+    id         UUID PRIMARY KEY,
+    owner_id   UUID      NOT NULL DEFAULT current_setting('tw.tenant_id')::uuid REFERENCES users (id) ON DELETE CASCADE,
+    vehicle_id UUID      NOT NULL REFERENCES vehicles (id) ON DELETE CASCADE,
+    date       date      NOT NULL,
+    mileage    integer   NOT NULL,
+    details    text      NOT NULL,
+    created_at timestamp NOT NULL,
+    updated_at timestamp NOT NULL,
+    UNIQUE (owner_id, id),
+    FOREIGN KEY (owner_id, vehicle_id) REFERENCES vehicles (owner_id, id)
+);
+
+GRANT SELECT, INSERT, UPDATE, DELETE
+    ON TABLE public.services
+    TO tw_tenant;
+
+ALTER TABLE services
+    ENABLE ROW LEVEL SECURITY;
+
+ALTER TABLE services
+    FORCE ROW LEVEL SECURITY;
+
+CREATE
+    POLICY owner_access
+    ON services
+    FOR ALL
+    TO tw_tenant
+    USING (owner_id = current_setting('tw.tenant_id')::uuid)
+    WITH CHECK (owner_id = current_setting('tw.tenant_id')::uuid);
+

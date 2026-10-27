@@ -6,6 +6,8 @@ import 'package:server/src/auth/request_ext.dart';
 import 'package:server/src/json_api/base_controller.dart';
 import 'package:server/src/schedules/schedule_resource.dart';
 import 'package:server/src/schedules/schedules_tdao.dart';
+import 'package:server/src/services/service_resource.dart';
+import 'package:server/src/services/services_tdao.dart';
 import 'package:server/src/vehicles/vehicle_resource.dart';
 import 'package:server/src/vehicles/vehicles_dao.dart';
 import 'package:uuid/uuid.dart';
@@ -13,6 +15,7 @@ import 'package:uuid/uuid.dart';
 class VehiclesController(
   final VehiclesTDAOProvider _ownedVehicles,
   final SchedulesTDAOProvider _ownedSchedules,
+  final ServicesTDAOProvider _ownedServices,
   final UriBuilder _uriFor,
 ) extends BaseController {
   static const _uuid = Uuid();
@@ -72,10 +75,15 @@ class VehiclesController(
 
   @override
   Future<Response> fetchRelated(Request request, RelatedTarget target) async {
-    if (target.relationship != 'schedule') return notFound();
+    if (target.relationship != 'schedule' && target.relationship != 'service') return notFound();
 
     final vehicle = await _ownedVehicles(request.userId).fetchById(id: target.id);
     if (vehicle == null) return notFound();
+
+    if (target.relationship == 'service') {
+      final services = await _ownedServices(request.userId).fetchByVehicleId(vehicleId: target.id);
+      return ok(OutboundDataDocument.collection(services.map(ServiceResource.new)));
+    }
 
     final schedules = await _ownedSchedules(request.userId).fetchByVehicleId(vehicleId: target.id);
     return ok(OutboundDataDocument.collection(schedules.map(ScheduleResource.new)));

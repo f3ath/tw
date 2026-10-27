@@ -20,14 +20,6 @@ Future<void> main() async {
     'Authorization': ['Bearer ${session.attributes['key'] as String}'],
   };
 
-  Matcher statusCode(int expected) => throwsA(
-    isA<RequestFailure>().having(
-      (r) => r.rawResponse.httpResponse.statusCode,
-      'Status Code',
-      equals(expected),
-    ),
-  );
-
   group('Vehicles', () {
     setUp(() async {
       app = await startTestApplication();

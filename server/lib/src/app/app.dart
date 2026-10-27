@@ -21,6 +21,8 @@ import 'package:shared/api.dart';
 import 'package:server/src/log/log.dart';
 import 'package:server/src/schedules/schedules_controller.dart';
 import 'package:server/src/schedules/schedules_tdao.dart';
+import 'package:server/src/services/services_controller.dart';
+import 'package:server/src/services/services_tdao.dart';
 import 'package:server/src/vehicles/vehicles_controller.dart';
 import 'package:server/src/vehicles/vehicles_dao.dart';
 import 'package:shared/time.dart';
@@ -97,6 +99,8 @@ class App(
           VehiclesDAO(ScopedDatabase(ownerId, tenantConnection), clock: _clock);
       SchedulesTDAO schedulesDAOProvider(String ownerId) =>
           SchedulesTDAO(ScopedDatabase(ownerId, tenantConnection), clock: _clock);
+      ServicesTDAO servicesDAOProvider(String ownerId) =>
+          ServicesTDAO(ScopedDatabase(ownerId, tenantConnection), clock: _clock);
       final googleOAuthController = GoogleOAuthController(_googleOAuth, sessionsDAO, usersDAO);
 
       final controllers = <String, Controller>{
@@ -109,9 +113,11 @@ class App(
         ResourceType.vehicles: VehiclesController(
           vehiclesDAOProvider,
           schedulesDAOProvider,
+          servicesDAOProvider,
           uriDesign.uri,
         ),
         ResourceType.schedules: SchedulesController(schedulesDAOProvider, uriDesign.uri),
+        ResourceType.services: ServicesController(servicesDAOProvider, uriDesign.uri),
       };
 
       Future<SessionRecord?> getCallerSession(Request rq) async {

@@ -1,4 +1,3 @@
-import 'package:json_api/client.dart' hide Request;
 import 'package:test/test.dart';
 import 'package:shared/api.dart';
 
@@ -12,14 +11,6 @@ Future<void> main() async {
     await client.createSession();
     await app.googleCallback(code, state: app.googleOAuth.states.last);
   }
-
-  Matcher statusCode(int expected) => throwsA(
-    isA<RequestFailure>().having(
-      (r) => r.rawResponse.httpResponse.statusCode,
-      'Status Code',
-      equals(expected),
-    ),
-  );
 
   group('Schedules', () {
     setUp(() async {

@@ -133,6 +133,47 @@ class TwApiClient(UriDesign urlDesign, Handler handler) {
     await _jsonApi.deleteResource(ResourceType.schedules, scheduleId);
   }
 
+  Future<List<Resource>> listServices(String vehicleId) async =>
+      (await _jsonApi.fetchRelatedCollection(
+        ResourceType.vehicles,
+        vehicleId,
+        'service',
+      )).collection;
+
+  Future<Resource> createService(
+    String vehicleId, {
+    required DateTime date,
+    required int mileage,
+    String details = '',
+  }) async {
+    final response = await _jsonApi.createNew(
+      ResourceType.services,
+      one: {'vehicle': Identifier(ResourceType.vehicles, vehicleId)},
+      attributes: {'date': _date(date), 'mileage': mileage, 'details': details},
+    );
+    return response.resource;
+  }
+
+  Future<Resource?> updateService(
+    String vehicleId,
+    String serviceId, {
+    required DateTime date,
+    required int mileage,
+    String? details,
+  }) async {
+    final response = await _jsonApi.updateResource(
+      ResourceType.services,
+      serviceId,
+      one: {'vehicle': Identifier(ResourceType.vehicles, vehicleId)},
+      attributes: <String, Object?>{'date': _date(date), 'mileage': mileage, 'details': ?details},
+    );
+    return response.resource;
+  }
+
+  Future<void> deleteService(String serviceId) async {
+    await _jsonApi.deleteResource(ResourceType.services, serviceId);
+  }
+
   Future<void> deleteSession() async {
     final session = _session;
     if (session == null) {

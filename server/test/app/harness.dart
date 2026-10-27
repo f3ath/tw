@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:http_interop/http_interop.dart';
+import 'package:json_api/client.dart' show RequestFailure;
 import 'package:json_api/routing.dart';
 import 'package:postgres/postgres.dart';
 import 'package:server/src/app/app.dart';
@@ -9,6 +10,15 @@ import 'package:server/src/auth/google/google_oauth.dart';
 import 'package:server/src/db/connection_from_config.dart';
 import 'package:server/src/log/sink_log.dart';
 import 'package:shared/api.dart';
+import 'package:test/test.dart';
+
+Matcher statusCode(int expected) => throwsA(
+  isA<RequestFailure>().having(
+    (r) => r.rawResponse.httpResponse.statusCode,
+    'Status Code',
+    equals(expected),
+  ),
+);
 
 final testConfig = createTestConfig();
 

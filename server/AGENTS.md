@@ -26,4 +26,5 @@ This file applies to the `server` package.
 - Split SQL across lines by clause: verb, tables, `WHERE`, and `RETURNING`.
 - Keep changes small and local to the requested behavior.
 - Do not rewrite unrelated dirty files.
-- Follow TDD principles: write a failing test, implement the feature, and refactor.
+- Follow TDD principles: write a failing test, implement the feature, and refactor. 
+- The tests must interact with the server only via TwApiClient, never directly call JSON:API endpoints

@@ -1,7 +1,6 @@
 import 'dart:convert';
 
 import 'package:http_interop/extensions.dart';
-import 'package:json_api/client.dart' hide Request;
 import 'package:json_api/document.dart';
 import 'package:test/test.dart';
 import 'package:shared/api.dart';
@@ -23,16 +22,7 @@ Future<void> main() async {
     });
 
     test('No Auth Header: Unauthorized', () async {
-      expect(
-        () => client.listSessions(),
-        throwsA(
-          isA<RequestFailure>().having(
-            (r) => r.rawResponse.httpResponse.statusCode,
-            'Status Code',
-            equals(401),
-          ),
-        ),
-      );
+      expect(() => client.listSessions(), statusCode(401));
     });
 
     test('Session creation supplies a fresh redirect URL for each request', () async {
@@ -68,16 +58,7 @@ Future<void> main() async {
 
       await secondClient.deleteSession();
 
-      expect(
-        () => secondClient.listSessions(),
-        throwsA(
-          isA<RequestFailure>().having(
-            (r) => r.rawResponse.httpResponse.statusCode,
-            'Status Code',
-            equals(401),
-          ),
-        ),
-      );
+      expect(() => secondClient.listSessions(), statusCode(401));
       expect((await client.listSessions()).map((r) => r.id), [first.id]);
     });
 
@@ -94,27 +75,9 @@ Future<void> main() async {
 
       final secondId = second!.id;
 
-      await expectLater(
-        () => secondClient.fetchSession(firstId),
-        throwsA(
-          isA<RequestFailure>().having(
-            (r) => r.rawResponse.httpResponse.statusCode,
-            'Status Code',
-            equals(404),
-          ),
-        ),
-      );
+      await expectLater(() => secondClient.fetchSession(firstId), statusCode(404));
 
-      expect(
-        () => secondClient.deleteSessionById(firstId),
-        throwsA(
-          isA<RequestFailure>().having(
-            (r) => r.rawResponse.httpResponse.statusCode,
-            'Status Code',
-            equals(404),
-          ),
-        ),
-      );
+      expect(() => secondClient.deleteSessionById(firstId), statusCode(404));
 
       expect((await client.listSessions()).map((r) => r.id), [firstId]);
       expect((await secondClient.listSessions()).map((r) => r.id), [secondId]);
@@ -143,16 +106,7 @@ Future<void> main() async {
         invalidKeyClient,
         otherClient,
       ]) {
-        await expectLater(
-          () => unauthorizedClient.fetchSession(r0.id),
-          throwsA(
-            isA<RequestFailure>().having(
-              (r) => r.rawResponse.httpResponse.statusCode,
-              'Status Code',
-              equals(401),
-            ),
-          ),
-        );
+        await expectLater(() => unauthorizedClient.fetchSession(r0.id), statusCode(401));
       }
 
       final pendingSession = await client.fetchCurrentSession();
@@ -161,16 +115,7 @@ Future<void> main() async {
       expect(pendingSession.relationships['user'], isA<ToOne>());
       expect(pendingSession.relationships['user']!.isEmpty, isTrue);
       expect(await client.fetchCurrentUser(), isNull);
-      expect(
-        () => client.listSessions(),
-        throwsA(
-          isA<RequestFailure>().having(
-            (r) => r.rawResponse.httpResponse.statusCode,
-            'Status Code',
-            equals(401),
-          ),
-        ),
-      );
+      expect(() => client.listSessions(), statusCode(401));
 
       await app.googleCallback('test-code', state: state).then((r) async {
         expect(r.statusCode, 200);
