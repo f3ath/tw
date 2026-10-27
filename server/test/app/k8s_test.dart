@@ -11,7 +11,7 @@ Future<void> main() async {
     });
 
     test('liveness and readiness probes reflect application startup', () async {
-      final app = App(testConfig, googleOAuth: TestGoogleOAuth());
+      final app = App(testConfig, oauth: TestGoogleOAuth());
       addTearDown(app.stop);
 
       await app(get('/k8s/liveness')).then((r) {

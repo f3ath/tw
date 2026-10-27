@@ -11,7 +11,7 @@ import 'package:shared/api.dart';
 
 import 'harness.dart';
 
-Request get(String path) => Request('get', Uri(path: path), Body.empty(), Headers());
+Request get(String path) => Request('GET', Uri(path: path), Body.empty(), Headers());
 
 void main() {
   late App app;
@@ -26,7 +26,7 @@ void main() {
     log = StartupLog();
     app = App(
       testConfig,
-      googleOAuth: TestGoogleOAuth(),
+      oauth: TestGoogleOAuth(),
       log: log,
       systemConnectionFactory: (config) async {
         final connection = await SystemConnection.fromConfig(config);
@@ -109,7 +109,7 @@ void main() {
     final proceed = Completer<void>();
     app = App(
       testConfig,
-      googleOAuth: TestGoogleOAuth(),
+      oauth: TestGoogleOAuth(),
       systemConnectionFactory: (config) async {
         final connection = await SystemConnection.fromConfig(config);
         systemConnections.add(connection);

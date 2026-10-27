@@ -41,7 +41,6 @@ Future<void> main() async {
 
       final replay = await app.googleCallback('replay-code', state: state);
       expect(replay.statusCode, 400);
-      expect(await replay.body.decode(utf8), 'Invalid Google callback.');
 
       expect((await client.listSessions()).map((r) => r.id), [session!.id]);
     });

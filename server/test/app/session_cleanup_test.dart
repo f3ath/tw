@@ -22,7 +22,7 @@ void main() {
     );
     var now = DateTime.utc(2026, 1, 1, 12);
     DateTime clock() => now;
-    final application = App(config, googleOAuth: TestGoogleOAuth(), clock: clock);
+    final application = App(config, oauth: TestGoogleOAuth(), clock: clock);
     addTearDown(application.stop);
     await application.start();
     await withTestDatabase(config, (connection) async {

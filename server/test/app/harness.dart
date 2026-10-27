@@ -6,7 +6,7 @@ import 'package:json_api/routing.dart';
 import 'package:postgres/postgres.dart';
 import 'package:server/src/app/app.dart';
 import 'package:server/src/app/app_config.dart';
-import 'package:server/src/auth/google/google_oauth.dart';
+import 'package:server/src/auth/simple_oauth.dart';
 import 'package:server/src/db/connection_from_config.dart';
 import 'package:server/src/log/sink_log.dart';
 import 'package:shared/api.dart';
@@ -43,7 +43,7 @@ AppConfig createTestConfig({
 Future<TestApplication> startTestApplication() async {
   await resetDatabaseSchema(testConfig);
   final googleOAuth = TestGoogleOAuth();
-  final app = App(testConfig, googleOAuth: googleOAuth, log: SinkLog(stderr));
+  final app = App(testConfig, oauth: googleOAuth, log: SinkLog(stderr));
   await app.start();
 
   final urlDesign = StandardUriDesign(testConfig.baseUri);
@@ -108,7 +108,7 @@ Future<T> withTestDatabase<T>(
 }
 
 class TestGoogleOAuth({var String email = 'user@example.com', var String name = 'Test User'})
-    implements GoogleOAuth {
+    implements SimpleOAuth {
   Uri? _authorizationUri;
 
   Uri get authorizationUri => _authorizationUri!;
@@ -116,14 +116,14 @@ class TestGoogleOAuth({var String email = 'user@example.com', var String name = 
   Map<String, String>? queryParameters;
 
   @override
-  Uri startAuthorization(String state) {
-    states.add(state);
-    return _authorizationUri = Uri.https('accounts.google.com', '/o/oauth2/auth', {'state': state});
+  Uri startAuthorization(String nonce) {
+    states.add(nonce);
+    return _authorizationUri = Uri.https('accounts.google.com', '/o/oauth2/auth', {'state': nonce});
   }
 
   @override
-  Future<GoogleOAuthSession?> finishAuthorization(Map<String, String> queryParameters) async {
+  Future<SimpleOAuthSession?> finishAuthorization(Map<String, String> queryParameters) async {
     this.queryParameters = queryParameters;
-    return GoogleOAuthSession(email: email, name: name);
+    return SimpleOAuthSession(email: email, name: name, nonce: queryParameters['state'] as String);
   }
 }

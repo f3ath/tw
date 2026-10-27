@@ -2,10 +2,10 @@ import 'package:http_interop/extensions.dart';
 import 'package:http_interop/http_interop.dart';
 import 'package:json_api/document.dart';
 import 'package:json_api/routing.dart';
-import 'package:server/src/auth/google/google_oauth.dart';
 import 'package:server/src/auth/request_ext.dart';
 import 'package:server/src/auth/sessions_controller.dart';
 import 'package:server/src/auth/sessions_dao.dart';
+import 'package:server/src/auth/simple_oauth.dart';
 import 'package:shared/api.dart';
 import 'package:test/test.dart';
 
@@ -22,7 +22,7 @@ void main() {
     setUp(() {
       sessions = FakeSessionsDAO();
       controller = SessionsController(
-        UnusedGoogleOAuth(),
+        UnusedOAuth(),
         sessions,
         FakeUsersDAO(),
         StandardUriDesign(Uri(path: '/api/v0')).uri,
@@ -107,7 +107,7 @@ Future<Resource> _resource(Response response) async {
   return InboundDocument(await response.body.decodeJson()).dataAsResource();
 }
 
-class UnusedGoogleOAuth() implements GoogleOAuth {
+class UnusedOAuth() implements SimpleOAuth {
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }

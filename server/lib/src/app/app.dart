@@ -3,12 +3,13 @@ import 'package:json_api/document.dart';
 import 'package:json_api/routing.dart';
 import 'package:json_api/server.dart';
 import 'package:server/src/app/app_config.dart';
-import 'package:server/src/auth/google/google_oauth.dart';
-import 'package:server/src/auth/google/google_oauth_controller.dart';
+import 'package:server/src/auth/google_oauth.dart';
+import 'package:server/src/auth/oauth_controller.dart';
 import 'package:server/src/auth/request_ext.dart';
 import 'package:server/src/auth/session_access_policy.dart';
 import 'package:server/src/auth/sessions_controller.dart';
 import 'package:server/src/auth/sessions_dao.dart';
+import 'package:server/src/auth/simple_oauth.dart';
 import 'package:server/src/auth/users_dao.dart';
 import 'package:server/src/db/apply_migrations.dart';
 import 'package:server/src/db/connection_from_config.dart';
@@ -17,7 +18,6 @@ import 'package:server/src/http/logging_middleware.dart';
 import 'package:server/src/http/responses.dart';
 import 'package:server/src/http/routing_handler.dart';
 import 'package:server/src/job/periodic_job.dart';
-import 'package:shared/api.dart';
 import 'package:server/src/log/log.dart';
 import 'package:server/src/schedules/schedules_controller.dart';
 import 'package:server/src/schedules/schedules_tdao.dart';
@@ -25,12 +25,13 @@ import 'package:server/src/services/services_controller.dart';
 import 'package:server/src/services/services_tdao.dart';
 import 'package:server/src/vehicles/vehicles_controller.dart';
 import 'package:server/src/vehicles/vehicles_dao.dart';
+import 'package:shared/api.dart';
 import 'package:shared/time.dart';
 import 'package:uuid/uuid.dart';
 
 class App(
   final AppConfig _config, {
-  GoogleOAuth? googleOAuth,
+  SimpleOAuth? oauth,
   final Clock _clock = systemClock,
   Future<SystemConnection> Function(AppConfig) systemConnectionFactory =
       SystemConnection.fromConfig,
@@ -48,8 +49,8 @@ class App(
   PeriodicJob? _sessionCleanup;
   Future<void>? _starting;
   Future<void>? _stopping;
-  final GoogleOAuth _googleOAuth =
-      googleOAuth ??
+  final SimpleOAuth _oauth =
+      oauth ??
       GoogleOAuthClient(
         clientId: _config.googleOAuthClientId,
         clientSecret: _config.googleOAuthClientSecret,
@@ -101,15 +102,10 @@ class App(
           SchedulesTDAO(ScopedDatabase(ownerId, tenantConnection), clock: _clock);
       ServicesTDAO servicesDAOProvider(String ownerId) =>
           ServicesTDAO(ScopedDatabase(ownerId, tenantConnection), clock: _clock);
-      final googleOAuthController = GoogleOAuthController(_googleOAuth, sessionsDAO, usersDAO);
+      final googleOAuthController = OAuthController(_oauth, sessionsDAO, usersDAO);
 
       final controllers = <String, Controller>{
-        ResourceType.sessions: SessionsController(
-          _googleOAuth,
-          sessionsDAO,
-          usersDAO,
-          uriDesign.uri,
-        ),
+        ResourceType.sessions: SessionsController(_oauth, sessionsDAO, usersDAO, uriDesign.uri),
         ResourceType.vehicles: VehiclesController(
           vehiclesDAOProvider,
           schedulesDAOProvider,
