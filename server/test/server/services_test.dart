@@ -5,12 +5,12 @@ import 'package:test/test.dart';
 import 'harness.dart';
 
 Future<void> main() async {
-  late TestApplication app;
+  late TestServer testServer;
   late TwApiClient client;
 
   Future<void> signIn(TwApiClient client, String code) async {
     await client.createSession();
-    await app.googleCallback(code, state: app.googleOAuth.states.last);
+    await testServer.googleCallback(code, state: testServer.googleOAuth.states.last);
   }
 
   Future<Resource> createVehicle() =>
@@ -25,12 +25,12 @@ Future<void> main() async {
 
   group('Services', () {
     setUp(() async {
-      app = await startTestApplication();
-      client = app.client;
+      testServer = await startTestServer();
+      client = testServer.client;
     });
 
     tearDown(() async {
-      await app.stop();
+      await testServer.stop();
     });
 
     test('Unauthenticated users cannot create, list, or delete services', () async {
@@ -41,8 +41,8 @@ Future<void> main() async {
 
     test('Create, list by vehicle, and delete a service', () async {
       String? location;
-      client = TwApiClient(app.urlDesign, (request) async {
-        final response = await app.clientHandler(request);
+      client = TwApiClient(testServer.urlDesign, (request) async {
+        final response = await testServer.clientHandler(request);
         location = response.headers['location']?.single;
         return response;
       });
@@ -142,9 +142,9 @@ Future<void> main() async {
       await signIn(client, 'test-code');
       final vehicle = await createVehicle();
       final service = await createService(vehicle.id);
-      app.googleOAuth.email = 'other@example.com';
-      app.googleOAuth.name = 'Other User';
-      final otherClient = TwApiClient(app.urlDesign, app.clientHandler);
+      testServer.googleOAuth.email = 'other@example.com';
+      testServer.googleOAuth.name = 'Other User';
+      final otherClient = TwApiClient(testServer.urlDesign, testServer.clientHandler);
       await signIn(otherClient, 'other-code');
 
       await expectLater(() => otherClient.listServices(vehicle.id), statusCode(404));

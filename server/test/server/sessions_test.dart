@@ -8,17 +8,17 @@ import 'package:shared/api.dart';
 import 'harness.dart';
 
 Future<void> main() async {
-  late TestApplication app;
+  late TestServer testServer;
   late TwApiClient client;
 
   group('Sessions', () {
     setUp(() async {
-      app = await startTestApplication();
-      client = app.client;
+      testServer = await startTestServer();
+      client = testServer.client;
     });
 
     tearDown(() async {
-      await app.stop();
+      await testServer.stop();
     });
 
     test('No Auth Header: Unauthorized', () async {
@@ -34,12 +34,12 @@ Future<void> main() async {
 
     test('Google callback nonce is one-time', () async {
       final session = await client.createSession();
-      final state = app.googleOAuth.states.last;
+      final state = testServer.googleOAuth.states.last;
 
-      final first = await app.googleCallback('test-code', state: state);
+      final first = await testServer.googleCallback('test-code', state: state);
       expect(first.statusCode, 200);
 
-      final replay = await app.googleCallback('replay-code', state: state);
+      final replay = await testServer.googleCallback('replay-code', state: state);
       expect(replay.statusCode, 400);
 
       expect((await client.listSessions()).map((r) => r.id), [session!.id]);
@@ -47,11 +47,11 @@ Future<void> main() async {
 
     test('Session Deletion: Happy Path', () async {
       final first = await client.createSession();
-      await app.googleCallback('test-code');
+      await testServer.googleCallback('test-code');
 
-      final secondClient = TwApiClient(app.urlDesign, app.clientHandler);
+      final secondClient = TwApiClient(testServer.urlDesign, testServer.clientHandler);
       final second = await secondClient.createSession();
-      await app.googleCallback('updated-code');
+      await testServer.googleCallback('updated-code');
 
       expect((await client.listSessions()).map((r) => r.id), [first!.id, second!.id]);
 
@@ -63,14 +63,14 @@ Future<void> main() async {
 
     test("Session Deletion: Can't delete another user's session", () async {
       final first = await client.createSession();
-      await app.googleCallback('test-code');
+      await testServer.googleCallback('test-code');
       final firstId = first!.id;
 
-      final secondClient = TwApiClient(app.urlDesign, app.clientHandler);
+      final secondClient = TwApiClient(testServer.urlDesign, testServer.clientHandler);
       final second = await secondClient.createSession();
-      app.googleOAuth.email = 'other@example.com';
-      app.googleOAuth.name = 'Other User';
-      await app.googleCallback('updated-code');
+      testServer.googleOAuth.email = 'other@example.com';
+      testServer.googleOAuth.name = 'Other User';
+      await testServer.googleCallback('updated-code');
 
       final secondId = second!.id;
 
@@ -84,24 +84,24 @@ Future<void> main() async {
 
     test('Session Creation: Happy Path', () async {
       final r0 = await client.createSession();
-      expect(r0!.attributes['redirect'], app.googleOAuth.authorizationUri.toString());
+      expect(r0!.attributes['redirect'], testServer.googleOAuth.authorizationUri.toString());
       expect(r0.relationships['user'], isA<ToOne>());
       expect(r0.relationships['user']!.isEmpty, isTrue);
 
-      final state = app.googleOAuth.states.last;
+      final state = testServer.googleOAuth.states.last;
       expect(state, isNotEmpty);
-      expect(app.googleOAuth.authorizationUri.queryParameters['state'], state);
+      expect(testServer.googleOAuth.authorizationUri.queryParameters['state'], state);
 
       final bearer = r0.attributes['key'] as String?;
       expect(bearer, isNotEmpty);
-      final otherClient = TwApiClient(app.urlDesign, app.clientHandler);
+      final otherClient = TwApiClient(testServer.urlDesign, testServer.clientHandler);
       await otherClient.createSession();
-      final invalidKeyClient = TwApiClient(app.urlDesign, (request) {
+      final invalidKeyClient = TwApiClient(testServer.urlDesign, (request) {
         request.headers['Authorization'] = ['Bearer invalid-key'];
-        return app.clientHandler(request);
+        return testServer.clientHandler(request);
       });
       for (final unauthorizedClient in [
-        TwApiClient(app.urlDesign, app.clientHandler),
+        TwApiClient(testServer.urlDesign, testServer.clientHandler),
         invalidKeyClient,
         otherClient,
       ]) {
@@ -116,7 +116,7 @@ Future<void> main() async {
       expect(await client.fetchCurrentUser(), isNull);
       expect(() => client.listSessions(), statusCode(401));
 
-      await app.googleCallback('test-code', state: state).then((r) async {
+      await testServer.googleCallback('test-code', state: state).then((r) async {
         expect(r.statusCode, 200);
         expect(r.headers['content-type'], ['text/html; charset=utf-8']);
         final page = await r.body.decode(utf8);
@@ -125,7 +125,7 @@ Future<void> main() async {
         expect(page, contains('window.close()'));
         expect(page, isNot(contains(bearer!)));
         expect(page, isNot(contains('user@example.com')));
-        expect(app.googleOAuth.queryParameters, {'code': 'test-code', 'state': state});
+        expect(testServer.googleOAuth.queryParameters, {'code': 'test-code', 'state': state});
       });
 
       final fetchedSessions = await client.listSessions();
@@ -149,12 +149,12 @@ Future<void> main() async {
       expect(relatedUser.name, 'Test User');
 
       final r1 = await client.createSession();
-      final updatedState = app.googleOAuth.states.last;
+      final updatedState = testServer.googleOAuth.states.last;
       final updatedBearer = r1!.attributes['key'] as String?;
       expect(updatedBearer, isNotEmpty);
 
-      app.googleOAuth.name = 'Updated User';
-      await app.googleCallback('updated-code', state: updatedState);
+      testServer.googleOAuth.name = 'Updated User';
+      await testServer.googleCallback('updated-code', state: updatedState);
 
       final updatedFetchedSessions = await client.listSessions();
       expect(updatedFetchedSessions.map((r) => r.id), [r0.id, r1.id]);
@@ -163,9 +163,9 @@ Future<void> main() async {
 
     test('Google callback escapes the name in the success page', () async {
       await client.createSession();
-      app.googleOAuth.name = 'Alex <script>alert(1)</script> & Co';
+      testServer.googleOAuth.name = 'Alex <script>alert(1)</script> & Co';
 
-      final response = await app.googleCallback('test-code');
+      final response = await testServer.googleCallback('test-code');
       final page = await response.body.decode(utf8);
 
       expect(response.statusCode, 200);
@@ -175,7 +175,7 @@ Future<void> main() async {
           'Thank you, Alex &lt;script&gt;alert(1)&lt;/script&gt; &amp; Co, you may close this page.',
         ),
       );
-      expect(page, isNot(contains(app.googleOAuth.name)));
+      expect(page, isNot(contains(testServer.googleOAuth.name)));
     });
   });
 }

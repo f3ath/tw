@@ -6,13 +6,13 @@ import 'package:shared/api.dart';
 import 'harness.dart';
 
 Future<void> main() async {
-  late TestApplication app;
+  late TestServer testServer;
   late TwApiClient client;
   late RoutingClient jsonApi;
 
   Future<Resource> signIn(TwApiClient client, String code) async {
     final session = await client.createSession();
-    await app.googleCallback(code, state: app.googleOAuth.states.last);
+    await testServer.googleCallback(code, state: testServer.googleOAuth.states.last);
     return session!;
   }
 
@@ -22,13 +22,13 @@ Future<void> main() async {
 
   group('Vehicles', () {
     setUp(() async {
-      app = await startTestApplication();
-      client = app.client;
-      jsonApi = RoutingClient(app.urlDesign.uri, Client(app.clientHandler));
+      testServer = await startTestServer();
+      client = testServer.client;
+      jsonApi = RoutingClient(testServer.urlDesign.uri, Client(testServer.clientHandler));
     });
 
     tearDown(() async {
-      await app.stop();
+      await testServer.stop();
     });
 
     test('No Auth Header: Unauthorized', () async {
@@ -122,9 +122,9 @@ Future<void> main() async {
         headers: authHeaders(firstSession),
       );
 
-      final secondClient = TwApiClient(app.urlDesign, app.clientHandler);
-      app.googleOAuth.email = 'other@example.com';
-      app.googleOAuth.name = 'Other User';
+      final secondClient = TwApiClient(testServer.urlDesign, testServer.clientHandler);
+      testServer.googleOAuth.email = 'other@example.com';
+      testServer.googleOAuth.name = 'Other User';
       final secondSession = await signIn(secondClient, 'other-code');
 
       expect(

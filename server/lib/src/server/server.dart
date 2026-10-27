@@ -2,7 +2,7 @@ import 'package:http_interop/http_interop.dart';
 import 'package:json_api/document.dart';
 import 'package:json_api/routing.dart';
 import 'package:json_api/server.dart';
-import 'package:server/src/app/app_config.dart';
+import 'package:server/src/server/server_config.dart';
 import 'package:server/src/auth/google_oauth.dart';
 import 'package:server/src/auth/oauth_controller.dart';
 import 'package:server/src/auth/request_ext.dart';
@@ -29,20 +29,20 @@ import 'package:shared/api.dart';
 import 'package:shared/time.dart';
 import 'package:uuid/uuid.dart';
 
-class App(
-  final AppConfig _config, {
+class Server(
+  final ServerConfig _config, {
   SimpleOAuth? oauth,
   final Clock _clock = systemClock,
-  Future<SystemConnection> Function(AppConfig) systemConnectionFactory =
+  Future<SystemConnection> Function(ServerConfig) systemConnectionFactory =
       SystemConnection.fromConfig,
-  Future<TenantConnection> Function(AppConfig) tenantConnectionFactory =
+  Future<TenantConnection> Function(ServerConfig) tenantConnectionFactory =
       TenantConnection.fromConfig,
   final Handler _defaultHandler = plainNotFound,
   final Log _log = const NoLog(),
 }) {
   static const _googleOAuthCallbackPath = '/auth/google/callback';
   final _routes = <(RouteMatcher, Handler)>[];
-  final _applicationRoutes = <(RouteMatcher, Handler)>[];
+  final _serverRoutes = <(RouteMatcher, Handler)>[];
   final _systemConnectionFactory = systemConnectionFactory;
   final _tenantConnectionFactory = tenantConnectionFactory;
   TenantConnection? _tenantConnection;
@@ -147,14 +147,14 @@ class App(
         },
       );
 
-      _applicationRoutes.addAll([
+      _serverRoutes.addAll([
         (
           (rq) => rq.uri.path.startsWith(_config.baseUri.path),
           handleErrors(corsMiddleware(jsonApiHandler)),
         ),
         ((rq) => rq.uri.path == _googleOAuthCallbackPath, googleOAuthController.callback),
       ]);
-      _routes.addAll(_applicationRoutes);
+      _routes.addAll(_serverRoutes);
       _tenantConnection = tenantConnection;
       _sessionCleanup = PeriodicJob(
         () => sessionsDAO.deletePendingOlderThan(_config.pendingSessionMaxAge),
@@ -180,10 +180,10 @@ class App(
       // Failed startup already closes its connection.
     }
     _isReady = false;
-    for (final route in _applicationRoutes) {
+    for (final route in _serverRoutes) {
       _routes.remove(route);
     }
-    _applicationRoutes.clear();
+    _serverRoutes.clear();
     await _sessionCleanup?.stop();
     _sessionCleanup = null;
     final connection = _tenantConnection;

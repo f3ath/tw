@@ -4,22 +4,22 @@ import 'package:shared/api.dart';
 import 'harness.dart';
 
 Future<void> main() async {
-  late TestApplication app;
+  late TestServer testServer;
   late TwApiClient client;
 
   Future<void> signIn(TwApiClient client, String code) async {
     await client.createSession();
-    await app.googleCallback(code, state: app.googleOAuth.states.last);
+    await testServer.googleCallback(code, state: testServer.googleOAuth.states.last);
   }
 
   group('Schedules', () {
     setUp(() async {
-      app = await startTestApplication();
-      client = app.client;
+      testServer = await startTestServer();
+      client = testServer.client;
     });
 
     tearDown(() async {
-      await app.stop();
+      await testServer.stop();
     });
 
     test('No Auth Header: Unauthorized', () async {
@@ -43,8 +43,8 @@ Future<void> main() async {
 
     test('Create, List, Update, Delete: Happy Path', () async {
       String? location;
-      client = TwApiClient(app.urlDesign, (request) async {
-        final response = await app.clientHandler(request);
+      client = TwApiClient(testServer.urlDesign, (request) async {
+        final response = await testServer.clientHandler(request);
         location = response.headers['location']?.single;
         return response;
       });
@@ -121,9 +121,9 @@ Use 0W-20 synthetic oil.
         details: 'Replace oil and filter.',
       );
 
-      final secondClient = TwApiClient(app.urlDesign, app.clientHandler);
-      app.googleOAuth.email = 'other@example.com';
-      app.googleOAuth.name = 'Other User';
+      final secondClient = TwApiClient(testServer.urlDesign, testServer.clientHandler);
+      testServer.googleOAuth.email = 'other@example.com';
+      testServer.googleOAuth.name = 'Other User';
       await signIn(secondClient, 'other-code');
 
       expect(() => secondClient.listSchedules(vehicle.id), statusCode(404));

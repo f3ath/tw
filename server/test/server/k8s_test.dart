@@ -1,6 +1,6 @@
 import 'package:http_interop/http_interop.dart';
 import 'package:test/test.dart';
-import 'package:server/src/app/app.dart';
+import 'package:server/src/server/server.dart';
 
 import 'harness.dart';
 
@@ -10,23 +10,23 @@ Future<void> main() async {
       await resetDatabaseSchema(testConfig);
     });
 
-    test('liveness and readiness probes reflect application startup', () async {
-      final app = App(testConfig, oauth: TestGoogleOAuth());
-      addTearDown(app.stop);
+    test('liveness and readiness probes reflect server startup', () async {
+      final testServer = Server(testConfig, oauth: TestGoogleOAuth());
+      addTearDown(testServer.stop);
 
-      await app(get('/k8s/liveness')).then((r) {
+      await testServer(get('/k8s/liveness')).then((r) {
         expect(r.statusCode, 200);
       });
-      await app(get('/k8s/readiness')).then((r) {
+      await testServer(get('/k8s/readiness')).then((r) {
         expect(r.statusCode, 500);
       });
 
-      await app.start();
+      await testServer.start();
 
-      await app(get('/k8s/liveness')).then((r) {
+      await testServer(get('/k8s/liveness')).then((r) {
         expect(r.statusCode, 200);
       });
-      await app(get('/k8s/readiness')).then((r) {
+      await testServer(get('/k8s/readiness')).then((r) {
         expect(r.statusCode, 200);
       });
     });

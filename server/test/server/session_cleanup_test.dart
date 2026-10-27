@@ -1,30 +1,30 @@
 import 'package:test/test.dart';
-import 'package:server/src/app/app.dart';
+import 'package:server/src/server/server.dart';
 import 'package:server/src/auth/sessions_dao.dart';
 import 'package:server/src/db/database.dart';
 
 import 'harness.dart';
 
 void main() {
-  late TestApplication app;
+  late TestServer testServer;
   setUp(() async {
-    app = await startTestApplication();
+    testServer = await startTestServer();
   });
   tearDown(() async {
-    await app.stop();
+    await testServer.stop();
   });
 
-  test('app runs configured cleanup and cancels it on shutdown, then restarts it', () async {
-    await app.stop();
+  test('server runs configured cleanup and cancels it on shutdown, then restarts it', () async {
+    await testServer.stop();
     final config = createTestConfig(
       sessionCleanupInterval: const Duration(seconds: 1),
       pendingSessionMaxAge: const Duration(minutes: 10),
     );
     var now = DateTime.utc(2026, 1, 1, 12);
     DateTime clock() => now;
-    final application = App(config, oauth: TestGoogleOAuth(), clock: clock);
-    addTearDown(application.stop);
-    await application.start();
+    final server = Server(config, oauth: TestGoogleOAuth(), clock: clock);
+    addTearDown(server.stop);
+    await server.start();
     await withTestDatabase(config, (connection) async {
       final sessions = SessionsDAO(Database(connection), clock: clock);
       now = now.subtract(const Duration(minutes: 11));
@@ -43,12 +43,12 @@ void main() {
       await expectDeleted(expired.id);
       expect(await sessions.fetch(fresh.id), isNotNull);
 
-      await application.stop();
+      await server.stop();
       now = now.add(const Duration(minutes: 11));
       await Future<void>.delayed(const Duration(milliseconds: 1100));
       expect(await sessions.fetch(fresh.id), isNotNull);
 
-      await application.start();
+      await server.start();
       await expectDeleted(fresh.id);
     });
   });

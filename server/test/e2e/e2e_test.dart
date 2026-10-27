@@ -5,12 +5,12 @@ import 'harness.dart';
 
 void main() {
   test('Authenticate, add a vehicle, rename it, and log off', () async {
-    final app = await startTestApplication();
-    addTearDown(app.stop);
-    final client = app.client;
+    final testServer = await startTestServer();
+    addTearDown(testServer.stop);
+    final client = testServer.client;
 
     await client.createSession();
-    expect((await app.googleCallback('test-code')).statusCode, 200);
+    expect((await testServer.googleCallback('test-code')).statusCode, 200);
     final user = await client.fetchCurrentUser();
     expect(user!.email, 'user@example.com');
 

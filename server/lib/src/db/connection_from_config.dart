@@ -1,8 +1,8 @@
 import 'package:postgres/postgres.dart';
-import 'package:server/src/app/app_config.dart';
+import 'package:server/src/server/server_config.dart';
 
 extension type SystemConnection(Connection _connection) implements Connection {
-  static Future<SystemConnection> fromConfig(AppConfig config) async => SystemConnection(
+  static Future<SystemConnection> fromConfig(ServerConfig config) async => SystemConnection(
     await _openConnection(
       config,
       username: config.databaseSystemUsername,
@@ -12,7 +12,7 @@ extension type SystemConnection(Connection _connection) implements Connection {
 }
 
 extension type TenantConnection(Connection _connection) implements Connection {
-  static Future<TenantConnection> fromConfig(AppConfig config) async => TenantConnection(
+  static Future<TenantConnection> fromConfig(ServerConfig config) async => TenantConnection(
     await _openConnection(
       config,
       username: config.databaseTenantUsername,
@@ -22,7 +22,7 @@ extension type TenantConnection(Connection _connection) implements Connection {
 }
 
 Future<Connection> _openConnection(
-  AppConfig config, {
+  ServerConfig config, {
   required String username,
   required String password,
 }) => Connection.open(

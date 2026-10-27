@@ -4,8 +4,8 @@ import 'package:http_interop/http_interop.dart';
 import 'package:json_api/client.dart' show RequestFailure;
 import 'package:json_api/routing.dart';
 import 'package:postgres/postgres.dart';
-import 'package:server/src/app/app.dart';
-import 'package:server/src/app/app_config.dart';
+import 'package:server/src/server/server.dart';
+import 'package:server/src/server/server_config.dart';
 import 'package:server/src/auth/simple_oauth.dart';
 import 'package:server/src/db/connection_from_config.dart';
 import 'package:server/src/log/sink_log.dart';
@@ -22,10 +22,10 @@ Matcher statusCode(int expected) => throwsA(
 
 final testConfig = createTestConfig();
 
-AppConfig createTestConfig({
+ServerConfig createTestConfig({
   Duration sessionCleanupInterval = const Duration(minutes: 1),
   Duration pendingSessionMaxAge = const Duration(minutes: 15),
-}) => AppConfig(
+}) => ServerConfig(
   baseUri: Uri(path: '/api/v0'),
   googleOAuthClientId: 'test-client-id',
   googleOAuthClientSecret: 'test-client-secret',
@@ -40,25 +40,25 @@ AppConfig createTestConfig({
   pendingSessionMaxAge: pendingSessionMaxAge,
 );
 
-Future<TestApplication> startTestApplication() async {
+Future<TestServer> startTestServer() async {
   await resetDatabaseSchema(testConfig);
   final googleOAuth = TestGoogleOAuth();
-  final app = App(testConfig, oauth: googleOAuth, log: SinkLog(stderr));
-  await app.start();
+  final testServer = Server(testConfig, oauth: googleOAuth, log: SinkLog(stderr));
+  await testServer.start();
 
   final urlDesign = StandardUriDesign(testConfig.baseUri);
-  return TestApplication(
-    application: app,
+  return TestServer(
+    server: testServer,
     baseUri: testConfig.baseUri,
     urlDesign: urlDesign,
-    clientHandler: app.call,
+    clientHandler: testServer.call,
     googleOAuth: googleOAuth,
-    client: TwApiClient(urlDesign, app.call),
+    client: TwApiClient(urlDesign, testServer.call),
   );
 }
 
-class TestApplication({
-  required final App application,
+class TestServer({
+  required final Server server,
   required final Uri baseUri,
   required final UriDesign urlDesign,
   required final Handler clientHandler,
@@ -77,10 +77,10 @@ class TestApplication({
     ),
   );
 
-  Future<void> stop() => application.stop();
+  Future<void> stop() => server.stop();
 }
 
-Future<void> resetDatabaseSchema(AppConfig config) async {
+Future<void> resetDatabaseSchema(ServerConfig config) async {
   await withTestDatabase(config, (connection) async {
     await connection.execute(
       Sql.named('''
@@ -96,7 +96,7 @@ CREATE SCHEMA IF NOT EXISTS public
 }
 
 Future<T> withTestDatabase<T>(
-  AppConfig config,
+  ServerConfig config,
   Future<T> Function(Connection connection) callback,
 ) async {
   final connection = await SystemConnection.fromConfig(config);

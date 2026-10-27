@@ -1,4 +1,4 @@
-class AppConfig({
+class ServerConfig({
   required final Uri baseUri,
   required final String googleOAuthClientId,
   required final String googleOAuthClientSecret,
@@ -25,7 +25,7 @@ class AppConfig({
     }
   }
 
-  factory from(ValueReader get) => AppConfig(
+  factory from(ValueReader get) => ServerConfig(
     baseUri: Uri.parse(get('BASE_URI', orElse: () => 'http://localhost:8080/api/v0')),
     googleOAuthClientId: get('GOOGLE_OAUTH_CLIENT_ID'),
     googleOAuthClientSecret: get('GOOGLE_OAUTH_CLIENT_SECRET'),
