@@ -1,3 +1,5 @@
+import '../data/repositories/api_auth_repository.dart';
+import '../data/services/api_auth_service.dart';
 import '../data/repositories/local_repositories.dart';
 import '../data/services/services.dart';
 import '../domain/models.dart';
@@ -26,10 +28,11 @@ class Composition({
       failLoads: const bool.fromEnvironment('TW_FAIL_LOADS'),
       delay: const Duration(milliseconds: int.fromEnvironment('TW_DELAY_MS', defaultValue: 240)),
     );
+    final settings = LocalSettingsRepository(persistence);
     var sequence = 0;
     return Composition(
       demo: simulation,
-      auth: LocalAuthRepository(persistence, const MockAuthService(), simulation),
+      auth: ApiAuthRepository(ApiAuthService(settings, persistence)),
       maintenance: LocalMaintenanceRepository(
         persistence,
         simulation,
@@ -37,7 +40,7 @@ class Composition({
         idGenerator: () => '${DateTime.now().microsecondsSinceEpoch}-${sequence++}',
         emptySeed: const bool.fromEnvironment('TW_EMPTY'),
       ),
-      settings: LocalSettingsRepository(persistence),
+      settings: settings,
       clock: DateTime.now,
     );
   }

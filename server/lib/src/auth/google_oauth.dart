@@ -33,11 +33,16 @@ class GoogleOAuthClient({
       return null;
     }
 
-    final userInfo = await _fetchUserInfo(code);
-    final email = userInfo['email'] as String? ?? '';
-    final name = userInfo['name'] as String? ?? '';
+    try {
+      final userInfo = await _fetchUserInfo(code);
+      final email = userInfo['email'] as String? ?? '';
+      final name = userInfo['name'] as String? ?? '';
 
-    return SimpleOAuthSession(email: email, name: name, nonce: state);
+      return SimpleOAuthSession(email: email, name: name, nonce: state);
+    } catch (e, t) {
+      // TODO: log the error
+      return null;
+    }
   }
 
   Future<Map<String, Object?>> _fetchUserInfo(String code) => withDisposableHttp((client) async {
@@ -66,10 +71,10 @@ Future<Map<String, Object?>> _getJson(http.Client client, Uri uri) async {
   return jsonDecode(response.body) as Map<String, Object?>;
 }
 
-T withDisposableHttp<T>(T Function(http.Client) task) {
+Future<T> withDisposableHttp<T>(Future<T> Function(http.Client) task) async {
   final client = http.Client();
   try {
-    return task(client);
+    return await task(client);
   } finally {
     client.close();
   }

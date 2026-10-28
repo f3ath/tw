@@ -3,7 +3,7 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  test('dependency boundaries exclude storage, concrete data and legacy integrations', () {
+  test('dependency boundaries confine networking and storage to Services', () {
     for (final file in Directory(
       'lib',
     ).listSync(recursive: true).whereType<File>().where((f) => f.path.endsWith('.dart'))) {
@@ -11,15 +11,10 @@ void main() {
           .allMatches(file.readAsStringSync())
           .map((m) => m[1]!);
       for (final path in imports) {
-        expect(
-          path,
-          isNot(
-            matches(
-              r'package:(shared/|http/|http_interop|json_api|url_launcher|firebase|google_sign_in)',
-            ),
-          ),
-          reason: file.path,
-        );
+        if (RegExp(r'package:(shared/|http/|http_interop|json_api|url_launcher|web/)')
+            .hasMatch(path)) {
+          expect(file.path.startsWith('lib/data/services/'), isTrue, reason: file.path);
+        }
         if (file.path.startsWith('lib/domain/')) {
           expect(path, isNot(matches(r'(package:flutter|data/|ui/|services/)')), reason: file.path);
         }
@@ -35,7 +30,5 @@ void main() {
         }
       }
     }
-    final pubspec = File('pubspec.yaml').readAsStringSync();
-    expect(pubspec, isNot(contains('../shared')));
   });
 }

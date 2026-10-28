@@ -14,6 +14,10 @@ class TwApiClient(UriDesign urlDesign, Handler handler) {
   late final RoutingClient _jsonApi;
   Resource? _session;
 
+  void restoreSession({required String id, required String key}) {
+    _session = Resource(ResourceType.sessions, id)..attributes['key'] = key;
+  }
+
   Future<Resource?> createSession() async {
     final response = await _jsonApi.createNew(ResourceType.sessions);
     return _session = response.resource;

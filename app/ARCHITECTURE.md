@@ -1,6 +1,6 @@
 # TorqueWrench architecture
 
-This package is a local, mocked Material 3 application. Its requirements come from README-CODEX.md and docs/ux, independently of the monorepo's server and shared applications. The implementation follows Flutter's [architecture guide](https://docs.flutter.dev/app-architecture/guide), [recommendations](https://docs.flutter.dev/app-architecture/recommendations), and [data-layer case study](https://docs.flutter.dev/app-architecture/case-study/data-layer).
+This Material 3 application uses server-backed authentication through the shared TwApiClient and local demo maintenance data. The original prototype brief is retained in README-CODEX.md; the current authentication implementation supersedes its mock-only restrictions. The implementation follows Flutter's [architecture guide](https://docs.flutter.dev/app-architecture/guide), [recommendations](https://docs.flutter.dev/app-architecture/recommendations), and [data-layer case study](https://docs.flutter.dev/app-architecture/case-study/data-layer).
 
 ## Dependencies and concrete responsibilities
 
@@ -17,6 +17,8 @@ Composition root → constructs and injects all implementations
 - `lib/domain/policies.dart`: SchedulingPolicy owns latest linked completion selection, 30-day intervals, OR thresholds, inclusive overdue/soon boundaries, due ordering and unknown-distance treatment. ValidationPolicy owns vehicle, interval, archived-link and chronological mileage rules. Date comparisons count calendar days, including across daylight-saving transitions. Same-day service order is date, mileage, then stable identifier. Equality is permitted.
 - `lib/domain/session_use_case.dart`: SessionUseCase coordinates authentication and account aggregate opening/clearing. Repositories never call one another.
 - `lib/data/services/services.dart`: separate AuthenticationService, LocalPersistenceService and Simulation contracts; MockAuthService returns a fake identity, PreferencesPersistenceService wraps SharedPreferencesAsync and JSON encoding, DemoSimulation supplies injectable latency/connectivity/failure behavior. Only this service imports the storage plugin. It owns no observable maintenance or screen state.
+- `lib/data/services/api_auth_service.dart`: builds TwApiClient from saved Settings, adapts HTTP transport, creates/polls/restores/revokes sessions, persists bearer credentials with their server URL, and maps request/storage failures. OAuth browser adapters reserve a popup synchronously on web and launch the external browser on native platforms.
+- `lib/data/repositories/api_auth_repository.dart`: owns the active identity and exposes server authentication behind AuthRepository. Composition.local uses this implementation. LocalAuthRepository/MockAuthService are retained for isolated demo/widget fixtures.
 - `lib/data/services/garage_codec.dart`: explicit raw JSON/domain mapping at the storage boundary. No schedule calculations in serialization.
 - `lib/data/repositories/local_repositories.dart`: LocalAuthRepository persists session identity; LocalSettingsRepository validates and persists the server address; LocalMaintenanceRepository owns seeding, account cache, mutation serialization, validation, snapshot publication and error mapping. Services are constructor-injected.
 - `lib/ui/core/command_view_model.dart`: shared command lifecycle, repeated-submit guard, typed errors and disposed-notifier protection.
@@ -42,7 +44,7 @@ Mileage-only/custom operations never reset scheduled baselines. Linked historica
 
 ## Storage, scoping and recovery
 
-Storage keys use `tw.v1.session`, `tw.v1.settings` and `tw.v1.garage.<identity>` (the web plugin adds its own storage prefix). Session/settings/maintenance persist across launches. Sign out removes the session and current account's persisted aggregate and cache; the next mock sign-in re-seeds. Global settings survive sign out. Account changes invalidate the in-memory aggregate before opening another account.
+Storage keys use `tw.v1.session`, `tw.v1.settings` and `tw.v1.garage.<identity>` (the web plugin adds its own storage prefix). Session/settings/maintenance persist across launches. Sign out removes the session and current account's persisted aggregate and cache; the next sign-in re-seeds. Global settings survive sign out. Account changes invalidate the in-memory aggregate before opening another account.
 
 One JSON write is atomic at this prototype's logical aggregate boundary; this is not a transactional multi-process database or guaranteed crash-durable store. Concurrent application instances are outside this prototype's consistency model. History renders in batches of 30 from the locally persisted aggregate.
 
@@ -50,11 +52,11 @@ All asynchronous repository operations use Future success or AppFailure with val
 
 ## Future backend seam
 
-Replace LocalAuthRepository/MockAuthService and LocalMaintenanceRepository/local data-source implementations behind the existing contracts. A server-backed repository would map authoritative estimates/status/errors, revisions and idempotent mutations into the same domain-facing boundary. Views/ViewModels do not depend on endpoint or token details. Settings is local-only and never triggers a connection. No production estimator, HTTP transport, OAuth, token storage, or server/shared dependency is included.
+Authentication already uses ApiAuthRepository/ApiAuthService and shared TwApiClient. Maintenance remains behind LocalMaintenanceRepository; a later server-backed implementation can replace it without changing Views/ViewModels. Endpoint URLs, browser launches and bearer handling remain in Services. Saved server settings are loaded when constructing API clients. Credentials stay bound to their original server, including logout after a settings change.
 
 ## Verification
 
-Tests separate pure policies, repositories with fake Services, persistence Service with a fake preferences boundary, ViewModels with fake repositories, and widgets with injected Composition/ViewModels. `test/boundaries_test.dart` enforces imports, including no concrete data/Service imports in UI, no Flutter/data imports in domain, storage-plugin imports confined to Services and absence of legacy auth/network/shared imports. See README for scoped commands and platform limitations.
+Tests separate pure policies, repositories with fake Services, persistence Service with a fake preferences boundary, ViewModels with fake repositories, and widgets with injected Composition/ViewModels. `test/boundaries_test.dart` enforces imports, including no concrete data/Service imports in UI, no Flutter/data imports in domain, storage-plugin imports confined to Services and network/shared/browser imports confined to Services. See README for scoped commands and platform limitations.
 
 ## Verified native compatibility
 

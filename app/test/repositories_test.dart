@@ -144,7 +144,7 @@ void main() {
     );
     await expectLater(offline.open('unknown'), throwsA(isA<AppFailure>()));
     final settings = LocalSettingsRepository(storage);
-    expect(await settings.load(), 'http://localhost:8080');
+    expect(await settings.load(), 'http://localhost:8080/api/v0');
     await settings.save('https://example.test');
     expect(await LocalSettingsRepository(storage).load(), 'https://example.test');
     await expectLater(settings.save('file:///x'), throwsA(isA<AppFailure>()));

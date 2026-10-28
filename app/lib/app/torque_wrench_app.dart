@@ -608,7 +608,7 @@ class _SignedInShellState() extends State<SignedInShell> {
                   TextButton(
                     onPressed: () async {
                       if (c.session.failure != null) {
-                        await c.session.restore();
+                        await c.session.retry();
                       } else {
                         await c.garage.refresh();
                       }

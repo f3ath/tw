@@ -52,9 +52,15 @@ class LocalAuthRepository(
 class LocalSettingsRepository(final LocalPersistenceService persistence)
     implements SettingsRepository {
   @override
-  Future<String> load() async =>
-      (await storage(() => persistence.read('settings')))?['address'] as String? ??
-      'http://localhost:8080';
+  Future<String> load() async {
+    final address = (await storage(() => persistence.read('settings')))?['address'] as String?;
+    if (address == 'http://localhost:8080') {
+      await save('http://localhost:8080/api/v0');
+      return 'http://localhost:8080/api/v0';
+    }
+    return address ?? 'http://localhost:8080/api/v0';
+  }
+
   @override
   Future<void> save(String address) async {
     final uri = Uri.tryParse(address);

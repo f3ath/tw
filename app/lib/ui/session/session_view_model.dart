@@ -4,6 +4,14 @@ import '../core/command_view_model.dart';
 
 class SessionViewModel(final AuthRepository auth, final SessionUseCase session)
     extends CommandViewModel {
+  Future<bool> Function()? _retry;
+  Future<bool> retry() => _retry?.call() ?? restore();
+
+  Future<bool> _run(Future<void> Function() command) {
+    _retry = () => run(command);
+    return run(command);
+  }
+
   bool restored = false;
   bool expired = false;
   void expire() {
@@ -14,11 +22,11 @@ class SessionViewModel(final AuthRepository auth, final SessionUseCase session)
   }
 
   String? get identity => auth.identity;
-  Future<bool> restore() => run(() async {
+  Future<bool> restore() => _run(() async {
     await session.restore();
     restored = true;
   });
-  Future<bool> signIn() => run(() async {
+  Future<bool> signIn() => _run(() async {
     if (expired) {
       await auth.signIn();
     } else {
@@ -26,5 +34,5 @@ class SessionViewModel(final AuthRepository auth, final SessionUseCase session)
     }
     expired = false;
   });
-  Future<bool> signOut() => run(session.signOut);
+  Future<bool> signOut() => _run(session.signOut);
 }

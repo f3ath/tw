@@ -1,5 +1,5 @@
 name: app
-description: TorqueWrench mocked Material 3 maintenance prototype
+description: TorqueWrench Material 3 maintenance app
 publish_to: none
 version: 1.0.0+1
 environment:
@@ -7,6 +7,17 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  shared:
+    path: ../shared
+  http: ^1.6.0
+  http_interop: ^3.0.0
+  http_interop_http: ^0.10.0
+  json_api:
+    git:
+      url: https://github.com/f3ath/json-api-dart
+      ref: v9
+  url_launcher: ^6.3.3
+  web: ^1.1.1
   shared_preferences: ^2.5.3
   # Xcode 16 compatibility: 2.6.0 generated Swift requires a newer compiler.
   shared_preferences_foundation: 2.5.7

@@ -20,9 +20,17 @@ python3 -m http.server 8765 --bind 127.0.0.1 --directory build/web
 
 Open http://localhost:8765. Keep the same origin/port to reuse web storage. Native targets use the platform preferences store; run `flutter devices` to select an available target.
 
-## Mock behavior
+## Authentication and server configuration
 
-Continue with Google simulates sign-in as `alex@torquewrench.demo`. It opens no Google/browser authorization flow. There are no application API calls, HTTP clients, OAuth credentials or tokens. Server address starts at `http://localhost:8080`, is stored locally, and is never contacted. Flutter's web engine/assets still need to load as part of hosting the application.
+Continue with Google creates a session through `TwApiClient`, opens the server-provided Google authorization URL, and polls for the authenticated user. On web, sign-in opens a popup; on native platforms it opens the system browser. Complete Google sign-in there and return to the app. Sign-in expires after five minutes. Web popup cancellation is detected automatically.
+
+The default Server address is `http://localhost:8080/api/v0`. Settings saves the complete API base URL locally; login and session restore use that saved value. The previous `http://localhost:8080` default migrates automatically to include `/api/v0`. Start the server with its Google OAuth credentials and registered callback URL before signing in. A physical device needs a reachable server hostname instead of its own localhost. Web hosting and the API must also permit the browser's HTTP/CORS policy.
+
+Session ID, bearer key, and original server URL persist in platform preferences. App startup validates the saved session with the server; revoked sessions return to sign-in, while connection failures offer Retry. Changing the configured server never sends an old server's bearer to the new server. Sign out revokes the session at its original server before removing the saved session and local account cache; failed requests retain the session for retry.
+
+## Local maintenance data
+
+Authentication is connected to the server; vehicles, schedules and service records still use the local demo repository. This change does not synchronize maintenance data with the server.
 
 Session, server address, vehicles, schedules and services persist locally. The initial demo includes miles and kilometers, five versus two due-item examples, overdue/due-soon items, mileage-only history, linked/custom operations and an archived item. Dates seed relative to the injected clock. The clearly labeled Estimated reading deliberately equals the latest actual reading; this is a deterministic mock, not a production estimator.
 
@@ -44,7 +52,7 @@ Optional launch defines (outside the product UI):
 | `TW_FAIL_WRITES=true` | Fail maintenance saves while retaining form fields |
 | `TW_DELAY_MS=2000` | Slow asynchronous loads/saves to inspect pending states |
 
-While running, Ctrl+Alt+O toggles simulated offline mode and refreshes the saved snapshot; Ctrl+Alt+F toggles save failure; Ctrl+Alt+E expires the mock session. Reauthenticate to resume the same form. These are developer keyboard bindings, not additional Settings fields. Toggle failure back off and retry the retained draft. Programmatic fake dependencies in tests exercise the same recovery paths.
+While running, Ctrl+Alt+O toggles simulated offline mode and refreshes the saved snapshot; Ctrl+Alt+F toggles save failure; Ctrl+Alt+E opens the reauthentication screen. Reauthenticate to resume the same form. These are developer keyboard bindings, not additional Settings fields. Toggle failure back off and retry the retained draft. Programmatic fake dependencies in tests exercise the same recovery paths.
 
 ## Scoped checks
 
@@ -55,14 +63,13 @@ flutter test
 flutter build web
 ```
 
-Tests cover threshold boundaries, chronological readings, account/session persistence, storage round-trips, atomic mutations/failures, mileage-only and linked saves, edit/delete recalculation, archive/restore, past-date suggestions, dirty navigation and phone/wide layouts with increased text scale. Dependency tests prevent UI-to-Service bypass and legacy/shared runtime imports.
+Tests cover threshold boundaries, chronological readings, account/session persistence, storage round-trips, atomic mutations/failures, mileage-only and linked saves, edit/delete recalculation, archive/restore, past-date suggestions, dirty navigation and phone/wide layouts with increased text scale. Dependency tests prevent UI-to-Service bypass and confine API, browser and storage dependencies to Services. Authentication tests cover saved configuration, bearer persistence/restore, polling, cancellation, timeout and logout retry.
 
-## Replacement scope and limitations
+## Current verification
 
-Removed the old login controller/state/control, home page, API client factory, app bootstrap behavior and obsolete auth tests. Removed shared, HTTP/interoperability, JSON API and URL-launcher runtime dependencies (including transitive real-auth packages). Flutter tooling regenerated platform plugin registrations. Retained package/application identity, platform runners, assets, build configuration and UX references; updated web presentation metadata and the Android display label and removed the release Android internet permission. No server/shared code or root build metadata was changed.
+The authentication integration is covered by HTTP-boundary tests that execute the real `TwApiClient` and a widget test for Google login and failed logout retry. Analysis, Flutter tests and the release web build are checked during implementation. An interactive Google account authorization requires the running server and configured Google OAuth credentials; it is not automated by these tests. Native runner permissions and plugin registrations are included, but native builds are not revalidated by this change.
 
-Local preferences are appropriate for this demo, not a production multi-process database. Real authentication is outside the prototype scope. Verification on this host: formatting and analysis passed; all 19 scoped tests passed; the release web build passed. Phone (390px) and wide (1100px) Flutter render captures were visually inspected; 320px/200% text scale was checked for overflow. Chrome was launched with `flutter run -d chrome`; mock sign-in, preview navigation, mileage-only save, recalculated status and persistence after reload were verified through the live UI. macOS release build/startup, mock sign-in, mileage save and session/data persistence after app restart also passed. The web build emitted a non-fatal optional Cupertino icon-font warning; Material icons are bundled. Drafts are not persisted across process termination; service history is locally batched rather than fetched from a remote server.
-
+Local preferences and maintenance records retain the prototype's storage behavior. Drafts are not persisted across process termination; service history is locally batched rather than fetched from a remote server.
 
 ## Native build compatibility
 
