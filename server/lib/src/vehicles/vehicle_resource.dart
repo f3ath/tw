@@ -6,6 +6,7 @@ class VehicleResource(VehicleRecord record) extends Resource {
   this : super(ResourceType.vehicles, record.id) {
     attributes.addAll({
       'name': record.name,
+      'distance_unit': record.distanceUnit.name,
       'manufacture_date': record.manufactureDate.toIso8601String().split('T').first,
     });
   }

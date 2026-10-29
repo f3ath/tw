@@ -44,10 +44,18 @@ class TwApiClient(UriDesign urlDesign, Handler handler) {
     return resource == null ? null : User.fromResource(resource);
   }
 
-  Future<Resource> createVehicle({required String name, required DateTime manufactureDate}) async {
+  Future<Resource> createVehicle({
+    required String name,
+    required DateTime manufactureDate,
+    String distanceUnit = 'mi',
+  }) async {
     final response = await _jsonApi.createNew(
       ResourceType.vehicles,
-      attributes: {'name': name, 'manufacture_date': _date(manufactureDate)},
+      attributes: {
+        'name': name,
+        'manufacture_date': _date(manufactureDate),
+        'distance_unit': distanceUnit,
+      },
     );
     return response.resource;
   }

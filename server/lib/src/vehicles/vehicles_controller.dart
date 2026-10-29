@@ -29,8 +29,15 @@ class VehiclesController(
   @override
   Future<Response> createResource(Request request, Target target, NewResource newResource) async {
     final resource = newResource;
+    final distanceUnit = resource.attributes.containsKey('distance_unit')
+        ? resource.attributes['distance_unit']
+        : DistanceUnit.mi.name;
+    if (distanceUnit is! String || !DistanceUnit.values.asNameMap().containsKey(distanceUnit)) {
+      return badRequest();
+    }
     final vehicle = await _ownedVehicles(request.userId).create(
       id: _uuid.v4(),
+      distanceUnit: DistanceUnit.values.byName(distanceUnit),
       name: resource.attributes['name'] as String,
       manufactureDate: DateTime.parse(resource.attributes['manufacture_date'] as String),
     );
@@ -51,6 +58,7 @@ class VehiclesController(
 
   @override
   Future<Response> updateResource(Request request, ResourceTarget target, Resource resource) async {
+    if (resource.attributes.containsKey('distance_unit')) return badRequest();
     final manufactureDate = resource.attributes.containsKey('manufacture_date')
         ? DateTime.parse(resource.attributes['manufacture_date'] as String)
         : null;

@@ -8,10 +8,14 @@ with authentication and ownership isolation.
 
 ## Required to preserve current app behavior
 
-- [ ] **Vehicle distance units:** Persist `mi` or `km` per vehicle and prevent
-  changing it after creation. Interpret service readings and schedule distances
-  in that unit. Vehicles currently store only name and manufacture date, and
-  schedule distance is named `interval_miles`.
+- [x] **Vehicle distance units:** Persist `distance_unit` (`mi` or `km`) per
+  vehicle and expose it on create/fetch/list/update responses. Reject invalid
+  units on creation and any `distance_unit` attribute on updates (HTTP 400).
+  Existing vehicles and creates that omit the unit default to `mi`.
+  `TwApiClient.createVehicle` accepts `distanceUnit`.
+- [ ] **Unit-neutral distance fields:** Interpret service readings and schedule
+  distances in the vehicle's unit. Rename the legacy `mileage` and
+  `interval_miles` fields to make this contract explicit.
 - [ ] **Optional schedule intervals:** Support distance-only, time-only, and
   combined intervals. Require at least one positive whole interval. Unused
   intervals must be null, not zero. Distinguish omitted update fields from

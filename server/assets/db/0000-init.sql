@@ -33,6 +33,8 @@ CREATE TABLE vehicles
     name             text      NOT NULL,
     owner_id         UUID      NOT NULL DEFAULT current_setting('tw.tenant_id')::uuid REFERENCES users (id) ON DELETE CASCADE,
     manufacture_date date      NOT NULL,
+    distance_unit    text      NOT NULL DEFAULT 'mi'
+        CONSTRAINT vehicles_distance_unit_check CHECK (distance_unit IN ('mi', 'km')),
     created_at       timestamp NOT NULL,
     updated_at       timestamp NOT NULL,
     UNIQUE (owner_id, id)
