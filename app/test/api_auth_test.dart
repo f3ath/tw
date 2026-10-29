@@ -2,15 +2,14 @@ import 'dart:convert';
 
 import 'package:app/app/composition.dart';
 import 'package:app/app/torque_wrench_app.dart';
-import 'package:app/data/services/services.dart';
-import 'package:flutter/material.dart';
-
 import 'package:app/data/repositories/api_auth_repository.dart';
 import 'package:app/data/repositories/local_repositories.dart';
 import 'package:app/data/services/api_auth_service.dart';
 import 'package:app/data/services/oauth_window.dart';
+import 'package:app/data/services/services.dart';
 import 'package:app/domain/models.dart';
 import 'package:app/domain/session_use_case.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
@@ -21,8 +20,10 @@ class FakeOAuthWindow() implements OAuthWindow {
   Uri? redirect;
   bool closed = false;
   bool cancelled = false;
+
   @override
   bool get isClosed => cancelled;
+
   @override
   Future<void> navigate(Uri uri) async {
     redirect = uri;
@@ -36,6 +37,7 @@ class FakeOAuthWindow() implements OAuthWindow {
 
 class FailingRemovalStorage() extends MemoryStorage {
   bool failRemoval = true;
+
   @override
   Future<void> remove(String key) async {
     if (failRemoval) throw StateError('storage unavailable');
@@ -57,7 +59,7 @@ final user = {
 final pending = {
   'type': 'sessions',
   'id': 's1',
-  'attributes': {'key': 'secret', 'redirect': 'https://accounts.google.com/authorize'},
+  'attributes': {'token': 'secret', 'redirect': 'https://accounts.google.com/authorize'},
 };
 
 void main() {
@@ -106,10 +108,12 @@ void main() {
     expect(window.redirect.toString(), 'https://accounts.google.com/authorize');
     expect(window.closed, isTrue);
     expect(requests.first.url.toString(), 'https://saved.example/custom/api/sessions');
-    expect(requests.skip(1).map((r) => r.headers['Authorization']), everyElement('Bearer secret'));
+    expect(
+      requests.skip(1).map((r) => r.headers['Authorization']),
+      everyElement(startsWith('Bearer ')),
+    );
     expect(persistence.values['session'], {
-      'id': 's1',
-      'key': 'secret',
+      'state': 's1:secret',
       'address': 'https://saved.example/custom/api',
     });
 
@@ -117,6 +121,7 @@ void main() {
     await restored.restore();
     expect(restored.identity, auth.identity);
     expect(requests.last.url.path, '/custom/api/sessions/s1/user');
+    expect(requests.last.headers['Authorization'], 'Bearer secret');
     await settings.save('https://different.example/api');
     await restored.signOut();
     expect(requests.last.method.toUpperCase(), 'DELETE');
@@ -149,6 +154,31 @@ void main() {
     expect(auth.identity, isNull);
     expect(requests, isEmpty);
     expect(persistence.values['session'], isNull);
+  });
+
+  for (final state in [null, 42, '', 'no-separator', 's1:secret:extra']) {
+    test('invalid saved state "$state" is removed without making a request', () async {
+      await persistence.write('session', {'state': state, 'address': await settings.load()});
+
+      expect(await service().restore(), isNull);
+      expect(persistence.values['session'], isNull);
+      expect(requests, isEmpty);
+    });
+  }
+
+  test('sign-in without client state closes the window without saving a session', () async {
+    respond = (_) async => jsonResponse({
+      'type': 'sessions',
+      'id': 's1',
+      'attributes': {'redirect': 'https://accounts.google.com/authorize'},
+    }, status: 201);
+
+    await expectLater(service().signIn(), throwsA(isA<AppFailure>()));
+
+    expect(window.closed, isTrue);
+    expect(window.redirect, isNull);
+    expect(persistence.values['session'], isNull);
+    expect(requests, hasLength(1));
   });
 
   test(

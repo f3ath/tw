@@ -82,13 +82,15 @@ class ApiAuthService(
     final saved = await _storage(() => persistence.read('session'));
     if (saved == null) return null;
     final address = await settings.load();
-    final id = saved['id'];
-    final key = saved['key'];
-    if (id is! String || key is! String || saved['address'] != address) {
+    final state = saved['state'];
+    final client = _clientFor(address);
+    if (state is String && saved['address'] == address) {
+      client.restoreState(state);
+    }
+    if (client.saveState().isEmpty) {
       await _storage(() => persistence.remove('session'));
       return null;
     }
-    final client = _clientFor(address)..restoreSession(id: id, key: key);
     try {
       final user = await client.fetchCurrentUser();
       if (user != null) {
@@ -110,11 +112,10 @@ class ApiAuthService(
       final address = await settings.load();
       final client = _clientFor(address);
       final session = await client.createSession();
-      final key = session?.attributes['key'];
+      final state = client.saveState();
       final redirect = session?.attributes['redirect'];
       final uri = redirect is String ? Uri.tryParse(redirect) : null;
-      if (session == null ||
-          key is! String ||
+      if (state.isEmpty ||
           uri == null ||
           !['http', 'https'].contains(uri.scheme) ||
           uri.host.isEmpty) {
@@ -128,9 +129,7 @@ class ApiAuthService(
       while (elapsed.elapsed < signInTimeout) {
         final user = await client.fetchCurrentUser();
         if (user != null) {
-          await _storage(
-            () => persistence.write('session', {'id': session.id, 'key': key, 'address': address}),
-          );
+          await _storage(() => persistence.write('session', {'state': state, 'address': address}));
           _client = client;
           return user.email ?? user.displayName;
         }

@@ -1,5 +1,3 @@
-import 'dart:math';
-
 import 'package:postgres/postgres.dart';
 import 'package:server/src/db/database.dart';
 import 'package:shared/time.dart';
@@ -9,12 +7,12 @@ class SessionsDAO(final Database database, {Clock clock = systemClock}) {
   final _clock = clock;
   static const _uuid = Uuid();
 
-  Future<SessionRecord> create() async {
-    final session = SessionRecord(id: _uuid.v4(), nonce: _uuid.v4(), sessionKey: _newSessionKey());
+  Future<SessionRecord> create({required String tokenHash}) async {
+    final session = SessionRecord(id: _uuid.v4(), nonce: _uuid.v4(), tokenHash: tokenHash);
     await database.execute(
       Sql.named('''
-INSERT INTO sessions (id, session_key, nonce, user_id, created_at, updated_at)
-VALUES (@id:uuid, @session_key:text, @nonce:text, @user_id:uuid, @now:timestamp, @now:timestamp)
+INSERT INTO sessions (id, token_hash, nonce, user_id, created_at, updated_at)
+VALUES (@id:uuid, @token_hash:text, @nonce:text, @user_id:uuid, @now:timestamp, @now:timestamp)
 '''),
       parameters: {...session.toMap(), 'now': _clock()},
     );
@@ -24,7 +22,7 @@ VALUES (@id:uuid, @session_key:text, @nonce:text, @user_id:uuid, @now:timestamp,
   Future<SessionRecord?> fetch(String id) async {
     final rows = await database.execute(
       Sql.named('''
-SELECT id, session_key, nonce, user_id
+SELECT id, token_hash, nonce, user_id
 FROM sessions
 WHERE id = @id:uuid
 '''),
@@ -34,14 +32,14 @@ WHERE id = @id:uuid
     return SessionRecord.fromMap(rows.single.toColumnMap());
   }
 
-  Future<SessionRecord?> fetchBySessionKey(String sessionKey) async {
+  Future<SessionRecord?> fetchByTokenHash(String tokenHash) async {
     final rows = await database.execute(
       Sql.named('''
-SELECT id, session_key, nonce, user_id
+SELECT id, token_hash, nonce, user_id
 FROM sessions
-WHERE session_key = @session_key:text
+WHERE token_hash = @token_hash:text
 '''),
-      parameters: {'session_key': sessionKey},
+      parameters: {'token_hash': tokenHash},
     );
     if (rows.isEmpty) return null;
     return SessionRecord.fromMap(rows.single.toColumnMap());
@@ -50,7 +48,7 @@ WHERE session_key = @session_key:text
   Future<SessionRecord?> fetchByNonce(String nonce) async {
     final rows = await database.execute(
       Sql.named('''
-SELECT id, session_key, nonce, user_id
+SELECT id, token_hash, nonce, user_id
 FROM sessions
 WHERE nonce = @nonce:text
 '''),
@@ -63,7 +61,7 @@ WHERE nonce = @nonce:text
   Future<List<SessionRecord>> fetchByUserId(String userId) async {
     final rows = await database.execute(
       Sql.named('''
-SELECT id, session_key, nonce, user_id
+SELECT id, token_hash, nonce, user_id
 FROM sessions
 WHERE user_id = @user_id:uuid
 ORDER BY created_at
@@ -79,7 +77,7 @@ ORDER BY created_at
 UPDATE sessions
 SET user_id = @user_id:uuid, nonce = NULL, updated_at = @now:timestamp
 WHERE nonce = @nonce:text
-RETURNING id, session_key, nonce, user_id
+RETURNING id, token_hash, nonce, user_id
 '''),
       parameters: {'nonce': nonce, 'user_id': userId, 'now': _clock()},
     );
@@ -111,31 +109,22 @@ RETURNING id
   }
 }
 
-String _newSessionKey() {
-  const charset = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-  const length = 64;
-
-  return String.fromCharCodes(
-    List<int>.generate(length, (_) => charset.codeUnitAt(Random.secure().nextInt(charset.length))),
-  );
-}
-
 class const SessionRecord({
   required final String id,
-  required final String sessionKey,
+  required final String tokenHash,
   final String? nonce,
   final String? userId,
 }) {
   static SessionRecord fromMap(Map<String, dynamic> map) => SessionRecord(
     id: map['id'] as String,
-    sessionKey: map['session_key'] as String,
+    tokenHash: map['token_hash'] as String,
     nonce: map['nonce'] as String?,
     userId: map['user_id'] as String?,
   );
 
   Map<String, dynamic> toMap() => {
     'id': id,
-    'session_key': sessionKey,
+    'token_hash': tokenHash,
     'nonce': nonce,
     'user_id': userId,
   };

@@ -2,10 +2,10 @@ import 'package:http_interop/http_interop.dart';
 import 'package:json_api/document.dart';
 import 'package:json_api/routing.dart';
 import 'package:json_api/server.dart';
-import 'package:server/src/server/server_config.dart';
 import 'package:server/src/auth/google_oauth.dart';
 import 'package:server/src/auth/oauth_controller.dart';
 import 'package:server/src/auth/request_ext.dart';
+import 'package:server/src/auth/secret_hash.dart';
 import 'package:server/src/auth/session_access_policy.dart';
 import 'package:server/src/auth/sessions_controller.dart';
 import 'package:server/src/auth/sessions_dao.dart';
@@ -21,6 +21,7 @@ import 'package:server/src/job/periodic_job.dart';
 import 'package:server/src/log/log.dart';
 import 'package:server/src/schedules/schedules_controller.dart';
 import 'package:server/src/schedules/schedules_tdao.dart';
+import 'package:server/src/server/server_config.dart';
 import 'package:server/src/services/services_controller.dart';
 import 'package:server/src/services/services_tdao.dart';
 import 'package:server/src/vehicles/vehicles_controller.dart';
@@ -117,9 +118,9 @@ class Server(
       };
 
       Future<SessionRecord?> getCallerSession(Request rq) async {
-        final session = rq.sessionKey;
-        if (session == null) return null;
-        return sessionsDAO.fetchBySessionKey(session);
+        final token = rq.sessionToken;
+        if (token == null) return null;
+        return sessionsDAO.fetchByTokenHash(tokenHash(token));
       }
 
       const sessionAccessPolicy = SessionAccessPolicy();

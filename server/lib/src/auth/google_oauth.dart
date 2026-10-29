@@ -39,7 +39,7 @@ class GoogleOAuthClient({
       final name = userInfo['name'] as String? ?? '';
 
       return SimpleOAuthSession(email: email, name: name, nonce: state);
-    } catch (e, t) {
+    } catch (e) {
       // TODO: log the error
       return null;
     }

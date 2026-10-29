@@ -1,175 +1,96 @@
-import 'package:json_api/client.dart' hide Request;
-import 'package:json_api/document.dart';
-import 'package:test/test.dart';
 import 'package:shared/api.dart';
+import 'package:test/test.dart';
 
 import 'harness.dart';
 
 Future<void> main() async {
   late TestServer testServer;
   late TwApiClient client;
-  late RoutingClient jsonApi;
 
-  Future<Resource> signIn(TwApiClient client, String code) async {
-    final session = await client.createSession();
-    await testServer.googleCallback(code, state: testServer.googleOAuth.states.last);
-    return session!;
+  Future<void> signIn(TwApiClient client, String code) async {
+    await client.createSession();
+    await testServer.googleCallback(code);
   }
-
-  Map<String, List<String>> authHeaders(Resource session) => {
-    'Authorization': ['Bearer ${session.attributes['key'] as String}'],
-  };
 
   group('Vehicles', () {
     setUp(() async {
       testServer = await startTestServer();
       client = testServer.client;
-      jsonApi = RoutingClient(testServer.urlDesign.uri, Client(testServer.clientHandler));
     });
 
     tearDown(() async {
       await testServer.stop();
     });
 
-    test('No Auth Header: Unauthorized', () async {
-      expect(() => jsonApi.fetchCollection(ResourceType.vehicles), statusCode(401));
-      expect(
-        () => jsonApi.createNew(
-          ResourceType.vehicles,
-          attributes: {'name': 'Civic', 'manufacture_date': '2020-05-01'},
-        ),
+    test('Unauthenticated vehicle operations are unauthorized', () async {
+      await expectLater(client.listVehicles(), statusCode(401));
+      await expectLater(
+        client.createVehicle(name: 'Civic', manufactureDate: DateTime(2020, 5, 1)),
         statusCode(401),
       );
-      expect(() => jsonApi.fetchResource(ResourceType.vehicles, 'vehicle-id'), statusCode(401));
-      expect(
-        () => jsonApi.updateResource(
-          ResourceType.vehicles,
-          'vehicle-id',
-          attributes: {'name': 'Accord'},
-        ),
-        statusCode(401),
-      );
-      expect(() => jsonApi.deleteResource(ResourceType.vehicles, 'vehicle-id'), statusCode(401));
+      await expectLater(client.fetchVehicle('vehicle-id'), statusCode(401));
+      await expectLater(client.updateVehicle('vehicle-id', name: 'Accord'), statusCode(401));
+      await expectLater(client.deleteVehicle('vehicle-id'), statusCode(401));
     });
 
     test('Vehicle Creation, Fetch, List, Update, Delete: Happy Path', () async {
-      final session = await signIn(client, 'test-code');
+      await signIn(client, 'test-code');
 
-      final created = await jsonApi.createNew(
-        ResourceType.vehicles,
-        attributes: {'name': 'Civic', 'manufacture_date': '2020-05-01'},
-        headers: authHeaders(session),
-      );
-
-      expect(created.resource.type, ResourceType.vehicles);
-      expect(created.resource.attributes, {'name': 'Civic', 'manufacture_date': '2020-05-01'});
-      expect(
-        created.rawResponse.httpResponse.headers['location']!.single,
-        '${testConfig.baseUri}/vehicles/${created.resource.id}',
+      final created = await client.createVehicle(
+        name: 'Civic',
+        manufactureDate: DateTime(2020, 5, 1),
       );
 
-      final fetched = await jsonApi.fetchResource(
-        ResourceType.vehicles,
-        created.resource.id,
-        headers: authHeaders(session),
-      );
-      expect(fetched.resource.id, created.resource.id);
-      expect(fetched.resource.attributes, {'name': 'Civic', 'manufacture_date': '2020-05-01'});
+      expect(created.type, ResourceType.vehicles);
+      expect(created.attributes, {'name': 'Civic', 'manufacture_date': '2020-05-01'});
 
-      final listed = await jsonApi.fetchCollection(
-        ResourceType.vehicles,
-        headers: authHeaders(session),
-      );
-      expect(listed.collection.map((r) => r.id), [created.resource.id]);
+      final fetched = await client.fetchVehicle(created.id);
+      expect(fetched.id, created.id);
+      expect(fetched.attributes, {'name': 'Civic', 'manufacture_date': '2020-05-01'});
 
-      final updated = await jsonApi.updateResource(
-        ResourceType.vehicles,
-        created.resource.id,
-        attributes: {'name': 'Accord', 'manufacture_date': '2021-06-02'},
-        headers: authHeaders(session),
-      );
-      expect(updated.resource!.id, created.resource.id);
-      expect(updated.resource!.attributes, {'name': 'Accord', 'manufacture_date': '2021-06-02'});
+      final listed = await client.listVehicles();
+      expect(listed.map((r) => r.id), [created.id]);
 
-      await jsonApi.deleteResource(
-        ResourceType.vehicles,
-        created.resource.id,
-        headers: authHeaders(session),
+      final updated = await client.updateVehicle(
+        created.id,
+        name: 'Accord',
+        manufactureDate: DateTime(2021, 6, 2),
       );
+      expect(updated!.id, created.id);
+      expect(updated.attributes, {'name': 'Accord', 'manufacture_date': '2021-06-02'});
 
-      expect(
-        () => jsonApi.fetchResource(
-          ResourceType.vehicles,
-          created.resource.id,
-          headers: authHeaders(session),
-        ),
-        statusCode(404),
-      );
-      expect(
-        (await jsonApi.fetchCollection(
-          ResourceType.vehicles,
-          headers: authHeaders(session),
-        )).collection,
-        isEmpty,
-      );
+      await client.deleteVehicle(created.id);
+
+      await expectLater(client.fetchVehicle(created.id), statusCode(404));
+      expect(await client.listVehicles(), isEmpty);
     });
 
     test("Users can't access vehicles they don't own", () async {
-      final firstSession = await signIn(client, 'test-code');
-      final firstVehicle = await jsonApi.createNew(
-        ResourceType.vehicles,
-        attributes: {'name': 'Civic', 'manufacture_date': '2020-05-01'},
-        headers: authHeaders(firstSession),
+      await signIn(client, 'test-code');
+      final firstVehicle = await client.createVehicle(
+        name: 'Civic',
+        manufactureDate: DateTime(2020, 5, 1),
       );
 
       final secondClient = TwApiClient(testServer.urlDesign, testServer.clientHandler);
       testServer.googleOAuth.email = 'other@example.com';
       testServer.googleOAuth.name = 'Other User';
-      final secondSession = await signIn(secondClient, 'other-code');
+      await signIn(secondClient, 'other-code');
 
-      expect(
-        () => jsonApi.fetchResource(
-          ResourceType.vehicles,
-          firstVehicle.resource.id,
-          headers: authHeaders(secondSession),
+      await expectLater(secondClient.fetchVehicle(firstVehicle.id), statusCode(404));
+      await expectLater(
+        secondClient.updateVehicle(
+          firstVehicle.id,
+          name: 'Accord',
+          manufactureDate: DateTime(2021, 6, 2),
         ),
         statusCode(404),
       );
-      expect(
-        () => jsonApi.updateResource(
-          ResourceType.vehicles,
-          firstVehicle.resource.id,
-          attributes: {'name': 'Accord', 'manufacture_date': '2021-06-02'},
-          headers: authHeaders(secondSession),
-        ),
-        statusCode(404),
-      );
-      expect(
-        () => jsonApi.deleteResource(
-          ResourceType.vehicles,
-          firstVehicle.resource.id,
-          headers: authHeaders(secondSession),
-        ),
-        statusCode(404),
-      );
+      await expectLater(secondClient.deleteVehicle(firstVehicle.id), statusCode(404));
+      expect(await secondClient.listVehicles(), isEmpty);
 
-      expect(
-        (await jsonApi.fetchCollection(
-          ResourceType.vehicles,
-          headers: authHeaders(secondSession),
-        )).collection,
-        isEmpty,
-      );
-
-      final fetchedByOwner = await jsonApi.fetchResource(
-        ResourceType.vehicles,
-        firstVehicle.resource.id,
-        headers: authHeaders(firstSession),
-      );
-      expect(fetchedByOwner.resource.attributes, {
-        'name': 'Civic',
-        'manufacture_date': '2020-05-01',
-      });
+      final fetchedByOwner = await client.fetchVehicle(firstVehicle.id);
+      expect(fetchedByOwner.attributes, {'name': 'Civic', 'manufacture_date': '2020-05-01'});
     });
   });
 }

@@ -19,8 +19,8 @@ CreateResourceRequest create(String type) => CreateResourceRequest(
 
 void main() {
   const policy = SessionAccessPolicy();
-  const pending = SessionRecord(id: 'session-id', sessionKey: 'key');
-  const authenticated = SessionRecord(id: 'session-id', sessionKey: 'key', userId: 'user-id');
+  const pending = SessionRecord(id: 'session-id', tokenHash: 'key');
+  const authenticated = SessionRecord(id: 'session-id', tokenHash: 'key', userId: 'user-id');
   final ownSession = FetchResourceRequest(
     httpRequest('get'),
     ResourceTarget(ResourceType.sessions, pending.id),

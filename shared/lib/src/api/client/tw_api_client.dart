@@ -2,9 +2,7 @@ import 'package:http_interop/http_interop.dart';
 import 'package:json_api/client.dart';
 import 'package:json_api/document.dart';
 import 'package:json_api/routing.dart';
-
-import 'resource_type.dart';
-import 'user.dart';
+import 'package:shared/api.dart';
 
 class TwApiClient(UriDesign urlDesign, Handler handler) {
   this {
@@ -13,10 +11,6 @@ class TwApiClient(UriDesign urlDesign, Handler handler) {
 
   late final RoutingClient _jsonApi;
   Resource? _session;
-
-  void restoreSession({required String id, required String key}) {
-    _session = Resource(ResourceType.sessions, id)..attributes['key'] = key;
-  }
 
   Future<Resource?> createSession() async {
     final response = await _jsonApi.createNew(ResourceType.sessions);
@@ -193,10 +187,25 @@ class TwApiClient(UriDesign urlDesign, Handler handler) {
     }
   }
 
+  String saveState() {
+    final id = _session?.id;
+    final token = _session?.attributes['token'] as String?;
+
+    if (id == null || token == null) return '';
+    return '$id:$token';
+  }
+
+  void restoreState(String state) {
+    if (state.split(':') case [final id, final token]) {
+      _session = Resource(ResourceType.sessions, id)..attributes['token'] = token;
+    }
+  }
+
   Handler _authenticated(Handler inner) => (request) {
-    final bearer = _session?.attributes['key'] as String?;
-    if (bearer != null) {
-      request.headers['Authorization'] = ['Bearer $bearer'];
+    final id = _session?.id;
+    final token = _session?.attributes['token'] as String?;
+    if (id != null && token != null) {
+      request.headers['Authorization'] = ['Bearer $token'];
     }
     return inner(request);
   };

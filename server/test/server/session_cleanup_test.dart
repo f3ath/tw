@@ -28,9 +28,9 @@ void main() {
     await withTestDatabase(config, (connection) async {
       final sessions = SessionsDAO(Database(connection), clock: clock);
       now = now.subtract(const Duration(minutes: 11));
-      final expired = await sessions.create();
+      final expired = await sessions.create(tokenHash: 'secret1');
       now = now.add(const Duration(minutes: 11));
-      final fresh = await sessions.create();
+      final fresh = await sessions.create(tokenHash: 'secret2');
 
       Future<void> expectDeleted(String id) async {
         final deadline = DateTime.now().add(const Duration(seconds: 5));
@@ -60,11 +60,11 @@ void main() {
       DateTime clock() => now;
       final sessions = SessionsDAO(Database(connection), clock: clock);
       now = current.subtract(const Duration(seconds: 901));
-      final expired = await sessions.create();
+      final expired = await sessions.create(tokenHash: 'secret1');
       now = current.subtract(const Duration(seconds: 900));
-      final boundary = await sessions.create();
+      final boundary = await sessions.create(tokenHash: 'secret2');
       now = current.subtract(const Duration(seconds: 899));
-      final fresh = await sessions.create();
+      final fresh = await sessions.create(tokenHash: 'secret3');
       now = current;
 
       await sessions.deletePendingOlderThan(const Duration(minutes: 15));

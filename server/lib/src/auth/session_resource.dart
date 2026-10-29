@@ -4,7 +4,7 @@ import 'package:shared/api.dart';
 
 class SessionResource(SessionRecord record) extends Resource {
   this : super(ResourceType.sessions, record.id) {
-    attributes['key'] = record.sessionKey;
+    attributes['key'] = record.tokenHash;
     relationships['user'] = ToOne(
       record.userId == null ? null : Identifier(ResourceType.users, record.userId!),
     );

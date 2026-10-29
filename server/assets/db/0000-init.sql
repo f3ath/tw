@@ -16,7 +16,7 @@ GRANT SELECT, INSERT, UPDATE
 CREATE TABLE sessions
 (
     id          UUID PRIMARY KEY,
-    session_key text UNIQUE NOT NULL,
+    token_hash  text UNIQUE NOT NULL,
     nonce       text UNIQUE,
     user_id     UUID REFERENCES users (id) ON DELETE CASCADE,
     created_at  timestamp   NOT NULL,

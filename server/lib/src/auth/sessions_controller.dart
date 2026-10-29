@@ -1,8 +1,11 @@
+import 'dart:math';
+
 import 'package:http_interop/http_interop.dart';
 import 'package:json_api/document.dart';
 import 'package:json_api/routing.dart';
 import 'package:json_api/server.dart';
 import 'package:server/src/auth/request_ext.dart';
+import 'package:server/src/auth/secret_hash.dart';
 import 'package:server/src/auth/session_resource.dart';
 import 'package:server/src/auth/sessions_dao.dart';
 import 'package:server/src/auth/simple_oauth.dart';
@@ -28,10 +31,13 @@ class SessionsController(
     CollectionTarget target,
     NewResource newResource,
   ) async {
-    final session = await _sessionsDAO.create();
+    final token = _newSessionToken();
+    final session = await _sessionsDAO.create(tokenHash: tokenHash(token));
     final redirect = _googleOAuth.startAuthorization(session.nonce!).toString();
     return created(
-      OutboundDataDocument.resource(SessionResource(session)..attributes['redirect'] = redirect),
+      OutboundDataDocument.resource(
+        SessionResource(session)..attributes.addAll({'redirect': redirect, 'token': token}),
+      ),
       _uriFor(ResourceTarget(target.type, session.id)).toString(),
     );
   }
@@ -66,8 +72,20 @@ class SessionsController(
   Future<SessionRecord?> _fetchAccessibleSession(Request request, String id) async {
     final session = await _sessionsDAO.fetch(id);
     if (session == null) return null;
-    if (session.sessionKey == request.sessionKey) return session;
+    final token = request.sessionToken;
+    if (token != null && session.tokenHash == tokenHash(token)) {
+      return session;
+    }
     if (session.userId != null && session.userId == request.userId) return session;
     return null;
   }
+}
+
+String _newSessionToken() {
+  const charset = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+  const length = 64;
+
+  return String.fromCharCodes(
+    List<int>.generate(length, (_) => charset.codeUnitAt(Random.secure().nextInt(charset.length))),
+  );
 }

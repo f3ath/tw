@@ -1,14 +1,10 @@
 import 'package:http_interop/http_interop.dart';
 
 extension RequestExt on Request {
-  String? get sessionKey {
+  String? get sessionToken {
     final auth = headers['Authorization']?.firstOrNull;
-    if (auth == null) return null;
-    return auth.startsWith(_prefix) ? auth.substring(_prefix.length) : null;
-  }
-
-  set sessionKey(String id) {
-    headers['Authorization'] = ['$_prefix$id'];
+    if (auth == null || !auth.startsWith('Bearer ')) return null;
+    return auth.substring('Bearer '.length);
   }
 
   String get userId {
@@ -20,5 +16,3 @@ extension RequestExt on Request {
     context['user_id'] = id;
   }
 }
-
-const _prefix = 'Bearer ';
