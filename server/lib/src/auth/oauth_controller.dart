@@ -2,15 +2,11 @@ import 'dart:convert';
 
 import 'package:http_interop/http_interop.dart';
 import 'package:server/src/auth/sessions_dao.dart';
-import 'package:server/src/auth/simple_oauth.dart';
+import 'package:server/src/auth/oauth.dart';
 import 'package:server/src/auth/users_dao.dart';
 import 'package:server/src/http/responses.dart';
 
-class OAuthController(
-  final SimpleOAuth oauth,
-  final SessionsDAO sessionsDAO,
-  final UsersDAO usersDAO,
-) {
+class OAuthController(final OAuth oauth, final SessionsDAO sessionsDAO, final UsersDAO usersDAO) {
   Future<Response> callback(Request request) async {
     final session = await oauth.finishAuthorization(request.uri.queryParameters);
     if (session == null) {

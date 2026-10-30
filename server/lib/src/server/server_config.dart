@@ -9,6 +9,7 @@ class ServerConfig({
   required final String databaseSystemPassword,
   required final String databaseTenantUsername,
   required final String databaseTenantPassword,
+  required final String instanceType,
   final Duration sessionCleanupInterval = const Duration(minutes: 1),
   final Duration pendingSessionMaxAge = const Duration(minutes: 15),
 }) {
@@ -42,6 +43,7 @@ class ServerConfig({
     pendingSessionMaxAge: Duration(
       seconds: int.parse(get('PENDING_SESSION_MAX_AGE_SECONDS', orElse: () => '900')),
     ),
+    instanceType: get('INSTANCE_TYPE', orElse: () => 'prod'),
   );
 }
 

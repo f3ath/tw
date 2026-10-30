@@ -3,13 +3,14 @@ import 'package:json_api/document.dart';
 import 'package:json_api/routing.dart';
 import 'package:json_api/server.dart';
 import 'package:server/src/auth/google_oauth.dart';
+import 'package:server/src/auth/oauth.dart';
 import 'package:server/src/auth/oauth_controller.dart';
 import 'package:server/src/auth/request_ext.dart';
 import 'package:server/src/auth/secret_hash.dart';
 import 'package:server/src/auth/session_access_policy.dart';
 import 'package:server/src/auth/sessions_controller.dart';
 import 'package:server/src/auth/sessions_dao.dart';
-import 'package:server/src/auth/simple_oauth.dart';
+import 'package:server/src/auth/test_oauth.dart';
 import 'package:server/src/auth/users_dao.dart';
 import 'package:server/src/db/apply_migrations.dart';
 import 'package:server/src/db/connection_from_config.dart';
@@ -32,7 +33,7 @@ import 'package:uuid/uuid.dart';
 
 class Server(
   final ServerConfig _config, {
-  SimpleOAuth? oauth,
+  OAuth? oauth,
   final Clock _clock = systemClock,
   Future<SystemConnection> Function(ServerConfig) systemConnectionFactory =
       SystemConnection.fromConfig,
@@ -50,13 +51,16 @@ class Server(
   PeriodicJob? _sessionCleanup;
   Future<void>? _starting;
   Future<void>? _stopping;
-  final SimpleOAuth _oauth =
+  final OAuth _oauth =
       oauth ??
-      GoogleOAuthClient(
-        clientId: _config.googleOAuthClientId,
-        clientSecret: _config.googleOAuthClientSecret,
-        redirectUri: _config.baseUri.replace(path: _googleOAuthCallbackPath).toString(),
-      );
+      (switch (_config.instanceType) {
+        'test' => TestOAuth(),
+        _ => GoogleOAuthClient(
+          clientId: _config.googleOAuthClientId,
+          clientSecret: _config.googleOAuthClientSecret,
+          redirectUri: _config.baseUri.replace(path: _googleOAuthCallbackPath).toString(),
+        ),
+      });
   late final Handler _handler;
   var _isReady = false;
 

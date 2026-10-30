@@ -4,11 +4,11 @@ import 'package:http_interop/http_interop.dart';
 import 'package:json_api/client.dart' show RequestFailure;
 import 'package:json_api/routing.dart';
 import 'package:postgres/postgres.dart';
-import 'package:server/src/server/server.dart';
-import 'package:server/src/server/server_config.dart';
-import 'package:server/src/auth/simple_oauth.dart';
+import 'package:server/src/auth/oauth.dart';
 import 'package:server/src/db/connection_from_config.dart';
 import 'package:server/src/log/sink_log.dart';
+import 'package:server/src/server/server.dart';
+import 'package:server/src/server/server_config.dart';
 import 'package:shared/api.dart';
 import 'package:test/test.dart';
 
@@ -38,6 +38,7 @@ ServerConfig createTestConfig({
   databaseTenantPassword: 'tw_tenant',
   sessionCleanupInterval: sessionCleanupInterval,
   pendingSessionMaxAge: pendingSessionMaxAge,
+  instanceType: 'test',
 );
 
 Future<TestServer> startTestServer() async {
@@ -108,7 +109,7 @@ Future<T> withTestDatabase<T>(
 }
 
 class TestGoogleOAuth({var String email = 'user@example.com', var String name = 'Test User'})
-    implements SimpleOAuth {
+    implements OAuth {
   Uri? _authorizationUri;
 
   Uri get authorizationUri => _authorizationUri!;
@@ -122,8 +123,8 @@ class TestGoogleOAuth({var String email = 'user@example.com', var String name = 
   }
 
   @override
-  Future<SimpleOAuthSession?> finishAuthorization(Map<String, String> queryParameters) async {
+  Future<OAuthSession?> finishAuthorization(Map<String, String> queryParameters) async {
     this.queryParameters = queryParameters;
-    return SimpleOAuthSession(email: email, name: name, nonce: queryParameters['state'] as String);
+    return OAuthSession(email: email, name: name, nonce: queryParameters['state'] as String);
   }
 }

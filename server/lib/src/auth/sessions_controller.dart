@@ -8,13 +8,13 @@ import 'package:server/src/auth/request_ext.dart';
 import 'package:server/src/auth/secret_hash.dart';
 import 'package:server/src/auth/session_resource.dart';
 import 'package:server/src/auth/sessions_dao.dart';
-import 'package:server/src/auth/simple_oauth.dart';
+import 'package:server/src/auth/oauth.dart';
 import 'package:server/src/auth/user_resource.dart';
 import 'package:server/src/auth/users_dao.dart';
 import 'package:server/src/json_api/base_controller.dart';
 
 class SessionsController(
-  final SimpleOAuth _googleOAuth,
+  final OAuth _googleOAuth,
   final SessionsDAO _sessionsDAO,
   final UsersDAO _usersDAO,
   final UriBuilder _uriFor,

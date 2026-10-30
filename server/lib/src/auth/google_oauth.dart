@@ -2,14 +2,15 @@ import 'dart:convert';
 
 import 'package:googleapis_auth/auth_io.dart';
 import 'package:http/http.dart' as http;
-import 'package:server/src/auth/simple_oauth.dart';
+import 'package:server/src/auth/oauth.dart';
 
 class GoogleOAuthClient({
   required final String _clientId,
   required final String _clientSecret,
   required final String _redirectUri,
   final AuthEndpoints _authEndpoints = const GoogleAuthEndpoints(),
-}) implements SimpleOAuth {
+  final http.Client Function() _clientFactory = http.Client.new,
+}) implements OAuth {
   static final _userInfoEndpoint = Uri.parse('https://openidconnect.googleapis.com/v1/userinfo');
 
   @override
@@ -26,7 +27,7 @@ class GoogleOAuthClient({
   );
 
   @override
-  Future<SimpleOAuthSession?> finishAuthorization(Map<String, String> queryParameters) async {
+  Future<OAuthSession?> finishAuthorization(Map<String, String> queryParameters) async {
     final code = queryParameters['code'];
     final state = queryParameters['state'];
     if (code == null || state == null) {
@@ -38,7 +39,7 @@ class GoogleOAuthClient({
       final email = userInfo['email'] as String? ?? '';
       final name = userInfo['name'] as String? ?? '';
 
-      return SimpleOAuthSession(email: email, name: name, nonce: state);
+      return OAuthSession(email: email, name: name, nonce: state);
     } catch (e) {
       // TODO: log the error
       return null;
@@ -59,7 +60,7 @@ class GoogleOAuthClient({
     } finally {
       authClient.close();
     }
-  });
+  }, clientFactory: _clientFactory);
 }
 
 Future<Map<String, Object?>> _getJson(http.Client client, Uri uri) async {
@@ -71,8 +72,11 @@ Future<Map<String, Object?>> _getJson(http.Client client, Uri uri) async {
   return jsonDecode(response.body) as Map<String, Object?>;
 }
 
-Future<T> withDisposableHttp<T>(Future<T> Function(http.Client) task) async {
-  final client = http.Client();
+Future<T> withDisposableHttp<T>(
+  Future<T> Function(http.Client) task, {
+  http.Client Function() clientFactory = http.Client.new,
+}) async {
+  final client = clientFactory();
   try {
     return await task(client);
   } finally {
