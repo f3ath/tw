@@ -1,12 +1,12 @@
 import 'dart:io';
 
 import 'package:dotenv/dotenv.dart';
-import 'package:server/src/server/server.dart';
-import 'package:server/src/server/server_config.dart';
 import 'package:server/src/http/http_server_harness.dart';
-import 'package:server/src/io/process_signal.dart';
 import 'package:server/src/log/log.dart';
 import 'package:server/src/log/sink_log.dart';
+import 'package:server/src/server/server.dart';
+import 'package:server/src/server/server_config.dart';
+import 'package:server/src/streams/first_event.dart';
 
 Future<void> main(List<String> args) async {
   final log = SinkLog(stderr, minLevel: LogLevel.debug);
@@ -21,7 +21,9 @@ Future<void> main(List<String> args) async {
     await server.start();
     log.info("Server services started.");
 
-    final sig = await firstProcessSignal([ProcessSignal.sigterm, ProcessSignal.sigint]);
+    final sig = await firstEvent(
+      [ProcessSignal.sigterm, ProcessSignal.sigint].map((it) => it.watch()),
+    );
     log.info("Received signal: $sig");
   } finally {
     try {
