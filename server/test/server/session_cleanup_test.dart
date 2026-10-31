@@ -1,7 +1,7 @@
-import 'package:test/test.dart';
-import 'package:server/src/server/server.dart';
 import 'package:server/src/auth/sessions_dao.dart';
 import 'package:server/src/db/database.dart';
+import 'package:server/src/server/server.dart';
+import 'package:test/test.dart';
 
 import 'harness.dart';
 
@@ -22,7 +22,7 @@ void main() {
     );
     var now = DateTime.utc(2026, 1, 1, 12);
     DateTime clock() => now;
-    final server = Server(config, oauth: TestGoogleOAuth(), clock: clock);
+    final server = Server(config, clock: clock);
     addTearDown(server.stop);
     await server.start();
     await withTestDatabase(config, (connection) async {

@@ -11,7 +11,7 @@ Future<void> main() async {
     });
 
     test('liveness and readiness probes reflect server startup', () async {
-      final testServer = Server(testConfig, oauth: TestGoogleOAuth());
+      final testServer = Server(testConfig);
       addTearDown(testServer.stop);
 
       await testServer(get('/k8s/liveness')).then((r) {
@@ -33,4 +33,4 @@ Future<void> main() async {
   });
 }
 
-Request get(String path) => Request('get', Uri.parse(path), Body.empty(), Headers());
+Request get(String path) => Request('GET', Uri.parse(path), Body.empty(), Headers());
