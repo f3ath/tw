@@ -62,7 +62,6 @@ class Server(
         ),
       });
   late final Handler _handler;
-  var _isReady = false;
 
   this {
     final loggingMiddleware = newLoggingMiddleware(_log, const Uuid().v4);
@@ -71,7 +70,7 @@ class Server(
     _routes.addAll([
       Route(
         matches: (rq) => rq.uri.path == '/k8s/readiness',
-        handler: (_) async => Response(_isReady ? 200 : 500, Body.empty(), Headers()),
+        handler: (_) async => Response(_lifecycle.isReady ? 200 : 500, Body.empty(), Headers()),
       ),
       Route(
         matches: (rq) => rq.uri.path == '/k8s/liveness',
@@ -88,7 +87,6 @@ class Server(
     final tenantConnection = await _tenantConnectionFactory(_config);
     try {
       _setupControllers(tenantConnection);
-      _isReady = true;
     } catch (_) {
       await tenantConnection.close();
       rethrow;
@@ -181,13 +179,9 @@ class Server(
     }
   }
 
-  Future<void> stop() {
-    _isReady = false;
-    return _lifecycle.stop();
-  }
+  Future<void> stop() => _lifecycle.stop();
 
   Future<void> _stop() async {
-    _isReady = false;
     for (final route in _serverRoutes) {
       _routes.remove(route);
     }

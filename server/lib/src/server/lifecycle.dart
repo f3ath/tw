@@ -5,6 +5,9 @@ class Lifecycle({
   Future<void>? _starting;
   Future<void>? _stopping;
   var _isRunning = false;
+  var _isReady = false;
+
+  bool get isReady => _isReady;
 
   Future<void> start() {
     final stopping = _stopping;
@@ -14,15 +17,19 @@ class Lifecycle({
     return _starting ??= Future<void>.microtask(_onStart)
         .then((_) {
           _isRunning = true;
+          _isReady = _stopping == null;
         })
         .whenComplete(() {
           _starting = null;
         });
   }
 
-  Future<void> stop() => _stopping ??= _stop().whenComplete(() {
-    _stopping = null;
-  });
+  Future<void> stop() {
+    _isReady = false;
+    return _stopping ??= _stop().whenComplete(() {
+      _stopping = null;
+    });
+  }
 
   Future<void> _stop() async {
     try {

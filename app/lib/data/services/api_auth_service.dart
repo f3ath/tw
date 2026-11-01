@@ -85,7 +85,11 @@ class ApiAuthService(
     final state = saved['state'];
     final client = _clientFor(address);
     if (state is String && saved['address'] == address) {
-      client.restoreState(state);
+      try {
+        client.restoreState(state);
+      } on ArgumentError {
+        // ignore invalid string
+      }
     }
     if (client.saveState().isEmpty) {
       await _storage(() => persistence.remove('session'));
@@ -113,8 +117,7 @@ class ApiAuthService(
       final client = _clientFor(address);
       final session = await client.createSession();
       final state = client.saveState();
-      final redirect = session?.attributes['redirect'];
-      final uri = redirect is String ? Uri.tryParse(redirect) : null;
+      final uri = session.completionUri;
       if (state.isEmpty ||
           uri == null ||
           !['http', 'https'].contains(uri.scheme) ||
@@ -142,6 +145,8 @@ class ApiAuthService(
         await Future<void>.delayed(pollInterval);
       }
       throw const AppFailure(FailureKind.connectivity, 'Sign-in timed out. Please try again.');
+    } on InvalidResponse {
+      throw const AppFailure(FailureKind.connectivity, 'Invalid response. Please try again.');
     } finally {
       window.close();
     }

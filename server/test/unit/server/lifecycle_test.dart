@@ -34,15 +34,19 @@ void main() {
   test('stop before start is a no-op', () async {
     await lifecycle.stop();
     expect(calls, isEmpty);
+    expect(lifecycle.isReady, isFalse);
   });
 
   test('concurrent starts share a future and repeated starts are no-ops', () async {
+    expect(lifecycle.isReady, isFalse);
     final first = lifecycle.start();
+    expect(lifecycle.isReady, isFalse);
     expect(lifecycle.start(), same(first));
     await startEntered.future;
     expect(calls, ['start']);
     startup.complete();
     await first;
+    expect(lifecycle.isReady, isTrue);
     await lifecycle.start();
     expect(calls, ['start']);
   });
@@ -51,11 +55,13 @@ void main() {
     startup.complete();
     await lifecycle.start();
     final first = lifecycle.stop();
+    expect(lifecycle.isReady, isFalse);
     expect(lifecycle.stop(), same(first));
     await stopEntered.future;
     expect(calls, ['start', 'stop']);
     shutdown.complete();
     await first;
+    expect(lifecycle.isReady, isFalse);
     await lifecycle.stop();
     expect(calls, ['start', 'stop']);
   });
@@ -72,6 +78,7 @@ void main() {
     startup.complete();
     await starting;
     await stopEntered.future;
+    expect(lifecycle.isReady, isFalse);
     expect(calls, ['start', 'stop']);
     expect(stopped, isFalse);
     shutdown.complete();
@@ -96,6 +103,7 @@ void main() {
     expect(calls, ['start', 'stop', 'start']);
     startup.complete();
     await Future.wait([first, second]);
+    expect(lifecycle.isReady, isTrue);
   });
 
   test('startup failure reaches callers and allows retry', () async {
@@ -133,12 +141,16 @@ void main() {
     await stopEntered.future;
     shutdown.completeError(error);
     await Future.wait([stopping, restarting]);
+    expect(lifecycle.isReady, isFalse);
+    await lifecycle.start();
+    expect(lifecycle.isReady, isFalse);
     expect(calls, ['start', 'stop']);
     shutdown = Completer<void>()..complete();
     await lifecycle.stop();
     expect(calls, ['start', 'stop', 'stop']);
     await lifecycle.start();
     expect(calls, ['start', 'stop', 'stop', 'start']);
+    expect(lifecycle.isReady, isTrue);
   });
 
   test('synchronous callback failures become future errors and permit retry', () async {

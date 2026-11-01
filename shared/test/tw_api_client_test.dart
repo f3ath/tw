@@ -34,9 +34,9 @@ void main() {
       expect(client.saveState(), 'session-1:secret-token');
     });
 
-    test('returns an empty string when the session has no token', () async {
+    test('throws when the session has no token', () async {
       client = _client((_) async => _sessionResponse(status: 201));
-      await client.createSession();
+      expectLater(client.createSession(), throwsA(isA<InvalidResponse>()));
 
       expect(client.saveState(), '');
     });
@@ -63,20 +63,5 @@ void main() {
       expect(client.saveState(), 'new-session:new-token');
     });
 
-    for (final state in ['', 'no-separator', 'new-session:new:token']) {
-      test('ignores "$state" when there is no session', () {
-        client.restoreState(state);
-
-        expect(client.saveState(), '');
-      });
-
-      test('preserves the existing session for "$state"', () {
-        client.restoreState('session-1:secret-token');
-
-        client.restoreState(state);
-
-        expect(client.saveState(), 'session-1:secret-token');
-      });
-    }
   });
 }

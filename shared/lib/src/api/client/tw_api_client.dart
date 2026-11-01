@@ -10,35 +10,43 @@ class TwApiClient(UriDesign urlDesign, Handler handler) {
   }
 
   late final RoutingClient _jsonApi;
-  Resource? _session;
+  _State? _state;
 
-  Future<Resource?> createSession() async {
+  Future<Session> createSession() async {
     final response = await _jsonApi.createNew(ResourceType.sessions);
-    return _session = response.resource;
+    final resource = response.resource;
+    final token = resource.attributes['token'];
+    if (token is! String) {
+      throw InvalidResponse('Missing session token');
+    }
+    _state = _State(resource.id, token);
+    return Session.fromResource(resource);
   }
 
   Future<List<Resource>> listSessions() async =>
       (await _jsonApi.fetchCollection(ResourceType.sessions)).collection;
 
-  Future<Resource> fetchSession(String id) async =>
-      (await _jsonApi.fetchResource(ResourceType.sessions, id)).resource;
+  Future<Session> fetchSession(String id) async {
+    final r = await _jsonApi.fetchResource(ResourceType.sessions, id);
+    return Session.fromResource(r.resource);
+  }
 
-  Future<Resource> fetchCurrentSession() async {
-    final session = _session;
-    if (session == null) {
-      throw StateError('No session to fetch');
+  Future<Session> fetchCurrentSession() async {
+    final state = _state;
+    if (state == null) {
+      throw StateError('Unauthenticated');
     }
-    return fetchSession(session.id);
+    return fetchSession(state.id);
   }
 
   Future<User?> fetchCurrentUser() async {
-    final session = _session;
-    if (session == null) {
-      throw StateError('No session to fetch user for');
+    final state = _state;
+    if (state == null) {
+      throw StateError('Unauthenticated');
     }
     final resource = (await _jsonApi.fetchRelatedResource(
       ResourceType.sessions,
-      session.id,
+      state.id,
       'user',
     )).resource;
     return resource == null ? null : User.fromResource(resource);
@@ -181,42 +189,57 @@ class TwApiClient(UriDesign urlDesign, Handler handler) {
   }
 
   Future<void> deleteSession() async {
-    final session = _session;
-    if (session == null) {
-      throw StateError('No session to delete');
+    final state = _state;
+    if (state == null) {
+      throw StateError('Unauthenticated');
     }
-    await deleteSessionById(session.id);
+    await deleteSessionById(state.id);
   }
 
   Future<void> deleteSessionById(String id) async {
     await _jsonApi.deleteResource(ResourceType.sessions, id);
-    if (_session?.id == id) {
-      _session = null;
+    if (_state?.id == id) {
+      _state = null;
     }
   }
 
   String saveState() {
-    final id = _session?.id;
-    final token = _session?.attributes['token'] as String?;
-
-    if (id == null || token == null) return '';
-    return '$id:$token';
+    final state = _state;
+    if (state == null) {
+      return '';
+    }
+    return '${state.id}:${state.token}';
   }
 
   void restoreState(String state) {
     if (state.split(':') case [final id, final token]) {
-      _session = Resource(ResourceType.sessions, id)..attributes['token'] = token;
+      _state = _State(id, token);
+    } else if (state.isEmpty) {
+      _state = null;
+    } else {
+      throw ArgumentError('Invalid state');
     }
   }
 
   Handler _authenticated(Handler inner) => (request) {
-    final id = _session?.id;
-    final token = _session?.attributes['token'] as String?;
-    if (id != null && token != null) {
-      request.headers['Authorization'] = ['Bearer $token'];
+    final state = _state;
+    if (state != null) {
+      request.headers['Authorization'] = ['Bearer ${state.token}'];
     }
     return inner(request);
   };
 
   String _date(DateTime date) => date.toIso8601String().split('T').first;
 }
+
+class Session(final String id, {final Uri? completionUri}) {
+  static Session fromResource(Resource resource) {
+    final redirect = resource.attributes['redirect'];
+    final completionUri = redirect is String ? Uri.parse(redirect) : null;
+    return Session(resource.id, completionUri: completionUri);
+  }
+}
+
+class InvalidResponse(final String message) implements Exception;
+
+class _State(final String id, final String token);

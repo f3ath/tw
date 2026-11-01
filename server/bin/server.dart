@@ -25,9 +25,13 @@ Future<void> main(List<String> args) async {
       [ProcessSignal.sigterm, ProcessSignal.sigint].map((it) => it.watch()),
     );
     log.info("Received signal: $sig");
+  } catch (e, t) {
+    log.error('Exception', error: e, stackTrace: t);
   } finally {
     try {
       await httpServer.stop();
+    } catch (e, t) {
+      log.error('Exception', error: e, stackTrace: t);
     } finally {
       await server.stop();
     }
