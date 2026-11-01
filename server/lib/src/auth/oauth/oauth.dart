@@ -1,7 +1,7 @@
 abstract interface class OAuth() {
-  Uri startAuthorization(String nonce);
+  Uri startAuthentication(String nonce);
 
-  Future<OAuthSession?> finishAuthorization(Map<String, String> queryParameters);
+  Future<OAuthSession?> finishAuthentication(Map<String, String> queryParameters);
 }
 
 class OAuthSession({

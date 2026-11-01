@@ -3,7 +3,7 @@ import 'dart:convert';
 import 'package:googleapis_auth/auth_io.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
-import 'package:server/src/auth/google_oauth.dart';
+import 'package:server/src/auth/oauth/google_oauth.dart';
 import 'package:test/test.dart';
 
 const _endpoints = GoogleAuthEndpoints();
@@ -41,7 +41,7 @@ void main() {
   group('GoogleOAuthClient', () {
     test('builds the authorization URL without creating an HTTP client', () {
       final uri = _oauth(() => throw StateError('Unexpected HTTP client'))
-          .startAuthorization('nonce & value');
+          .startAuthentication('nonce & value');
       expect(uri.origin, _endpoints.authorizationEndpoint.origin);
       expect(uri.path, _endpoints.authorizationEndpoint.path);
       expect(uri.queryParameters, {
@@ -66,7 +66,7 @@ void main() {
         {'code': 'code'},
         {'state': 'state'},
       ]) {
-        expect(await oauth.finishAuthorization(parameters), isNull);
+        expect(await oauth.finishAuthentication(parameters), isNull);
       }
       expect(creations, 0);
     });
@@ -78,7 +78,7 @@ void main() {
         if (request.url == _endpoints.tokenEndpoint) return _tokenResponse();
         return http.Response('{"email":"user@example.test","name":"Test User"}', 200);
       });
-      final session = await _oauth(() => client).finishAuthorization(_callbackParams);
+      final session = await _oauth(() => client).finishAuthentication(_callbackParams);
       expect(session, isNotNull);
       expect(session!.email, 'user@example.test');
       expect(session.name, 'Test User');
@@ -104,7 +104,7 @@ void main() {
         (request) async =>
             request.url == _endpoints.tokenEndpoint ? _tokenResponse() : http.Response('{}', 200),
       );
-      final session = await _oauth(() => client).finishAuthorization(_callbackParams);
+      final session = await _oauth(() => client).finishAuthentication(_callbackParams);
       expect(session, isNotNull);
       expect(session!.email, isEmpty);
       expect(session.name, isEmpty);
@@ -118,7 +118,7 @@ void main() {
           requests++;
           return http.Response('{"error":"invalid_grant"}', status);
         });
-        expect(await _oauth(() => client).finishAuthorization(_callbackParams), isNull);
+        expect(await _oauth(() => client).finishAuthentication(_callbackParams), isNull);
         expect(requests, 1);
         expect(client.closeCount, 1);
       });
@@ -136,14 +136,14 @@ void main() {
         final client = _TrackingClient(
           (request) async => request.url == _endpoints.tokenEndpoint ? _tokenResponse() : response,
         );
-        expect(await _oauth(() => client).finishAuthorization(_callbackParams), isNull);
+        expect(await _oauth(() => client).finishAuthentication(_callbackParams), isNull);
         expect(client.closeCount, 1);
       });
     }
 
     test('closes the client on a transport failure', () async {
       final client = _TrackingClient((_) async => throw http.ClientException('Connection failed'));
-      expect(await _oauth(() => client).finishAuthorization(_callbackParams), isNull);
+      expect(await _oauth(() => client).finishAuthentication(_callbackParams), isNull);
       expect(client.closeCount, 1);
     });
   });

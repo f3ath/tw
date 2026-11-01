@@ -1,8 +1,8 @@
-import 'package:server/src/auth/oauth.dart';
+import 'package:server/src/auth/oauth/oauth.dart';
 
 class TestOAuth() implements OAuth {
   @override
-  Future<OAuthSession?> finishAuthorization(Map<String, String> queryParameters) async {
+  Future<OAuthSession?> finishAuthentication(Map<String, String> queryParameters) async {
     final email = queryParameters['email'];
     final name = queryParameters['name'];
     final nonce = queryParameters['nonce'];
@@ -13,6 +13,6 @@ class TestOAuth() implements OAuth {
   }
 
   @override
-  Uri startAuthorization(String nonce) =>
+  Uri startAuthentication(String nonce) =>
       Uri.parse('https://example.com').replace(queryParameters: {'nonce': nonce});
 }

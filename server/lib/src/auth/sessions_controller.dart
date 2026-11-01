@@ -5,12 +5,12 @@ import 'package:json_api/document.dart';
 import 'package:json_api/routing.dart';
 import 'package:json_api/server.dart';
 import 'package:server/src/auth/request_ext.dart';
-import 'package:server/src/auth/secret_hash.dart';
+import 'package:server/src/auth/token_hash.dart';
 import 'package:server/src/auth/session_resource.dart';
 import 'package:server/src/auth/sessions_dao.dart';
-import 'package:server/src/auth/oauth.dart';
-import 'package:server/src/auth/user_resource.dart';
-import 'package:server/src/auth/users_dao.dart';
+import 'package:server/src/auth/oauth/oauth.dart';
+import 'package:server/src/users/user_resource.dart';
+import 'package:server/src/users/users_dao.dart';
 import 'package:server/src/json_api/base_controller.dart';
 
 class SessionsController(
@@ -33,7 +33,7 @@ class SessionsController(
   ) async {
     final token = _newSessionToken();
     final session = await _sessionsDAO.create(tokenHash: tokenHash(token));
-    final redirect = _googleOAuth.startAuthorization(session.nonce!).toString();
+    final redirect = _googleOAuth.startAuthentication(session.nonce!).toString();
     return created(
       OutboundDataDocument.resource(
         SessionResource(session)..attributes.addAll({'redirect': redirect, 'token': token}),

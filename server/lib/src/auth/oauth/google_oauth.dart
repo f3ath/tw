@@ -2,7 +2,7 @@ import 'dart:convert';
 
 import 'package:googleapis_auth/auth_io.dart';
 import 'package:http/http.dart' as http;
-import 'package:server/src/auth/oauth.dart';
+import 'package:server/src/auth/oauth/oauth.dart';
 
 class GoogleOAuthClient({
   required final String _clientId,
@@ -14,7 +14,7 @@ class GoogleOAuthClient({
   static final _userInfoEndpoint = Uri.parse('https://openidconnect.googleapis.com/v1/userinfo');
 
   @override
-  Uri startAuthorization(String nonce) => _authEndpoints.authorizationEndpoint.replace(
+  Uri startAuthentication(String nonce) => _authEndpoints.authorizationEndpoint.replace(
     queryParameters: {
       'client_id': _clientId,
       'redirect_uri': _redirectUri,
@@ -27,7 +27,7 @@ class GoogleOAuthClient({
   );
 
   @override
-  Future<OAuthSession?> finishAuthorization(Map<String, String> queryParameters) async {
+  Future<OAuthSession?> finishAuthentication(Map<String, String> queryParameters) async {
     final code = queryParameters['code'];
     final state = queryParameters['state'];
     if (code == null || state == null) {

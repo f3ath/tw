@@ -2,16 +2,16 @@ import 'package:http_interop/http_interop.dart';
 import 'package:json_api/document.dart';
 import 'package:json_api/routing.dart';
 import 'package:json_api/server.dart';
-import 'package:server/src/auth/google_oauth.dart';
-import 'package:server/src/auth/oauth.dart';
+import 'package:server/src/auth/oauth/google_oauth.dart';
+import 'package:server/src/auth/oauth/oauth.dart';
 import 'package:server/src/auth/oauth_controller.dart';
 import 'package:server/src/auth/request_ext.dart';
-import 'package:server/src/auth/secret_hash.dart';
+import 'package:server/src/auth/token_hash.dart';
 import 'package:server/src/auth/session_access_policy.dart';
 import 'package:server/src/auth/sessions_controller.dart';
 import 'package:server/src/auth/sessions_dao.dart';
-import 'package:server/src/auth/test_oauth.dart';
-import 'package:server/src/auth/users_dao.dart';
+import 'package:server/src/auth/oauth/test_oauth.dart';
+import 'package:server/src/users/users_dao.dart';
 import 'package:server/src/db/apply_migrations.dart';
 import 'package:server/src/db/connection_from_config.dart';
 import 'package:server/src/db/database.dart';
@@ -158,7 +158,7 @@ class Server(
       ),
       Route(
         matches: (rq) => rq.uri.path == _googleOAuthCallbackPath,
-        handler: googleOAuthController.callback,
+        handler: googleOAuthController.finishOAuth,
       ),
     ]);
     _routes.addAll(_serverRoutes);
@@ -193,5 +193,5 @@ class Server(
     await connection?.close();
   }
 
-  Future<Response> call(Request rq) => _handler(rq);
+  Future<Response> handleRequest(Request rq) => _handler(rq);
 }

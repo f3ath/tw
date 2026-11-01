@@ -16,7 +16,7 @@ Future<void> main(List<String> args) async {
   final server = Server(serverConfig, log: log);
   try {
     log.info("Starting server...");
-    await httpServer.start(server.call);
+    await httpServer.start(server.handleRequest);
     log.info('Starting server services...');
     await server.start();
     log.info("Server services started.");

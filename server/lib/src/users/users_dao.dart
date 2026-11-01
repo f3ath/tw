@@ -3,8 +3,7 @@ import 'package:server/src/db/database.dart';
 import 'package:shared/time.dart';
 import 'package:uuid/uuid.dart';
 
-class UsersDAO(final Database database, {Clock clock = systemClock}) {
-  final _clock = clock;
+class UsersDAO(final Database database, {final Clock _clock = systemClock}) {
   static const _uuid = Uuid();
 
   Future<UserRecord?> fetch(String id) async {
@@ -32,21 +31,6 @@ RETURNING id, email, name
 '''),
       parameters: {...user.toMap(), 'now': _clock()},
     );
-    return UserRecord.fromMap(rows.single.toColumnMap());
-  }
-
-  Future<UserRecord?> fetchByEmail(String email) async {
-    final rows = await database.execute(
-      Sql.named('''
-SELECT id, email, name
-FROM users
-WHERE email = @email:text
-'''),
-      parameters: {'email': email},
-    );
-    if (rows.isEmpty) {
-      return null;
-    }
     return UserRecord.fromMap(rows.single.toColumnMap());
   }
 }

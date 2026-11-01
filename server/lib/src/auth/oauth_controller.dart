@@ -1,14 +1,14 @@
 import 'dart:convert';
 
 import 'package:http_interop/http_interop.dart';
+import 'package:server/src/auth/oauth/oauth.dart';
 import 'package:server/src/auth/sessions_dao.dart';
-import 'package:server/src/auth/oauth.dart';
-import 'package:server/src/auth/users_dao.dart';
 import 'package:server/src/http/responses.dart';
+import 'package:server/src/users/users_dao.dart';
 
 class OAuthController(final OAuth oauth, final SessionsDAO sessionsDAO, final UsersDAO usersDAO) {
-  Future<Response> callback(Request request) async {
-    final session = await oauth.finishAuthorization(request.uri.queryParameters);
+  Future<Response> finishOAuth(Request request) async {
+    final session = await oauth.finishAuthentication(request.uri.queryParameters);
     if (session == null) {
       return plain(400, 'Invalid OAuth callback.');
     }

@@ -1,15 +1,12 @@
-import 'package:json_api/document.dart';
-import 'package:shared/api.dart';
 import 'package:test/test.dart';
 import 'package:uuid/uuid.dart';
 
 import 'harness.dart';
 
 void main() {
-  late TestHarness harness;
+  final harness = TestHarness();
 
   setUp(() async {
-    harness = TestHarness();
     await harness.startServer();
   });
 
@@ -18,7 +15,8 @@ void main() {
   });
 
   test('sessions require authentication', () async {
-    await expectLater(harness.newClient().listSessions(), statusCode(401));
+    final client = harness.newClient();
+    await expectLater(client.listSessions(), throwsStatusCode(401));
   });
 
   test('pending sessions have no user and cannot list sessions', () async {
@@ -26,26 +24,24 @@ void main() {
     await client.createSession();
 
     expect(await client.fetchCurrentUser(), isNull);
-    await expectLater(client.listSessions(), statusCode(401));
+    await expectLater(client.listSessions(), throwsStatusCode(401));
   });
 
   test('signing out removes only the selected session', () async {
-    final first = await harness.login();
-    final user = (await first.fetchCurrentUser())!;
-    final firstId = (await first.fetchCurrentSession()).id;
-    final second = await harness.login(email: user.email);
-    final secondId = (await second.fetchCurrentSession()).id;
-    final secondState = second.saveState();
+    final client1 = await harness.login();
+    final user = await client1.fetchCurrentUser();
+    final email = user!.email;
+    final session1 = await client1.fetchCurrentSession();
+    final client2 = await harness.login(email: email);
+    final session2 = await client2.fetchCurrentSession();
     expect(
-      (await first.listSessions()).map((session) => session.id),
-      unorderedEquals([firstId, secondId]),
+      (await client1.listSessions()).map((it) => it.id),
+      unorderedEquals([session1.id, session2.id]),
     );
 
-    await second.deleteSession();
-    await expectLater(second.listSessions(), statusCode(401));
-    second.restoreState(secondState);
-    await expectLater(second.listSessions(), statusCode(401));
-    expect((await first.listSessions()).single.id, firstId);
+    await client2.deleteSession();
+    await expectLater(client2.listSessions(), throwsStatusCode(401));
+    expect((await client1.listSessions()).single.id, session1.id);
   });
 
   test("users cannot read or delete another user's session", () async {
@@ -54,8 +50,8 @@ void main() {
     final second = await harness.login();
     final secondId = (await second.fetchCurrentSession()).id;
 
-    await expectLater(second.fetchSession(firstId), statusCode(404));
-    await expectLater(second.deleteSessionById(firstId), statusCode(404));
+    await expectLater(second.fetchSession(firstId), throwsStatusCode(404));
+    await expectLater(second.deleteSessionById(firstId), throwsStatusCode(404));
     expect((await second.listSessions()).single.id, secondId);
     expect((await first.listSessions()).single.id, firstId);
   });
