@@ -4,14 +4,13 @@ import 'package:json_api/routing.dart';
 import 'package:json_api/server.dart';
 import 'package:server/src/auth/oauth/google_oauth.dart';
 import 'package:server/src/auth/oauth/oauth.dart';
+import 'package:server/src/auth/oauth/test_oauth.dart';
 import 'package:server/src/auth/oauth_controller.dart';
 import 'package:server/src/auth/request_ext.dart';
-import 'package:server/src/auth/token_hash.dart';
 import 'package:server/src/auth/session_access_policy.dart';
 import 'package:server/src/auth/sessions_controller.dart';
 import 'package:server/src/auth/sessions_dao.dart';
-import 'package:server/src/auth/oauth/test_oauth.dart';
-import 'package:server/src/users/users_dao.dart';
+import 'package:server/src/auth/token_hash.dart';
 import 'package:server/src/db/apply_migrations.dart';
 import 'package:server/src/db/connection_from_config.dart';
 import 'package:server/src/db/database.dart';
@@ -19,6 +18,7 @@ import 'package:server/src/http/logging_middleware.dart';
 import 'package:server/src/http/responses.dart';
 import 'package:server/src/http/routing_handler.dart';
 import 'package:server/src/job/periodic_job.dart';
+import 'package:server/src/k8s/container_probes.dart';
 import 'package:server/src/log/log.dart';
 import 'package:server/src/schedules/schedules_controller.dart';
 import 'package:server/src/schedules/schedules_tdao.dart';
@@ -26,6 +26,7 @@ import 'package:server/src/server/lifecycle.dart';
 import 'package:server/src/server/server_config.dart';
 import 'package:server/src/services/services_controller.dart';
 import 'package:server/src/services/services_tdao.dart';
+import 'package:server/src/users/users_dao.dart';
 import 'package:server/src/vehicles/vehicles_controller.dart';
 import 'package:server/src/vehicles/vehicles_dao.dart';
 import 'package:shared/api.dart';
@@ -42,7 +43,7 @@ class Server(
       TenantConnection.fromConfig,
   final Handler _defaultHandler = plainNotFound,
   final Log _log = const NoLog(),
-}) {
+}) implements ContainerProbes {
   static const _googleOAuthCallbackPath = '/auth/google/callback';
   final _routes = <Route>[];
   final _serverRoutes = <Route>[];
@@ -193,5 +194,14 @@ class Server(
     await connection?.close();
   }
 
-  Future<Response> handleRequest(Request rq) => _handler(rq);
+  Future<Response> handler(Request rq) => _handler(rq);
+
+  @override
+  bool isReady() => _lifecycle.isReady;
+
+  @override
+  bool isLive() => true;
+
+  @override
+  bool isStarted() => true;
 }

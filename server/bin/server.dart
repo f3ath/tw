@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:dotenv/dotenv.dart';
 import 'package:server/src/http/http_server_harness.dart';
+import 'package:server/src/k8s/container_probes.dart';
 import 'package:server/src/log/log.dart';
 import 'package:server/src/log/sink_log.dart';
 import 'package:server/src/server/server.dart';
@@ -14,9 +15,10 @@ Future<void> main(List<String> args) async {
   final dotEnv = DotEnv(includePlatformEnvironment: true)..load();
   final serverConfig = ServerConfig.from(dotEnv.get);
   final server = Server(serverConfig, log: log);
+  final handler = containerProbesMiddleware(server, server.handler);
   try {
     log.info("Starting server...");
-    await httpServer.start(server.handleRequest);
+    await httpServer.start(handler);
     log.info('Starting server services...');
     await server.start();
     log.info("Server services started.");

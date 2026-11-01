@@ -28,7 +28,7 @@ class TestHarness() {
 
   Future<void> stopServer() => _server.stop();
 
-  TwApiClient newClient() => TwApiClient(StandardUriDesign(_config.baseUri), _server.handleRequest);
+  TwApiClient newClient() => TwApiClient(StandardUriDesign(_config.baseUri), _server.handler);
 
   Future<TwApiClient> login({String? email, String? name}) async {
     final client = newClient();
@@ -38,7 +38,7 @@ class TestHarness() {
     expect(session, isNotNull);
     expect(await client.fetchCurrentUser(), isNull);
     final redirect = session.completionUri!;
-    final response = await _server.handleRequest(
+    final response = await _server.handler(
       Request(
         'GET',
         Uri(
