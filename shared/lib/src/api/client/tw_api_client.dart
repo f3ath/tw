@@ -12,6 +12,8 @@ class TwApiClient(UriDesign urlDesign, Handler handler) {
   late final RoutingClient _jsonApi;
   _State? _state;
 
+  // Sessions
+
   Future<Session> createSession() async {
     final response = await _jsonApi.createNew(ResourceType.sessions);
     final resource = response.resource;
@@ -39,6 +41,8 @@ class TwApiClient(UriDesign urlDesign, Handler handler) {
     return fetchSession(state.id);
   }
 
+  // Users
+
   Future<User?> fetchCurrentUser() async {
     final state = _state;
     if (state == null) {
@@ -52,7 +56,9 @@ class TwApiClient(UriDesign urlDesign, Handler handler) {
     return resource == null ? null : User.fromResource(resource);
   }
 
-  Future<Resource> createVehicle({
+  // Vehicles
+
+  Future<Vehicle> createVehicle({
     required String name,
     required DateTime manufactureDate,
     String distanceUnit = 'mi',
@@ -65,34 +71,35 @@ class TwApiClient(UriDesign urlDesign, Handler handler) {
         'distance_unit': distanceUnit,
       },
     );
-    return response.resource;
+    return Vehicle.fromResource(response.resource);
   }
 
-  Future<List<Resource>> listVehicles() async =>
-      (await _jsonApi.fetchCollection(ResourceType.vehicles)).collection;
+  Future<List<Vehicle>> listVehicles() async =>
+      (await _jsonApi.fetchCollection(ResourceType.vehicles)).collection
+          .map(Vehicle.fromResource)
+          .toList();
 
-  Future<Resource> fetchVehicle(String id) async =>
-      (await _jsonApi.fetchResource(ResourceType.vehicles, id)).resource;
+  Future<Vehicle> fetchVehicle(String id) async =>
+      Vehicle.fromResource((await _jsonApi.fetchResource(ResourceType.vehicles, id)).resource);
 
-  Future<Resource?> updateVehicle(String id, {String? name, DateTime? manufactureDate}) async {
-    final attributes = <String, Object?>{};
-    if (name != null) {
-      attributes['name'] = name;
-    }
-    if (manufactureDate != null) {
-      attributes['manufacture_date'] = _date(manufactureDate);
-    }
+  Future<Vehicle?> updateVehicle(String id, {String? name, DateTime? manufactureDate}) async {
     final response = await _jsonApi.updateResource(
       ResourceType.vehicles,
       id,
-      attributes: attributes,
+      attributes: {
+        'name': ?name,
+        if (manufactureDate != null) 'manufacture_date': _date(manufactureDate),
+      },
     );
-    return response.resource;
+    final resource = response.resource;
+    return resource == null ? null : Vehicle.fromResource(resource);
   }
 
   Future<void> deleteVehicle(String id) async {
     await _jsonApi.deleteResource(ResourceType.vehicles, id);
   }
+
+  // Schedules
 
   Future<List<Resource>> listSchedules(String vehicleId) async =>
       (await _jsonApi.fetchRelatedCollection(
@@ -230,14 +237,6 @@ class TwApiClient(UriDesign urlDesign, Handler handler) {
   };
 
   String _date(DateTime date) => date.toIso8601String().split('T').first;
-}
-
-class Session(final String id, {final Uri? completionUri}) {
-  static Session fromResource(Resource resource) {
-    final redirect = resource.attributes['redirect'];
-    final completionUri = redirect is String ? Uri.parse(redirect) : null;
-    return Session(resource.id, completionUri: completionUri);
-  }
 }
 
 class InvalidResponse(final String message) implements Exception;

@@ -86,6 +86,7 @@ class Server(
         schedulesDAOProvider,
         servicesDAOProvider,
         uriDesign.uri,
+        clock: _clock,
       ),
       ResourceType.schedules: SchedulesController(schedulesDAOProvider, uriDesign.uri),
       ResourceType.services: ServicesController(servicesDAOProvider, uriDesign.uri),

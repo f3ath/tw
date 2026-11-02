@@ -22,10 +22,10 @@ class SchedulesController(final SchedulesTDAOProvider _ownedSchedules, final Uri
   Future<Response> createResource(
     Request request,
     CollectionTarget target,
-    NewResource newResource,
+    NewResource resource,
   ) async {
-    final attributes = newResource.attributes;
-    final vehicle = newResource.relationships['vehicle']!;
+    final attributes = resource.attributes;
+    final vehicle = resource.relationships['vehicle']!;
     final schedule = await _ownedSchedules(request.userId).create(
       id: _uuid.v4(),
       vehicleId: vehicle.single.id!,

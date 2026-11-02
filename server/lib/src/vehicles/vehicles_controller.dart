@@ -10,14 +10,16 @@ import 'package:server/src/services/service_resource.dart';
 import 'package:server/src/services/services_dao.dart';
 import 'package:server/src/vehicles/vehicle_resource.dart';
 import 'package:server/src/vehicles/vehicles_dao.dart';
+import 'package:shared/time.dart';
 import 'package:uuid/uuid.dart';
 
 class VehiclesController(
   final VehiclesTDAOProvider _ownedVehicles,
   final SchedulesTDAOProvider _ownedSchedules,
   final ServicesTDAOProvider _ownedServices,
-  final UriBuilder _uriFor,
-) extends BaseController {
+  final UriBuilder _uriFor, {
+  final Clock _clock = systemClock,
+}) extends BaseController {
   static const _uuid = Uuid();
 
   @override
@@ -27,8 +29,11 @@ class VehiclesController(
   }
 
   @override
-  Future<Response> createResource(Request request, Target target, NewResource newResource) async {
-    final resource = newResource;
+  Future<Response> createResource(Request request, Target target, NewResource resource) async {
+    final attributes = resource.attributes;
+    final name = _parseName(attributes['name']);
+    final manufactureDate = _parseManufactureDate(attributes['manufacture_date']);
+    if (name == null || manufactureDate == null) return badRequest();
     final distanceUnit = resource.attributes.containsKey('distance_unit')
         ? resource.attributes['distance_unit']
         : DistanceUnit.mi.name;
@@ -38,8 +43,8 @@ class VehiclesController(
     final vehicle = await _ownedVehicles(request.userId).create(
       id: _uuid.v4(),
       distanceUnit: DistanceUnit.values.byName(distanceUnit),
-      name: resource.attributes['name'] as String,
-      manufactureDate: DateTime.parse(resource.attributes['manufacture_date'] as String),
+      name: name,
+      manufactureDate: manufactureDate,
     );
     return created(
       OutboundDataDocument.resource(VehicleResource(vehicle)),
@@ -58,15 +63,16 @@ class VehiclesController(
 
   @override
   Future<Response> updateResource(Request request, ResourceTarget target, Resource resource) async {
-    if (resource.attributes.containsKey('distance_unit')) return badRequest();
-    final manufactureDate = resource.attributes.containsKey('manufacture_date')
-        ? DateTime.parse(resource.attributes['manufacture_date'] as String)
-        : null;
-    final vehicle = await _ownedVehicles(request.userId).update(
-      id: target.id,
-      name: resource.attributes['name'] as String?,
-      manufactureDate: manufactureDate,
-    );
+    final attributes = resource.attributes;
+    if (attributes.containsKey('distance_unit')) return badRequest();
+    final name = _parseName(attributes['name']);
+    final manufactureDate = _parseManufactureDate(attributes['manufacture_date']);
+    if ((attributes.containsKey('name') && name == null) ||
+        (attributes.containsKey('manufacture_date') && manufactureDate == null)) {
+      return badRequest();
+    }
+    final vehicle = await _ownedVehicles(request.userId)
+        .update(id: target.id, name: name, manufactureDate: manufactureDate);
     if (vehicle == null) {
       return notFound();
     }
@@ -95,5 +101,17 @@ class VehiclesController(
 
     final schedules = await _ownedSchedules(request.userId).fetchByVehicleId(vehicleId: target.id);
     return ok(OutboundDataDocument.collection(schedules.map(ScheduleResource.new)));
+  }
+
+  static String? _parseName(Object? value) =>
+      value is String && value.trim().isNotEmpty ? value : null;
+
+  DateTime? _parseManufactureDate(Object? value) {
+    if (value is! String) return null;
+    final date = DateTime.tryParse(value);
+    if (date == null || date.toIso8601String().split('T').first != value) return null;
+    final now = _clock();
+    final today = DateTime(now.year, now.month, now.day);
+    return date.isAfter(today) ? null : date;
   }
 }

@@ -16,11 +16,11 @@ class ServicesController(final ServicesTDAOProvider _ownedServices, final UriBui
   Future<Response> createResource(
     Request request,
     CollectionTarget target,
-    NewResource newResource,
+    NewResource resource,
   ) async {
-    final attributes = newResource.attributes;
+    final attributes = resource.attributes;
     if (attributes['date'] is! String || attributes['odometer'] is! int) return badRequest();
-    final vehicle = newResource.relationships['vehicle']!;
+    final vehicle = resource.relationships['vehicle']!;
     final service = await _ownedServices(request.userId).create(
       id: _uuid.v4(),
       vehicleId: vehicle.single.id!,
