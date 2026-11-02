@@ -24,15 +24,16 @@ class SchedulesController(final SchedulesTDAOProvider _ownedSchedules, final Uri
     CollectionTarget target,
     NewResource newResource,
   ) async {
-    final attributes = {'details': '', 'is_archived': false, ...newResource.attributes};
+    final resource = newResource.toResource(_uuid.v4);
+    final attributes = {'details': '', 'is_archived': false, ...resource.attributes};
     if (!_isValid(attributes)) return badRequest();
-    final vehicle = newResource.relationships['vehicle'];
-    if (vehicle == null || vehicle.length != 1 || vehicle.single.id == null) {
+    final vehicle = resource.one('vehicle');
+    if (vehicle == null || vehicle.isEmpty) {
       return badRequest();
     }
     final schedule = await _ownedSchedules(request.userId).create(
-      id: _uuid.v4(),
-      vehicleId: vehicle.single.id!,
+      id: resource.id,
+      vehicleId: vehicle.single.id,
       name: attributes['name'] as String,
       intervalDistance: attributes['interval_distance'] as int?,
       intervalMonths: attributes['interval_months'] as int?,

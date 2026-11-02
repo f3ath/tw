@@ -27,15 +27,16 @@ class ServicesController(
     CollectionTarget target,
     NewResource newResource,
   ) async {
-    final input = _parseInput(newResource.attributes);
+    final resource = newResource.toResource(_uuid.v4);
+    final input = _parseInput(resource.attributes);
     if (input == null) return badRequest();
-    final vehicle = newResource.relationships['vehicle'];
-    if (vehicle == null || vehicle.length != 1 || vehicle.single.id == null) return badRequest();
+    final vehicle = resource.one('vehicle');
+    if (vehicle == null || vehicle.isEmpty) return badRequest();
     final ServiceRecord? service;
     try {
       service = await _ownedServices(request.userId).create(
-        id: _uuid.v4(),
-        vehicleId: vehicle.single.id!,
+        id: resource.id,
+        vehicleId: vehicle.single.id,
         date: input.date,
         odometer: input.odometer,
         details: input.details ?? '',

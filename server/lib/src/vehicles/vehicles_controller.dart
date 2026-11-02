@@ -33,18 +33,19 @@ class VehiclesController(
 
   @override
   Future<Response> createResource(Request request, Target target, NewResource newResource) async {
-    final attributes = newResource.attributes;
+    final resource = newResource.toResource(_uuid.v4);
+    final attributes = resource.attributes;
     final name = _parseName(attributes['name']);
     final manufactureDate = parseDate(attributes['manufacture_date'], clock: _clock);
     if (name == null || manufactureDate == null) return badRequest();
-    final distanceUnit = newResource.attributes.containsKey('distance_unit')
-        ? newResource.attributes['distance_unit']
+    final distanceUnit = resource.attributes.containsKey('distance_unit')
+        ? resource.attributes['distance_unit']
         : DistanceUnit.mi.name;
     if (distanceUnit is! String || !DistanceUnit.values.asNameMap().containsKey(distanceUnit)) {
       return badRequest();
     }
     final vehicle = await _ownedVehicles(request.userId).create(
-      id: _uuid.v4(),
+      id: resource.id,
       distanceUnit: DistanceUnit.values.byName(distanceUnit),
       name: name,
       manufactureDate: manufactureDate,

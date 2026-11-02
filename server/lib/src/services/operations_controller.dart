@@ -20,28 +20,24 @@ class OperationsController(final OperationsDAOProvider _ownedOperations, final U
     CollectionTarget target,
     NewResource newResource,
   ) async {
-    final service = newResource.relationships['service'];
-    if (service == null ||
-        service.length != 1 ||
-        service.single.id == null ||
-        service.single.type != ResourceType.services) {
+    final resource = newResource.toResource(_uuid.v4);
+    final service = resource.one('service');
+    if (service == null || service.isEmpty || service.single.type != ResourceType.services) {
       return badRequest();
     }
-    final schedule = newResource.relationships['schedule'];
-    if (schedule != null &&
-        (schedule.length > 1 ||
-            schedule.isNotEmpty &&
-                (schedule.single.id == null || schedule.single.type != ResourceType.schedules))) {
+    final schedule = resource.one('schedule');
+    if (resource.relationships.containsKey('schedule') && schedule == null ||
+        schedule?.isNotEmpty == true && schedule!.single.type != ResourceType.schedules) {
       return badRequest();
     }
     final scheduleId = schedule?.singleOrNull?.id;
-    final attributes = newResource.attributes;
+    final attributes = resource.attributes;
     if (!_isValid(attributes, scheduleId)) return badRequest();
     final OperationRecord? operation;
     try {
       operation = await _ownedOperations(request.userId).create(
-        id: _uuid.v4(),
-        serviceId: service.single.id!,
+        id: resource.id,
+        serviceId: service.single.id,
         scheduleId: scheduleId,
         name: attributes['name'] as String?,
         details: attributes['details'] as String?,
