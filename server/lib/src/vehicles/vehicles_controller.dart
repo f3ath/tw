@@ -4,6 +4,7 @@ import 'package:json_api/routing.dart';
 import 'package:json_api/server.dart';
 import 'package:server/src/auth/request_ext.dart';
 import 'package:server/src/json_api/base_controller.dart';
+import 'package:server/src/db/invalid_record.dart';
 import 'package:server/src/schedules/schedule_resource.dart';
 import 'package:server/src/schedules/schedules_dao.dart';
 import 'package:server/src/services/service_resource.dart';
@@ -11,6 +12,7 @@ import 'package:server/src/services/services_dao.dart';
 import 'package:server/src/vehicles/vehicle_resource.dart';
 import 'package:server/src/vehicles/vehicles_dao.dart';
 import 'package:shared/time.dart';
+import 'package:server/src/validation/date.dart';
 import 'package:shared/api.dart' show DistanceUnit;
 import 'package:uuid/uuid.dart';
 
@@ -33,7 +35,7 @@ class VehiclesController(
   Future<Response> createResource(Request request, Target target, NewResource newResource) async {
     final attributes = newResource.attributes;
     final name = _parseName(attributes['name']);
-    final manufactureDate = _parseManufactureDate(attributes['manufacture_date']);
+    final manufactureDate = parseDate(attributes['manufacture_date'], clock: _clock);
     if (name == null || manufactureDate == null) return badRequest();
     final distanceUnit = newResource.attributes.containsKey('distance_unit')
         ? newResource.attributes['distance_unit']
@@ -67,13 +69,18 @@ class VehiclesController(
     final attributes = resource.attributes;
     if (attributes.containsKey('distance_unit')) return badRequest();
     final name = _parseName(attributes['name']);
-    final manufactureDate = _parseManufactureDate(attributes['manufacture_date']);
+    final manufactureDate = parseDate(attributes['manufacture_date'], clock: _clock);
     if ((attributes.containsKey('name') && name == null) ||
         (attributes.containsKey('manufacture_date') && manufactureDate == null)) {
       return badRequest();
     }
-    final vehicle = await _ownedVehicles(request.userId)
-        .update(id: target.id, name: name, manufactureDate: manufactureDate);
+    final VehicleRecord? vehicle;
+    try {
+      vehicle = await _ownedVehicles(request.userId)
+          .update(id: target.id, name: name, manufactureDate: manufactureDate);
+    } on InvalidRecord {
+      return badRequest();
+    }
     if (vehicle == null) {
       return notFound();
     }
@@ -106,13 +113,4 @@ class VehiclesController(
 
   static String? _parseName(Object? value) =>
       value is String && value.trim().isNotEmpty ? value : null;
-
-  DateTime? _parseManufactureDate(Object? value) {
-    if (value is! String) return null;
-    final date = DateTime.tryParse(value);
-    if (date == null || date.toIso8601String().split('T').first != value) return null;
-    final now = _clock();
-    final today = DateTime(now.year, now.month, now.day);
-    return date.isAfter(today) ? null : date;
-  }
 }

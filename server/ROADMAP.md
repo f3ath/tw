@@ -1,6 +1,7 @@
 # Server integration ROADMAP
 
-Based on a static review of the app and server on 2026-10-28. Authentication is
+Originally based on a static review on 2026-10-28; updated against the code and
+use-case tests on 2026-11-01. Authentication is
 already connected to the server. Maintenance data still uses
 `LocalMaintenanceRepository`. The server has basic vehicle CRUD, schedule
 create/list/update/delete, and service create/list-by-vehicle/update/delete,
@@ -15,17 +16,20 @@ with authentication and ownership isolation.
   `TwApiClient.createVehicle` accepts `distanceUnit`.
 - [x] **Unit-neutral distance fields:** Interpret service readings and schedule
   distances in the vehicle's unit. Rename the legacy `mileage` and
-  `interval_distance` fields to make this contract explicit.
-- [ ] **Optional schedule intervals:** Support distance-only, time-only, and
+  `interval_miles` fields to `odometer` and `interval_distance`, respectively.
+- [x] **Optional schedule intervals:** Support distance-only, time-only, and
   combined intervals. Require at least one positive whole interval. Unused
   intervals must be null, not zero. Distinguish omitted update fields from
-  explicitly clearing an interval; current `COALESCE` updates cannot clear them.
-- [ ] **Schedule archive/restore:** Preserve archived items and their service
-  links. Restore the same item with its existing historical completions.
+  explicitly clearing an interval. Updates preserve omitted fields and persist
+  explicit nulls.
+- [x] **Schedule archive/restore state:** Persist `is_archived`, include archived
+  items in schedule collections, and restore the same ID, description, and intervals.
+- [ ] **Archive/restore linked history:** Preserve service links and reuse existing
+  historical completions when restoring an item. Depends on linked service operations.
 - [ ] **Linked service operations:** Persist the schedule items completed by
   each service. These links drive due calculations and item-specific history.
   Historical linked descriptions must resolve through the current schedule
-  name. Services currently expose only date, mileage, and `details`.
+  name. Services currently expose only date, `odometer`, and `details`.
 - [ ] **Multiple custom service operations:** Round-trip a structured list of
   custom operations alongside linked items. Allow zero-operation mileage-only
   services. Custom text must never reset a schedule baseline, even if it matches
@@ -44,12 +48,12 @@ with authentication and ownership isolation.
 
 ## Server validation rules
 
-- [ ] Require nonblank vehicle names and schedule descriptions.
-- [ ] Reject future manufacture dates and manufacture dates later than existing
-  services.
+- [x] Require nonblank vehicle names and schedule descriptions.
+- [x] Reject future manufacture dates.
+- [ ] Reject manufacture dates later than existing services.
 - [ ] Reject services before manufacture or after today.
-- [ ] Require nonnegative whole odometer readings and positive whole interval
-  values, with at least one interval present.
+- [x] Require positive whole schedule interval values, with at least one interval present.
+- [ ] Require nonnegative whole odometer readings.
 - [ ] Enforce chronological odometer consistency on service creation and edits.
   Same-date services may have different mileage. Use date, then mileage, then a
   stable identifier to select and order completions consistently.
@@ -92,7 +96,9 @@ reset schedule baselines. Archived items are excluded from due selections.
 ## App/shared follow-up after server support
 
 - [ ] Replace `LocalMaintenanceRepository` with an API-backed implementation.
-- [ ] Extend `TwApiClient` for the new fields, operations, conditional writes,
+- [x] Add typed vehicle and schedule DTOs to `TwApiClient`, including distance units,
+  nullable schedule intervals, and `is_archived` updates.
+- [ ] Extend `TwApiClient` for linked/custom service operations, conditional writes,
   idempotency, and structured errors.
 - [ ] Map server-generated IDs or adopt a compatible client ID scheme.
 - [ ] Retain account-scoped offline caching, read-only offline behavior, and
@@ -112,7 +118,7 @@ reset schedule baselines. Archived items are excluded from due selections.
 - [Database schema](assets/db/0000-init.sql)
 - [Vehicle controller](lib/src/vehicles/vehicles_controller.dart)
 - [Schedule controller](lib/src/schedules/schedules_controller.dart)
-- [Schedule persistence](lib/src/schedules/schedules_tdao.dart)
+- [Schedule persistence](lib/src/schedules/schedules_dao.dart)
 - [Service controller](lib/src/services/services_controller.dart)
 - [Service resource](lib/src/services/service_resource.dart)
 - [Server error handling](lib/src/server/server.dart)

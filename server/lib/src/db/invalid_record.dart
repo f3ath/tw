@@ -1,0 +1,1 @@
+class InvalidRecord() implements Exception;

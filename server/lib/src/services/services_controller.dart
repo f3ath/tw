@@ -3,13 +3,19 @@ import 'package:json_api/document.dart';
 import 'package:json_api/routing.dart';
 import 'package:json_api/server.dart';
 import 'package:server/src/auth/request_ext.dart';
+import 'package:server/src/db/invalid_record.dart';
 import 'package:server/src/json_api/base_controller.dart';
 import 'package:server/src/services/service_resource.dart';
 import 'package:server/src/services/services_dao.dart';
+import 'package:server/src/validation/date.dart';
+import 'package:shared/time.dart';
 import 'package:uuid/uuid.dart';
 
-class ServicesController(final ServicesTDAOProvider _ownedServices, final UriBuilder _uriFor)
-    extends BaseController {
+class ServicesController(
+  final ServicesTDAOProvider _ownedServices,
+  final UriBuilder _uriFor, {
+  final Clock _clock = systemClock,
+}) extends BaseController {
   static const _uuid = Uuid();
 
   @override
@@ -18,16 +24,22 @@ class ServicesController(final ServicesTDAOProvider _ownedServices, final UriBui
     CollectionTarget target,
     NewResource newResource,
   ) async {
-    final attributes = newResource.attributes;
-    if (attributes['date'] is! String || attributes['odometer'] is! int) return badRequest();
-    final vehicle = newResource.relationships['vehicle']!;
-    final service = await _ownedServices(request.userId).create(
-      id: _uuid.v4(),
-      vehicleId: vehicle.single.id!,
-      date: DateTime.parse(attributes['date'] as String),
-      odometer: attributes['odometer'] as int,
-      details: attributes['details'] as String? ?? '',
-    );
+    final input = _parseInput(newResource.attributes);
+    if (input == null) return badRequest();
+    final vehicle = newResource.relationships['vehicle'];
+    if (vehicle == null || vehicle.length != 1 || vehicle.single.id == null) return badRequest();
+    final ServiceRecord? service;
+    try {
+      service = await _ownedServices(request.userId).create(
+        id: _uuid.v4(),
+        vehicleId: vehicle.single.id!,
+        date: input.date,
+        odometer: input.odometer,
+        details: input.details ?? '',
+      );
+    } on InvalidRecord {
+      return badRequest();
+    }
     if (service == null) return notFound();
 
     return created(
@@ -38,16 +50,22 @@ class ServicesController(final ServicesTDAOProvider _ownedServices, final UriBui
 
   @override
   Future<Response> updateResource(Request request, ResourceTarget target, Resource resource) async {
-    final attributes = resource.attributes;
+    final input = _parseInput(resource.attributes);
+    if (input == null) return badRequest();
     final vehicle = resource.one('vehicle');
-    if (attributes['date'] is! String || attributes['odometer'] is! int) return badRequest();
-    final service = await _ownedServices(request.userId).update(
-      id: target.id,
-      vehicleId: vehicle!.single.id,
-      date: DateTime.parse(attributes['date'] as String),
-      odometer: attributes['odometer'] as int,
-      details: attributes['details'] as String?,
-    );
+    if (vehicle == null || vehicle.isEmpty) return badRequest();
+    final ServiceRecord? service;
+    try {
+      service = await _ownedServices(request.userId).update(
+        id: target.id,
+        vehicleId: vehicle.single.id,
+        date: input.date,
+        odometer: input.odometer,
+        details: input.details,
+      );
+    } on InvalidRecord {
+      return badRequest();
+    }
     if (service == null) return notFound();
 
     return ok(OutboundDataDocument.resource(ServiceResource(service)));
@@ -59,5 +77,15 @@ class ServicesController(final ServicesTDAOProvider _ownedServices, final UriBui
       return notFound();
     }
     return noContent();
+  }
+
+  ({DateTime date, int odometer, String? details})? _parseInput(Map<String, dynamic> attributes) {
+    final date = parseDate(attributes['date'], clock: _clock, maxDaysInFuture: 7);
+    final odometer = attributes['odometer'];
+    final details = attributes['details'];
+    if (date == null || odometer is! int || odometer < 0 || details != null && details is! String) {
+      return null;
+    }
+    return (date: date, odometer: odometer, details: details as String?);
   }
 }

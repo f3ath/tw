@@ -89,7 +89,7 @@ class Server(
         clock: _clock,
       ),
       ResourceType.schedules: SchedulesController(schedulesDAOProvider, uriDesign.uri),
-      ResourceType.services: ServicesController(servicesDAOProvider, uriDesign.uri),
+      ResourceType.services: ServicesController(servicesDAOProvider, uriDesign.uri, clock: _clock),
     };
 
     Future<SessionRecord?> getCallerSession(Request rq) async {

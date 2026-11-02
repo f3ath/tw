@@ -41,6 +41,21 @@ class TwApiClient(UriDesign urlDesign, Handler handler) {
     return fetchSession(state.id);
   }
 
+  Future<void> deleteSession() async {
+    final state = _state;
+    if (state == null) {
+      throw StateError('Unauthenticated');
+    }
+    await deleteSessionById(state.id);
+  }
+
+  Future<void> deleteSessionById(String id) async {
+    await _jsonApi.deleteResource(ResourceType.sessions, id);
+    if (_state?.id == id) {
+      _state = null;
+    }
+  }
+
   // Users
 
   Future<User?> fetchCurrentUser() async {
@@ -157,61 +172,51 @@ class TwApiClient(UriDesign urlDesign, Handler handler) {
     await _jsonApi.deleteResource(ResourceType.schedules, scheduleId);
   }
 
-  Future<List<Resource>> listServices(String vehicleId) async =>
+  // Services
+
+  Future<List<Service>> listServices(String vehicleId) async =>
       (await _jsonApi.fetchRelatedCollection(
         ResourceType.vehicles,
         vehicleId,
         'service',
-      )).collection;
+      )).collection.map(Service.fromResource).toList();
 
-  Future<Resource> createService(
+  Future<Service> createService(
     String vehicleId, {
     required DateTime date,
-    required int mileage,
+    required int odometer,
     String details = '',
   }) async {
     final response = await _jsonApi.createNew(
       ResourceType.services,
       one: {'vehicle': Identifier(ResourceType.vehicles, vehicleId)},
-      attributes: {'date': _date(date), 'mileage': mileage, 'details': details},
+      attributes: {'date': _date(date), 'odometer': odometer, 'details': details},
     );
-    return response.resource;
+    return Service.fromResource(response.resource);
   }
 
-  Future<Resource?> updateService(
+  Future<Service?> updateService(
     String vehicleId,
     String serviceId, {
     required DateTime date,
-    required int mileage,
+    required int odometer,
     String? details,
   }) async {
     final response = await _jsonApi.updateResource(
       ResourceType.services,
       serviceId,
       one: {'vehicle': Identifier(ResourceType.vehicles, vehicleId)},
-      attributes: <String, Object?>{'date': _date(date), 'mileage': mileage, 'details': ?details},
+      attributes: {'date': _date(date), 'odometer': odometer, 'details': ?details},
     );
-    return response.resource;
+    final resource = response.resource;
+    return resource == null ? null : Service.fromResource(resource);
   }
 
   Future<void> deleteService(String serviceId) async {
     await _jsonApi.deleteResource(ResourceType.services, serviceId);
   }
 
-  Future<void> deleteSession() async {
-    final state = _state;
-    if (state == null) {
-      throw StateError('Unauthenticated');
-    }
-    await deleteSessionById(state.id);
-  }
-
-  Future<void> deleteSessionById(String id) async {
-    await _jsonApi.deleteResource(ResourceType.sessions, id);
-    if (_state?.id == id) {
-      _state = null;
-    }
-  }
+  // State
 
   String saveState() {
     final state = _state;
