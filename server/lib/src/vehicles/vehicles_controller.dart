@@ -11,6 +11,7 @@ import 'package:server/src/services/services_dao.dart';
 import 'package:server/src/vehicles/vehicle_resource.dart';
 import 'package:server/src/vehicles/vehicles_dao.dart';
 import 'package:shared/time.dart';
+import 'package:shared/api.dart' show DistanceUnit;
 import 'package:uuid/uuid.dart';
 
 class VehiclesController(
@@ -29,13 +30,13 @@ class VehiclesController(
   }
 
   @override
-  Future<Response> createResource(Request request, Target target, NewResource resource) async {
-    final attributes = resource.attributes;
+  Future<Response> createResource(Request request, Target target, NewResource newResource) async {
+    final attributes = newResource.attributes;
     final name = _parseName(attributes['name']);
     final manufactureDate = _parseManufactureDate(attributes['manufacture_date']);
     if (name == null || manufactureDate == null) return badRequest();
-    final distanceUnit = resource.attributes.containsKey('distance_unit')
-        ? resource.attributes['distance_unit']
+    final distanceUnit = newResource.attributes.containsKey('distance_unit')
+        ? newResource.attributes['distance_unit']
         : DistanceUnit.mi.name;
     if (distanceUnit is! String || !DistanceUnit.values.asNameMap().containsKey(distanceUnit)) {
       return badRequest();

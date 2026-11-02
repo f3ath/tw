@@ -1,11 +1,7 @@
 import 'package:postgres/postgres.dart';
 import 'package:server/src/db/database.dart';
 import 'package:shared/time.dart';
-
-enum DistanceUnit() {
-  mi,
-  km,
-}
+import 'package:shared/api.dart' show DistanceUnit;
 
 class VehiclesDAO(final ScopedDatabase _database, {final Clock _clock = systemClock}) {
   Future<VehicleRecord> create({

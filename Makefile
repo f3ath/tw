@@ -35,7 +35,7 @@ test-shared:
 	fi
 
 test-server:
-	cd "$(ROOT)/server" && $(DART) test --concurrency=1
+	cd "$(ROOT)/server" && $(DART) test
 
 analyze: analyze-app analyze-shared analyze-server
 

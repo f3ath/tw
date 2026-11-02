@@ -1,8 +1,8 @@
 import 'package:json_api/document.dart';
 
-class const User({required final String id, final String? name, final String? email}) {
+class const User(final String id, {final String? name, final String? email}) {
   static User fromResource(Resource resource) => User(
-    id: resource.id,
+    resource.id,
     name: resource.attributes['name'] as String?,
     email: resource.attributes['email'] as String?,
   );

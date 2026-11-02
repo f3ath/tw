@@ -9,6 +9,7 @@ class ScheduleResource(ScheduleRecord record) extends Resource {
       'interval_distance': record.intervalDistance,
       'interval_months': record.intervalMonths,
       'details': record.details,
+      'is_archived': record.isArchived,
     });
     relationships['vehicle'] = ToOne(Identifier(ResourceType.vehicles, record.vehicleId));
   }

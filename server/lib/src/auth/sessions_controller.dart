@@ -29,7 +29,7 @@ class SessionsController(
   Future<Response> createResource(
     Request request,
     CollectionTarget target,
-    NewResource resource,
+    NewResource newResource,
   ) async {
     final token = _newSessionToken();
     final session = await _sessionsDAO.create(tokenHash: tokenHash(token));

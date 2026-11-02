@@ -61,14 +61,14 @@ class TwApiClient(UriDesign urlDesign, Handler handler) {
   Future<Vehicle> createVehicle({
     required String name,
     required DateTime manufactureDate,
-    String distanceUnit = 'mi',
+    DistanceUnit distanceUnit = DistanceUnit.mi,
   }) async {
     final response = await _jsonApi.createNew(
       ResourceType.vehicles,
       attributes: {
         'name': name,
         'manufacture_date': _date(manufactureDate),
-        'distance_unit': distanceUnit,
+        'distance_unit': distanceUnit.name,
       },
     );
     return Vehicle.fromResource(response.resource);
@@ -101,53 +101,56 @@ class TwApiClient(UriDesign urlDesign, Handler handler) {
 
   // Schedules
 
-  Future<List<Resource>> listSchedules(String vehicleId) async =>
+  Future<List<Schedule>> listSchedules(String vehicleId) async =>
       (await _jsonApi.fetchRelatedCollection(
         ResourceType.vehicles,
         vehicleId,
         'schedule',
-      )).collection;
+      )).collection.map(Schedule.fromResource).toList();
 
-  Future<Resource> createSchedule(
+  Future<Schedule> createSchedule(
     String vehicleId, {
     required String name,
-    required int intervalMiles,
-    required int intervalMonths,
-    required String details,
+    int? intervalDistance,
+    int? intervalMonths,
+    String details = '',
   }) async {
     final response = await _jsonApi.createNew(
       ResourceType.schedules,
       one: {'vehicle': Identifier(ResourceType.vehicles, vehicleId)},
       attributes: {
         'name': name,
-        'interval_miles': intervalMiles,
+        'interval_distance': intervalDistance,
         'interval_months': intervalMonths,
         'details': details,
       },
     );
-    return response.resource;
+    return Schedule.fromResource(response.resource);
   }
 
-  Future<Resource?> updateSchedule(
+  Future<Schedule?> updateSchedule(
     String vehicleId,
     String scheduleId, {
-    String? name,
-    int? intervalMiles,
-    int? intervalMonths,
+    required String name,
+    required int? intervalDistance,
+    required int? intervalMonths,
     String? details,
+    bool? isArchived,
   }) async {
     final response = await _jsonApi.updateResource(
       ResourceType.schedules,
       scheduleId,
       one: {'vehicle': Identifier(ResourceType.vehicles, vehicleId)},
-      attributes: <String, Object?>{
-        'name': ?name,
-        'interval_miles': ?intervalMiles,
-        'interval_months': ?intervalMonths,
+      attributes: {
+        'name': name,
+        'interval_distance': intervalDistance,
+        'interval_months': intervalMonths,
         'details': ?details,
+        'is_archived': ?isArchived,
       },
     );
-    return response.resource;
+    final resource = response.resource;
+    return resource == null ? null : Schedule.fromResource(resource);
   }
 
   Future<void> deleteSchedule(String scheduleId) async {

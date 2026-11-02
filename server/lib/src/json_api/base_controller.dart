@@ -13,7 +13,7 @@ abstract class BaseController() implements Controller {
   Future<Response> createResource(
     Request request,
     CollectionTarget target,
-    NewResource resource,
+    NewResource newResource,
   ) {
     throw UnimplementedError();
   }

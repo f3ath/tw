@@ -1,0 +1,4 @@
+enum DistanceUnit() {
+  mi,
+  km,
+}

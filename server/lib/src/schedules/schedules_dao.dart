@@ -7,9 +7,10 @@ class SchedulesDAO(final Database _database, {final Clock _clock = systemClock})
     required String id,
     required String vehicleId,
     required String name,
-    required int intervalDistance,
-    required int intervalMonths,
+    required int? intervalDistance,
+    required int? intervalMonths,
     required String details,
+    bool isArchived = false,
   }) async {
     final schedule = ScheduleRecord(
       id: id,
@@ -18,11 +19,12 @@ class SchedulesDAO(final Database _database, {final Clock _clock = systemClock})
       intervalDistance: intervalDistance,
       intervalMonths: intervalMonths,
       details: details,
+      isArchived: isArchived,
     );
     final rows = await _database.execute(
       Sql.named('''
-INSERT INTO schedules (id, owner_id, vehicle_id, name, interval_distance, interval_months, details, created_at, updated_at)
-SELECT @id:uuid, owner_id, id, @name:text, @interval_distance:int4, @interval_months:int4, @details:text, @now:timestamp, @now:timestamp
+INSERT INTO schedules (id, owner_id, vehicle_id, name, interval_distance, interval_months, details, is_archived, created_at, updated_at)
+SELECT @id:uuid, owner_id, id, @name:text, @interval_distance:int4, @interval_months:int4, @details:text, @is_archived:boolean, @now:timestamp, @now:timestamp
 FROM vehicles
 WHERE id = @vehicle_id:uuid 
 RETURNING id
@@ -45,6 +47,19 @@ ORDER BY created_at
     return rows.map((row) => ScheduleRecord.fromMap(row.toColumnMap())).toList();
   }
 
+  Future<ScheduleRecord?> fetchById({required String id, required String vehicleId}) async {
+    final rows = await _database.execute(
+      Sql.named('''
+SELECT *
+FROM schedules
+WHERE id = @id:uuid
+  AND vehicle_id = @vehicle_id:uuid
+'''),
+      parameters: {'id': id, 'vehicle_id': vehicleId},
+    );
+    return rows.isEmpty ? null : ScheduleRecord.fromMap(rows.single.toColumnMap());
+  }
+
   Future<List<ScheduleRecord>> fetchAll() async {
     final rows = await _database.execute(
       Sql.named('''
@@ -59,18 +74,20 @@ ORDER BY created_at
   Future<ScheduleRecord?> update({
     required String id,
     required String vehicleId,
-    String? name,
-    int? intervalDistance,
-    int? intervalMonths,
-    String? details,
+    required String name,
+    required int? intervalDistance,
+    required int? intervalMonths,
+    required String details,
+    required bool isArchived,
   }) async {
     final rows = await _database.execute(
       Sql.named('''
 UPDATE schedules
-SET name = COALESCE(@name:text, name),
-    interval_distance = COALESCE(@interval_distance:int4, interval_distance),
-    interval_months = COALESCE(@interval_months:int4, interval_months),
-    details = COALESCE(@details:text, details),
+SET name = @name:text,
+    interval_distance = @interval_distance:int4,
+    interval_months = @interval_months:int4,
+    details = @details:text,
+    is_archived = @is_archived:boolean,
     updated_at = @now:timestamp
 WHERE id = @id:uuid
   AND vehicle_id = @vehicle_id:uuid
@@ -83,6 +100,7 @@ RETURNING *
         'interval_distance': intervalDistance,
         'interval_months': intervalMonths,
         'details': details,
+        'is_archived': isArchived,
         'now': _clock(),
       },
     );
@@ -109,17 +127,19 @@ class const ScheduleRecord({
   required final String id,
   required final String vehicleId,
   required final String name,
-  required final int intervalDistance,
-  required final int intervalMonths,
+  required final int? intervalDistance,
+  required final int? intervalMonths,
   required final String details,
+  final bool isArchived = false,
 }) {
   static ScheduleRecord fromMap(Map<String, dynamic> map) => ScheduleRecord(
     id: map['id'] as String,
     vehicleId: map['vehicle_id'] as String,
     name: map['name'] as String,
-    intervalDistance: map['interval_distance'] as int,
-    intervalMonths: map['interval_months'] as int,
+    intervalDistance: map['interval_distance'] as int?,
+    intervalMonths: map['interval_months'] as int?,
     details: map['details'] as String,
+    isArchived: map['is_archived'] as bool,
   );
 
   Map<String, dynamic> toMap() => {
@@ -129,6 +149,7 @@ class const ScheduleRecord({
     'interval_distance': intervalDistance,
     'interval_months': intervalMonths,
     'details': details,
+    'is_archived': isArchived,
   };
 }
 

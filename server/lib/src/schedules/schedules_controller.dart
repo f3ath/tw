@@ -22,17 +22,22 @@ class SchedulesController(final SchedulesTDAOProvider _ownedSchedules, final Uri
   Future<Response> createResource(
     Request request,
     CollectionTarget target,
-    NewResource resource,
+    NewResource newResource,
   ) async {
-    final attributes = resource.attributes;
-    final vehicle = resource.relationships['vehicle']!;
+    final attributes = {'details': '', 'is_archived': false, ...newResource.attributes};
+    if (!_isValid(attributes)) return badRequest();
+    final vehicle = newResource.relationships['vehicle'];
+    if (vehicle == null || vehicle.length != 1 || vehicle.single.id == null) {
+      return badRequest();
+    }
     final schedule = await _ownedSchedules(request.userId).create(
       id: _uuid.v4(),
       vehicleId: vehicle.single.id!,
       name: attributes['name'] as String,
-      intervalDistance: attributes['interval_distance'] as int,
-      intervalMonths: attributes['interval_months'] as int,
+      intervalDistance: attributes['interval_distance'] as int?,
+      intervalMonths: attributes['interval_months'] as int?,
       details: attributes['details'] as String,
+      isArchived: attributes['is_archived'] as bool,
     );
     if (schedule == null) return notFound();
 
@@ -44,15 +49,21 @@ class SchedulesController(final SchedulesTDAOProvider _ownedSchedules, final Uri
 
   @override
   Future<Response> updateResource(Request request, ResourceTarget target, Resource resource) async {
-    final attributes = resource.attributes;
     final vehicle = resource.one('vehicle');
-    final schedule = await _ownedSchedules(request.userId).update(
+    if (vehicle == null || vehicle.isEmpty) return badRequest();
+    final dao = _ownedSchedules(request.userId);
+    final existing = await dao.fetchById(id: target.id, vehicleId: vehicle.single.id);
+    if (existing == null) return notFound();
+    final attributes = {...existing.toMap(), ...resource.attributes};
+    if (!_isValid(attributes)) return badRequest();
+    final schedule = await dao.update(
       id: target.id,
-      vehicleId: vehicle!.single.id,
-      name: attributes['name'] as String?,
+      vehicleId: existing.vehicleId,
+      name: attributes['name'] as String,
       intervalDistance: attributes['interval_distance'] as int?,
       intervalMonths: attributes['interval_months'] as int?,
-      details: attributes['details'] as String?,
+      details: attributes['details'] as String,
+      isArchived: attributes['is_archived'] as bool,
     );
     if (schedule == null) return notFound();
 
@@ -65,5 +76,18 @@ class SchedulesController(final SchedulesTDAOProvider _ownedSchedules, final Uri
       return notFound();
     }
     return noContent();
+  }
+
+  static bool _isValid(Map<String, dynamic> attributes) {
+    final name = attributes['name'];
+    final distance = attributes['interval_distance'];
+    final months = attributes['interval_months'];
+    return name is String &&
+        name.trim().isNotEmpty &&
+        (distance == null || distance is int && distance > 0) &&
+        (months == null || months is int && months > 0) &&
+        (distance != null || months != null) &&
+        attributes['details'] is String &&
+        attributes['is_archived'] is bool;
   }
 }

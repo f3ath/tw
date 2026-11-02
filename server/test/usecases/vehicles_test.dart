@@ -1,3 +1,4 @@
+import 'package:shared/api.dart';
 import 'package:test/test.dart';
 import 'package:uuid/uuid.dart';
 
@@ -21,8 +22,8 @@ void main() {
     expect(await client.listVehicles(), isEmpty);
   });
 
-  for (final unit in ['mi', 'km']) {
-    test('create, fetch, and list a vehicle measured in $unit', () async {
+  for (final unit in DistanceUnit.values) {
+    test('create, fetch, and list a vehicle measured in ${unit.name}', () async {
       final client = await harness.login();
       final created = await client.createVehicle(
         name: 'Civic',
@@ -53,7 +54,7 @@ void main() {
     final created = await client.createVehicle(
       name: 'Civic',
       manufactureDate: manufactured,
-      distanceUnit: 'km',
+      distanceUnit: DistanceUnit.km,
     );
     final editedDate = DateTime(2019, 4, 2);
     final updated = await client.updateVehicle(
@@ -65,12 +66,12 @@ void main() {
     expect(updated!.id, created.id);
     expect(updated.name, 'My Civic');
     expect(updated.manufactureDate, editedDate);
-    expect(updated.distanceUnit, 'km');
+    expect(updated.distanceUnit, DistanceUnit.km);
 
     final fetched = await client.fetchVehicle(created.id);
     expect(fetched.name, updated.name);
     expect(fetched.manufactureDate, updated.manufactureDate);
-    expect(fetched.distanceUnit, 'km');
+    expect(fetched.distanceUnit, DistanceUnit.km);
     expect((await client.listVehicles()).single.name, updated.name);
   });
 
@@ -186,14 +187,5 @@ void main() {
       throwsStatusCode(400),
     );
     expect((await client.fetchVehicle(vehicle.id)).manufactureDate, manufactured);
-  });
-
-  test('reject an unsupported distance unit', () async {
-    final client = await harness.login();
-    await expectLater(
-      client.createVehicle(name: 'Civic', manufactureDate: manufactured, distanceUnit: 'invalid'),
-      throwsStatusCode(400),
-    );
-    expect(await client.listVehicles(), isEmpty);
   });
 }
