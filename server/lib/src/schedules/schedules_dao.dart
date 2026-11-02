@@ -2,12 +2,12 @@ import 'package:postgres/postgres.dart';
 import 'package:server/src/db/database.dart';
 import 'package:shared/time.dart';
 
-class SchedulesTDAO(final Database _database, {final Clock _clock = systemClock}) {
+class SchedulesDAO(final Database _database, {final Clock _clock = systemClock}) {
   Future<ScheduleRecord?> create({
     required String id,
     required String vehicleId,
     required String name,
-    required int intervalMiles,
+    required int intervalDistance,
     required int intervalMonths,
     required String details,
   }) async {
@@ -15,14 +15,14 @@ class SchedulesTDAO(final Database _database, {final Clock _clock = systemClock}
       id: id,
       vehicleId: vehicleId,
       name: name,
-      intervalMiles: intervalMiles,
+      intervalDistance: intervalDistance,
       intervalMonths: intervalMonths,
       details: details,
     );
     final rows = await _database.execute(
       Sql.named('''
-INSERT INTO schedules (id, owner_id, vehicle_id, name, interval_miles, interval_months, details, created_at, updated_at)
-SELECT @id:uuid, owner_id, id, @name:text, @interval_miles:int4, @interval_months:int4, @details:text, @now:timestamp, @now:timestamp
+INSERT INTO schedules (id, owner_id, vehicle_id, name, interval_distance, interval_months, details, created_at, updated_at)
+SELECT @id:uuid, owner_id, id, @name:text, @interval_distance:int4, @interval_months:int4, @details:text, @now:timestamp, @now:timestamp
 FROM vehicles
 WHERE id = @vehicle_id:uuid 
 RETURNING id
@@ -35,7 +35,7 @@ RETURNING id
   Future<List<ScheduleRecord>> fetchByVehicleId({required String vehicleId}) async {
     final rows = await _database.execute(
       Sql.named('''
-SELECT id, vehicle_id, name, interval_miles, interval_months, details
+SELECT *
 FROM schedules
 WHERE vehicle_id = @vehicle_id:uuid
 ORDER BY created_at
@@ -48,7 +48,7 @@ ORDER BY created_at
   Future<List<ScheduleRecord>> fetchAll() async {
     final rows = await _database.execute(
       Sql.named('''
-SELECT id, vehicle_id, name, interval_miles, interval_months, details
+SELECT *
 FROM schedules
 ORDER BY created_at
 '''),
@@ -60,7 +60,7 @@ ORDER BY created_at
     required String id,
     required String vehicleId,
     String? name,
-    int? intervalMiles,
+    int? intervalDistance,
     int? intervalMonths,
     String? details,
   }) async {
@@ -68,19 +68,19 @@ ORDER BY created_at
       Sql.named('''
 UPDATE schedules
 SET name = COALESCE(@name:text, name),
-    interval_miles = COALESCE(@interval_miles:int4, interval_miles),
+    interval_distance = COALESCE(@interval_distance:int4, interval_distance),
     interval_months = COALESCE(@interval_months:int4, interval_months),
     details = COALESCE(@details:text, details),
     updated_at = @now:timestamp
 WHERE id = @id:uuid
   AND vehicle_id = @vehicle_id:uuid
-RETURNING id, vehicle_id, name, interval_miles, interval_months, details
+RETURNING *
 '''),
       parameters: {
         'id': id,
         'vehicle_id': vehicleId,
         'name': name,
-        'interval_miles': intervalMiles,
+        'interval_distance': intervalDistance,
         'interval_months': intervalMonths,
         'details': details,
         'now': _clock(),
@@ -109,7 +109,7 @@ class const ScheduleRecord({
   required final String id,
   required final String vehicleId,
   required final String name,
-  required final int intervalMiles,
+  required final int intervalDistance,
   required final int intervalMonths,
   required final String details,
 }) {
@@ -117,7 +117,7 @@ class const ScheduleRecord({
     id: map['id'] as String,
     vehicleId: map['vehicle_id'] as String,
     name: map['name'] as String,
-    intervalMiles: map['interval_miles'] as int,
+    intervalDistance: map['interval_distance'] as int,
     intervalMonths: map['interval_months'] as int,
     details: map['details'] as String,
   );
@@ -126,10 +126,10 @@ class const ScheduleRecord({
     'id': id,
     'vehicle_id': vehicleId,
     'name': name,
-    'interval_miles': intervalMiles,
+    'interval_distance': intervalDistance,
     'interval_months': intervalMonths,
     'details': details,
   };
 }
 
-typedef SchedulesTDAOProvider = SchedulesTDAO Function(String ownerId);
+typedef SchedulesTDAOProvider = SchedulesDAO Function(String ownerId);

@@ -21,11 +21,10 @@ import 'package:server/src/job/periodic_job.dart';
 import 'package:server/src/k8s/container_probes.dart';
 import 'package:server/src/log/log.dart';
 import 'package:server/src/schedules/schedules_controller.dart';
-import 'package:server/src/schedules/schedules_tdao.dart';
-import 'package:server/src/server/lifecycle.dart';
+import 'package:server/src/schedules/schedules_dao.dart';
 import 'package:server/src/server/server_config.dart';
 import 'package:server/src/services/services_controller.dart';
-import 'package:server/src/services/services_tdao.dart';
+import 'package:server/src/services/services_dao.dart';
 import 'package:server/src/users/users_dao.dart';
 import 'package:server/src/vehicles/vehicles_controller.dart';
 import 'package:server/src/vehicles/vehicles_dao.dart';
@@ -35,77 +34,48 @@ import 'package:uuid/uuid.dart';
 
 class Server(
   final ServerConfig _config, {
-  OAuth? oauth,
   final Clock _clock = systemClock,
-  Future<SystemConnection> Function(ServerConfig) systemConnectionFactory =
-      SystemConnection.fromConfig,
-  Future<TenantConnection> Function(ServerConfig) tenantConnectionFactory =
-      TenantConnection.fromConfig,
-  final Handler _defaultHandler = plainNotFound,
+  final Handler _catchAll = plainNotFound,
   final Log _log = const NoLog(),
 }) implements ContainerProbes {
   static const _googleOAuthCallbackPath = '/auth/google/callback';
   final _routes = <Route>[];
-  final _serverRoutes = <Route>[];
-  final _systemConnectionFactory = systemConnectionFactory;
-  final _tenantConnectionFactory = tenantConnectionFactory;
   TenantConnection? _tenantConnection;
   PeriodicJob? _sessionCleanup;
-  late final _lifecycle = Lifecycle(onStart: _start, onStop: _stop);
-  final OAuth _oauth =
-      oauth ??
-      (switch (_config.instanceType) {
-        'test' => TestOAuth(),
-        _ => GoogleOAuthClient(
-          clientId: _config.googleOAuthClientId,
-          clientSecret: _config.googleOAuthClientSecret,
-          redirectUri: _config.baseUri.replace(path: _googleOAuthCallbackPath).toString(),
-        ),
-      });
-  late final Handler _handler;
+  final OAuth _oauth = (switch (_config.instanceType) {
+    'test' => TestOAuth(),
+    _ => GoogleOAuthClient(
+      clientId: _config.googleOAuthClientId,
+      clientSecret: _config.googleOAuthClientSecret,
+      redirectUri: _config.baseUri.replace(path: _googleOAuthCallbackPath).toString(),
+    ),
+  });
+  late final _handler = newLoggingMiddleware(_log, const Uuid().v4)(
+    routingHandler(_routes, _catchAll),
+  );
+  var _isReady = false;
 
-  this {
-    final loggingMiddleware = newLoggingMiddleware(_log, const Uuid().v4);
-    _handler = loggingMiddleware(routingHandler(_routes, _defaultHandler));
-
-    _routes.addAll([
-      Route(
-        matches: (rq) => rq.uri.path == '/k8s/readiness',
-        handler: (_) async => Response(_lifecycle.isReady ? 200 : 500, Body.empty(), Headers()),
-      ),
-      Route(
-        matches: (rq) => rq.uri.path == '/k8s/liveness',
-        handler: (_) async => Response(200, Body.empty(), Headers()),
-      ),
-    ]);
-  }
-
-  Future<void> start() => _lifecycle.start();
-
-  Future<void> _start() async {
+  Future<void> start() async {
     await _applyMigrations();
-
-    final tenantConnection = await _tenantConnectionFactory(_config);
-    try {
-      _setupControllers(tenantConnection);
-    } catch (_) {
-      await tenantConnection.close();
-      rethrow;
-    }
+    final tenantConnection = await TenantConnection.fromConfig(_config);
+    _tenantConnection = tenantConnection;
+    _setupControllers(tenantConnection);
+    _isReady = true;
   }
 
-  void _setupControllers(TenantConnection tenantConnection) {
-    final db = Database(tenantConnection);
+  void _setupControllers(TenantConnection connection) {
+    final db = Database(connection);
 
     final sessionsDAO = SessionsDAO(db, clock: _clock);
     final usersDAO = UsersDAO(db, clock: _clock);
-    VehiclesDAO vehiclesDAOProvider(String ownerId) =>
-        VehiclesDAO(ScopedDatabase(ownerId, tenantConnection), clock: _clock);
-    SchedulesTDAO schedulesDAOProvider(String ownerId) =>
-        SchedulesTDAO(ScopedDatabase(ownerId, tenantConnection), clock: _clock);
-    ServicesTDAO servicesDAOProvider(String ownerId) =>
-        ServicesTDAO(ScopedDatabase(ownerId, tenantConnection), clock: _clock);
     final googleOAuthController = OAuthController(_oauth, sessionsDAO, usersDAO);
+
+    VehiclesDAO vehiclesDAOProvider(String ownerId) =>
+        VehiclesDAO(ScopedDatabase(ownerId, connection), clock: _clock);
+    SchedulesDAO schedulesDAOProvider(String ownerId) =>
+        SchedulesDAO(ScopedDatabase(ownerId, connection), clock: _clock);
+    ServicesDAO servicesDAOProvider(String ownerId) =>
+        ServicesDAO(ScopedDatabase(ownerId, connection), clock: _clock);
 
     final uriDesign = StandardUriDesign(_config.baseUri);
 
@@ -130,15 +100,15 @@ class Server(
     const sessionAccessPolicy = SessionAccessPolicy();
 
     final jsonApiHandler = router(
-      getTarget: (httpRq) => uriDesign.target(httpRq.uri),
+      getTarget: (rq) => uriDesign.target(rq.uri),
       getController: (_, target) => jsonApiControllers[target.type],
-      beforeDispatch: (jsonApiRq, _) async {
-        final session = await getCallerSession(jsonApiRq.httpRequest);
-        if (!sessionAccessPolicy.allows(jsonApiRq, session)) return unauthorized();
+      beforeDispatch: (rq, _) async {
+        final session = await getCallerSession(rq.httpRequest);
+        if (!sessionAccessPolicy.allows(rq, session)) return unauthorized();
 
         final userId = session?.userId;
         if (userId != null) {
-          jsonApiRq.httpRequest.userId = userId;
+          rq.httpRequest.userId = userId;
         }
         return null;
       },
@@ -152,7 +122,7 @@ class Server(
       },
     );
 
-    _serverRoutes.addAll([
+    _routes.addAll([
       Route(
         matches: (rq) => rq.uri.path.startsWith(_config.baseUri.path),
         handler: errorHandlingMiddleware(corsMiddleware(jsonApiHandler)),
@@ -162,8 +132,6 @@ class Server(
         handler: googleOAuthController.finishOAuth,
       ),
     ]);
-    _routes.addAll(_serverRoutes);
-    _tenantConnection = tenantConnection;
     _sessionCleanup = PeriodicJob(
       () => sessionsDAO.deletePendingOlderThan(_config.pendingSessionMaxAge),
       interval: _config.sessionCleanupInterval,
@@ -172,7 +140,7 @@ class Server(
   }
 
   Future<void> _applyMigrations() async {
-    final systemConnection = await _systemConnectionFactory(_config);
+    final systemConnection = await SystemConnection.fromConfig(_config);
     try {
       await applyMigrations(systemConnection, _log);
     } finally {
@@ -180,24 +148,17 @@ class Server(
     }
   }
 
-  Future<void> stop() => _lifecycle.stop();
-
-  Future<void> _stop() async {
-    for (final route in _serverRoutes) {
-      _routes.remove(route);
-    }
-    _serverRoutes.clear();
+  Future<void> stop() async {
+    _isReady = false;
+    _routes.clear();
     await _sessionCleanup?.stop();
-    _sessionCleanup = null;
-    final connection = _tenantConnection;
-    _tenantConnection = null;
-    await connection?.close();
+    await _tenantConnection?.close();
   }
 
   Future<Response> handler(Request rq) => _handler(rq);
 
   @override
-  bool isReady() => _lifecycle.isReady;
+  bool isReady() => _isReady;
 
   @override
   bool isLive() => true;

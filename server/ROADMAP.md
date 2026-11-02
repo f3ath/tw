@@ -13,9 +13,9 @@ with authentication and ownership isolation.
   units on creation and any `distance_unit` attribute on updates (HTTP 400).
   Existing vehicles and creates that omit the unit default to `mi`.
   `TwApiClient.createVehicle` accepts `distanceUnit`.
-- [ ] **Unit-neutral distance fields:** Interpret service readings and schedule
+- [x] **Unit-neutral distance fields:** Interpret service readings and schedule
   distances in the vehicle's unit. Rename the legacy `mileage` and
-  `interval_miles` fields to make this contract explicit.
+  `interval_distance` fields to make this contract explicit.
 - [ ] **Optional schedule intervals:** Support distance-only, time-only, and
   combined intervals. Require at least one positive whole interval. Unused
   intervals must be null, not zero. Distinguish omitted update fields from

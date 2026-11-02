@@ -15,12 +15,12 @@ GRANT SELECT, INSERT, UPDATE
 
 CREATE TABLE sessions
 (
-    id          UUID PRIMARY KEY,
-    token_hash  text UNIQUE NOT NULL,
-    nonce       text UNIQUE,
-    user_id     UUID REFERENCES users (id) ON DELETE CASCADE,
-    created_at  timestamp   NOT NULL,
-    updated_at  timestamp   NOT NULL
+    id         UUID PRIMARY KEY,
+    token_hash text UNIQUE NOT NULL,
+    nonce      text UNIQUE,
+    user_id    UUID REFERENCES users (id) ON DELETE CASCADE,
+    created_at timestamp   NOT NULL,
+    updated_at timestamp   NOT NULL
 );
 
 GRANT SELECT, INSERT, UPDATE, DELETE
@@ -60,15 +60,15 @@ CREATE
 
 CREATE TABLE schedules
 (
-    id              UUID PRIMARY KEY,
-    owner_id        UUID      NOT NULL DEFAULT current_setting('tw.tenant_id')::uuid REFERENCES users (id) ON DELETE CASCADE,
-    vehicle_id      UUID      NOT NULL REFERENCES vehicles (id) ON DELETE CASCADE,
-    name            text      NOT NULL,
-    interval_miles  integer   NOT NULL,
-    interval_months integer   NOT NULL,
-    details         text      NOT NULL,
-    created_at      timestamp NOT NULL,
-    updated_at      timestamp NOT NULL,
+    id                UUID PRIMARY KEY,
+    owner_id          UUID      NOT NULL DEFAULT current_setting('tw.tenant_id')::uuid REFERENCES users (id) ON DELETE CASCADE,
+    vehicle_id        UUID      NOT NULL REFERENCES vehicles (id) ON DELETE CASCADE,
+    name              text      NOT NULL,
+    interval_distance integer   NOT NULL,
+    interval_months   integer   NOT NULL,
+    details           text      NOT NULL,
+    created_at        timestamp NOT NULL,
+    updated_at        timestamp NOT NULL,
     UNIQUE (owner_id, id),
     FOREIGN KEY (owner_id, vehicle_id) REFERENCES vehicles (owner_id, id)
 );
@@ -97,7 +97,7 @@ CREATE TABLE services
     owner_id   UUID      NOT NULL DEFAULT current_setting('tw.tenant_id')::uuid REFERENCES users (id) ON DELETE CASCADE,
     vehicle_id UUID      NOT NULL REFERENCES vehicles (id) ON DELETE CASCADE,
     date       date      NOT NULL,
-    mileage    integer   NOT NULL,
+    odometer   integer   NOT NULL,
     details    text      NOT NULL,
     created_at timestamp NOT NULL,
     updated_at timestamp NOT NULL,

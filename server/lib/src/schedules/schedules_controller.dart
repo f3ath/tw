@@ -5,7 +5,7 @@ import 'package:json_api/server.dart';
 import 'package:server/src/auth/request_ext.dart';
 import 'package:server/src/json_api/base_controller.dart';
 import 'package:server/src/schedules/schedule_resource.dart';
-import 'package:server/src/schedules/schedules_tdao.dart';
+import 'package:server/src/schedules/schedules_dao.dart';
 import 'package:uuid/uuid.dart';
 
 class SchedulesController(final SchedulesTDAOProvider _ownedSchedules, final UriBuilder _uriFor)
@@ -30,7 +30,7 @@ class SchedulesController(final SchedulesTDAOProvider _ownedSchedules, final Uri
       id: _uuid.v4(),
       vehicleId: vehicle.single.id!,
       name: attributes['name'] as String,
-      intervalMiles: attributes['interval_miles'] as int,
+      intervalDistance: attributes['interval_distance'] as int,
       intervalMonths: attributes['interval_months'] as int,
       details: attributes['details'] as String,
     );
@@ -50,7 +50,7 @@ class SchedulesController(final SchedulesTDAOProvider _ownedSchedules, final Uri
       id: target.id,
       vehicleId: vehicle!.single.id,
       name: attributes['name'] as String?,
-      intervalMiles: attributes['interval_miles'] as int?,
+      intervalDistance: attributes['interval_distance'] as int?,
       intervalMonths: attributes['interval_months'] as int?,
       details: attributes['details'] as String?,
     );

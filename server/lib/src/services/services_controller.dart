@@ -5,7 +5,7 @@ import 'package:json_api/server.dart';
 import 'package:server/src/auth/request_ext.dart';
 import 'package:server/src/json_api/base_controller.dart';
 import 'package:server/src/services/service_resource.dart';
-import 'package:server/src/services/services_tdao.dart';
+import 'package:server/src/services/services_dao.dart';
 import 'package:uuid/uuid.dart';
 
 class ServicesController(final ServicesTDAOProvider _ownedServices, final UriBuilder _uriFor)
@@ -19,13 +19,13 @@ class ServicesController(final ServicesTDAOProvider _ownedServices, final UriBui
     NewResource newResource,
   ) async {
     final attributes = newResource.attributes;
-    if (attributes['date'] is! String || attributes['mileage'] is! int) return badRequest();
+    if (attributes['date'] is! String || attributes['odometer'] is! int) return badRequest();
     final vehicle = newResource.relationships['vehicle']!;
     final service = await _ownedServices(request.userId).create(
       id: _uuid.v4(),
       vehicleId: vehicle.single.id!,
       date: DateTime.parse(attributes['date'] as String),
-      mileage: attributes['mileage'] as int,
+      odometer: attributes['odometer'] as int,
       details: attributes['details'] as String? ?? '',
     );
     if (service == null) return notFound();
@@ -40,12 +40,12 @@ class ServicesController(final ServicesTDAOProvider _ownedServices, final UriBui
   Future<Response> updateResource(Request request, ResourceTarget target, Resource resource) async {
     final attributes = resource.attributes;
     final vehicle = resource.one('vehicle');
-    if (attributes['date'] is! String || attributes['mileage'] is! int) return badRequest();
+    if (attributes['date'] is! String || attributes['odometer'] is! int) return badRequest();
     final service = await _ownedServices(request.userId).update(
       id: target.id,
       vehicleId: vehicle!.single.id,
       date: DateTime.parse(attributes['date'] as String),
-      mileage: attributes['mileage'] as int,
+      odometer: attributes['odometer'] as int,
       details: attributes['details'] as String?,
     );
     if (service == null) return notFound();
