@@ -49,16 +49,14 @@ class SchedulesController(final SchedulesTDAOProvider _ownedSchedules, final Uri
 
   @override
   Future<Response> updateResource(Request request, ResourceTarget target, Resource resource) async {
-    final vehicle = resource.one('vehicle');
-    if (vehicle == null || vehicle.isEmpty) return badRequest();
+    if (resource.relationships.containsKey('vehicle')) return badRequest();
     final dao = _ownedSchedules(request.userId);
-    final existing = await dao.fetchById(id: target.id, vehicleId: vehicle.single.id);
+    final existing = await dao.fetchById(id: target.id);
     if (existing == null) return notFound();
     final attributes = {...existing.toMap(), ...resource.attributes};
     if (!_isValid(attributes)) return badRequest();
     final schedule = await dao.update(
       id: target.id,
-      vehicleId: existing.vehicleId,
       name: attributes['name'] as String,
       intervalDistance: attributes['interval_distance'] as int?,
       intervalMonths: attributes['interval_months'] as int?,

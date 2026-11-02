@@ -1,5 +1,6 @@
 library;
 
+export 'src/api/client/operation.dart';
 export 'src/api/client/schedule.dart';
 export 'src/api/client/service.dart';
 export 'src/api/client/session.dart';

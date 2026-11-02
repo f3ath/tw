@@ -47,15 +47,14 @@ ORDER BY created_at
     return rows.map((row) => ScheduleRecord.fromMap(row.toColumnMap())).toList();
   }
 
-  Future<ScheduleRecord?> fetchById({required String id, required String vehicleId}) async {
+  Future<ScheduleRecord?> fetchById({required String id}) async {
     final rows = await _database.execute(
       Sql.named('''
 SELECT *
 FROM schedules
 WHERE id = @id:uuid
-  AND vehicle_id = @vehicle_id:uuid
 '''),
-      parameters: {'id': id, 'vehicle_id': vehicleId},
+      parameters: {'id': id},
     );
     return rows.isEmpty ? null : ScheduleRecord.fromMap(rows.single.toColumnMap());
   }
@@ -73,7 +72,6 @@ ORDER BY created_at
 
   Future<ScheduleRecord?> update({
     required String id,
-    required String vehicleId,
     required String name,
     required int? intervalDistance,
     required int? intervalMonths,
@@ -90,12 +88,10 @@ SET name = @name:text,
     is_archived = @is_archived:boolean,
     updated_at = @now:timestamp
 WHERE id = @id:uuid
-  AND vehicle_id = @vehicle_id:uuid
 RETURNING *
 '''),
       parameters: {
         'id': id,
-        'vehicle_id': vehicleId,
         'name': name,
         'interval_distance': intervalDistance,
         'interval_months': intervalMonths,

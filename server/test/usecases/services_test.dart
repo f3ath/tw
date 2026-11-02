@@ -7,14 +7,13 @@ import 'package:uuid/uuid.dart';
 import 'harness.dart';
 
 void main() {
-  late TestHarness harness;
+  final harness = TestHarness();
   late TwApiClient client;
   late Vehicle vehicle;
   final manufactured = DateTime(2020, 1, 1);
   final serviceDate = DateTime(2024, 1, 15);
 
   setUp(() async {
-    harness = TestHarness();
     await harness.startServer();
     client = await harness.login();
     vehicle = await client.createVehicle(name: 'Civic', manufactureDate: manufactured);
@@ -73,7 +72,7 @@ void main() {
       final existing = isEditing ? await createService() : null;
       final saved = existing == null
           ? await client.createService(vehicle.id, date: date, odometer: 150)
-          : await client.updateService(vehicle.id, existing.id, date: date, odometer: 150);
+          : await client.updateService(existing.id, date: date, odometer: 150);
       expect(saved!.date, date);
       expect((await client.listServices(vehicle.id)).single.date, date);
     });
@@ -87,7 +86,7 @@ void main() {
         await expectLater(
           existing == null
               ? client.createService(vehicle.id, date: date, odometer: 150)
-              : client.updateService(vehicle.id, existing.id, date: date, odometer: 150),
+              : client.updateService(existing.id, date: date, odometer: 150),
           throwsStatusCode(400),
         );
         final services = await client.listServices(vehicle.id);
@@ -101,7 +100,6 @@ void main() {
     final created = await createService();
     final date = DateTime(2024, 1, 16);
     final updated = await client.updateService(
-      vehicle.id,
       created.id,
       date: date,
       odometer: 200,
@@ -158,7 +156,7 @@ void main() {
         throwsStatusCode(401),
       );
       await expectLater(
-        unauthorized.updateService(vehicle.id, created.id, date: serviceDate, odometer: 150),
+        unauthorized.updateService(created.id, date: serviceDate, odometer: 150),
         throwsStatusCode(401),
       );
       await expectLater(unauthorized.deleteService(created.id), throwsStatusCode(401));
@@ -175,7 +173,7 @@ void main() {
       throwsStatusCode(404),
     );
     await expectLater(
-      other.updateService(vehicle.id, created.id, date: serviceDate, odometer: 200),
+      other.updateService(created.id, date: serviceDate, odometer: 200),
       throwsStatusCode(404),
     );
     await expectLater(other.deleteService(created.id), throwsStatusCode(404));
@@ -192,20 +190,21 @@ void main() {
       throwsStatusCode(404),
     );
     await expectLater(
-      client.updateService(vehicle.id, missing, date: serviceDate, odometer: 150),
+      client.updateService(missing, date: serviceDate, odometer: 150),
       throwsStatusCode(404),
     );
     await expectLater(client.deleteService(missing), throwsStatusCode(404));
   });
 
-  test('a service cannot be edited through a different vehicle', () async {
+  test('editing a service preserves its original vehicle', () async {
     final created = await createService();
     final otherVehicle = await client.createVehicle(name: 'Corolla', manufactureDate: manufactured);
-    await expectLater(
-      client.updateService(otherVehicle.id, created.id, date: serviceDate, odometer: 200),
-      throwsStatusCode(404),
-    );
-    expect((await client.listServices(vehicle.id)).single.odometer, 150);
+    final updated = await client.updateService(created.id, date: serviceDate, odometer: 200);
+    expect(updated!.vehicleId, vehicle.id);
+    final listed = (await client.listServices(vehicle.id)).single;
+    expect(listed.id, created.id);
+    expect(listed.vehicleId, vehicle.id);
+    expect(listed.odometer, 200);
     expect(await client.listServices(otherVehicle.id), isEmpty);
   });
 
@@ -215,7 +214,7 @@ void main() {
       await expectLater(
         existing == null
             ? client.createService(vehicle.id, date: serviceDate, odometer: -1)
-            : client.updateService(vehicle.id, existing.id, date: serviceDate, odometer: -1),
+            : client.updateService(existing.id, date: serviceDate, odometer: -1),
         throwsStatusCode(400),
       );
       final services = await client.listServices(vehicle.id);
@@ -233,7 +232,7 @@ void main() {
         await expectLater(
           existing == null
               ? client.createService(vehicle.id, date: invalid.date, odometer: 150)
-              : client.updateService(vehicle.id, existing.id, date: invalid.date, odometer: 150),
+              : client.updateService(existing.id, date: invalid.date, odometer: 150),
           throwsStatusCode(400),
         );
         final services = await client.listServices(vehicle.id);
@@ -254,12 +253,7 @@ void main() {
           await expectLater(
             existing == null
                 ? client.createService(vehicle.id, date: serviceDate, odometer: odometer)
-                : client.updateService(
-                    vehicle.id,
-                    existing.id,
-                    date: serviceDate,
-                    odometer: odometer,
-                  ),
+                : client.updateService(existing.id, date: serviceDate, odometer: odometer),
             throwsStatusCode(400),
           );
           final services = await client.listServices(vehicle.id);
@@ -278,7 +272,7 @@ void main() {
     await client.createService(vehicle.id, date: DateTime(2024, 1, 20), odometer: 200);
     for (final date in [DateTime(2024, 1, 9), DateTime(2024, 1, 21)]) {
       await expectLater(
-        client.updateService(vehicle.id, existing.id, date: date, odometer: 150),
+        client.updateService(existing.id, date: date, odometer: 150),
         throwsStatusCode(400),
       );
       expect(
@@ -299,7 +293,6 @@ void main() {
       everyElement(150),
     );
     final updated = await client.updateService(
-      vehicle.id,
       middle.id,
       date: DateTime(2024, 1, 16),
       odometer: 150,
@@ -312,12 +305,7 @@ void main() {
     () async {
       final first = await createService();
       await client.createService(vehicle.id, date: serviceDate, odometer: 100);
-      final updated = await client.updateService(
-        vehicle.id,
-        first.id,
-        date: serviceDate,
-        odometer: 200,
-      );
+      final updated = await client.updateService(first.id, date: serviceDate, odometer: 200);
       expect(updated!.id, first.id);
       expect(updated.odometer, 200);
       expect(
@@ -334,7 +322,6 @@ void main() {
     test('editing to ${edit.label} excludes the old version from bounds', () async {
       final created = await createService();
       final updated = await client.updateService(
-        vehicle.id,
         created.id,
         date: edit.date,
         odometer: edit.odometer,

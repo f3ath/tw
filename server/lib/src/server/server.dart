@@ -24,6 +24,8 @@ import 'package:server/src/schedules/schedules_controller.dart';
 import 'package:server/src/schedules/schedules_dao.dart';
 import 'package:server/src/server/server_config.dart';
 import 'package:server/src/services/services_controller.dart';
+import 'package:server/src/services/operations_controller.dart';
+import 'package:server/src/services/operations_dao.dart';
 import 'package:server/src/services/services_dao.dart';
 import 'package:server/src/users/users_dao.dart';
 import 'package:server/src/vehicles/vehicles_controller.dart';
@@ -77,6 +79,9 @@ class Server(
     ServicesDAO servicesDAOProvider(String ownerId) =>
         ServicesDAO(ScopedDatabase(ownerId, connection), clock: _clock);
 
+    OperationsDAO operationsDAOProvider(String ownerId) =>
+        OperationsDAO(ScopedDatabase(ownerId, connection), clock: _clock);
+
     final uriDesign = StandardUriDesign(_config.baseUri);
 
     final jsonApiControllers = <String, Controller>{
@@ -88,8 +93,14 @@ class Server(
         uriDesign.uri,
         clock: _clock,
       ),
+      ResourceType.operations: OperationsController(operationsDAOProvider, uriDesign.uri),
       ResourceType.schedules: SchedulesController(schedulesDAOProvider, uriDesign.uri),
-      ResourceType.services: ServicesController(servicesDAOProvider, uriDesign.uri, clock: _clock),
+      ResourceType.services: ServicesController(
+        servicesDAOProvider,
+        operationsDAOProvider,
+        uriDesign.uri,
+        clock: _clock,
+      ),
     };
 
     Future<SessionRecord?> getCallerSession(Request rq) async {

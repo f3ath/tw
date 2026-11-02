@@ -49,21 +49,20 @@ ORDER BY created_at
 
   Future<ServiceRecord?> update({
     required String id,
-    required String vehicleId,
     required DateTime date,
     required int odometer,
     String? details,
   }) => _database.runTx((session) async {
     final existing = await session.execute(
       Sql.named('''
-SELECT id
+SELECT vehicle_id
 FROM services
 WHERE id = @id:uuid
-  AND vehicle_id = @vehicle_id:uuid
 '''),
-      parameters: {'id': id, 'vehicle_id': vehicleId},
+      parameters: {'id': id},
     );
     if (existing.isEmpty) return null;
+    final vehicleId = existing.single[0] as String;
     if (!await _validate(
       session,
       vehicleId: vehicleId,

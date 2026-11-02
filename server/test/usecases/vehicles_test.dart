@@ -5,11 +5,10 @@ import 'package:uuid/uuid.dart';
 import 'harness.dart';
 
 void main() {
-  late TestHarness harness;
+  final harness = TestHarness();
   final manufactured = DateTime(2020, 5, 1);
 
   setUp(() async {
-    harness = TestHarness();
     await harness.startServer();
   });
 

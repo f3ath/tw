@@ -5,12 +5,11 @@ import 'package:uuid/uuid.dart';
 import 'harness.dart';
 
 void main() {
-  late TestHarness harness;
+  final harness = TestHarness();
   late TwApiClient client;
   late Vehicle vehicle;
 
   setUp(() async {
-    harness = TestHarness();
     await harness.startServer();
     client = await harness.login();
     vehicle = await client.createVehicle(name: 'Civic', manufactureDate: DateTime(2020));
@@ -68,7 +67,6 @@ void main() {
   test('save edited description and intervals on the same schedule item', () async {
     final created = await createSchedule();
     final updated = await client.updateSchedule(
-      vehicle.id,
       created.id,
       name: 'Engine oil and filter',
       intervalDistance: 10000,
@@ -91,7 +89,6 @@ void main() {
     test('switch an existing combined interval to ${interval.label}', () async {
       final created = await createSchedule();
       final updated = await client.updateSchedule(
-        vehicle.id,
         created.id,
         name: created.name,
         intervalDistance: interval.distance,
@@ -111,7 +108,6 @@ void main() {
     final created = await createSchedule();
     for (final isArchived in [true, false]) {
       final updated = await client.updateSchedule(
-        vehicle.id,
         created.id,
         name: created.name,
         intervalDistance: created.intervalDistance,
@@ -158,7 +154,6 @@ void main() {
       );
       await expectLater(
         unauthorized.updateSchedule(
-          vehicle.id,
           const Uuid().v4(),
           name: 'Oil',
           intervalDistance: 5000,
@@ -181,7 +176,6 @@ void main() {
     final created = await createSchedule();
     await expectLater(
       other.updateSchedule(
-        vehicle.id,
         created.id,
         name: 'Changed',
         intervalDistance: 10000,
@@ -205,13 +199,7 @@ void main() {
       throwsStatusCode(404),
     );
     await expectLater(
-      client.updateSchedule(
-        vehicle.id,
-        missingId,
-        name: 'Oil',
-        intervalDistance: 5000,
-        intervalMonths: 6,
-      ),
+      client.updateSchedule(missingId, name: 'Oil', intervalDistance: 5000, intervalMonths: 6),
       throwsStatusCode(404),
     );
   });
@@ -228,13 +216,7 @@ void main() {
     test('reject a blank description on editing (${name.length} characters)', () async {
       final created = await createSchedule();
       await expectLater(
-        client.updateSchedule(
-          vehicle.id,
-          created.id,
-          name: name,
-          intervalDistance: 5000,
-          intervalMonths: 6,
-        ),
+        client.updateSchedule(created.id, name: name, intervalDistance: 5000, intervalMonths: 6),
         throwsStatusCode(400),
       );
       expect((await client.listSchedules(vehicle.id)).single.name, created.name);
@@ -266,7 +248,6 @@ void main() {
       final created = await createSchedule();
       await expectLater(
         client.updateSchedule(
-          vehicle.id,
           created.id,
           name: 'Changed',
           intervalDistance: interval.distance,

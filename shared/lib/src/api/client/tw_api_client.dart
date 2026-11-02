@@ -144,7 +144,6 @@ class TwApiClient(UriDesign urlDesign, Handler handler) {
   }
 
   Future<Schedule?> updateSchedule(
-    String vehicleId,
     String scheduleId, {
     required String name,
     required int? intervalDistance,
@@ -155,7 +154,6 @@ class TwApiClient(UriDesign urlDesign, Handler handler) {
     final response = await _jsonApi.updateResource(
       ResourceType.schedules,
       scheduleId,
-      one: {'vehicle': Identifier(ResourceType.vehicles, vehicleId)},
       attributes: {
         'name': name,
         'interval_distance': intervalDistance,
@@ -196,7 +194,6 @@ class TwApiClient(UriDesign urlDesign, Handler handler) {
   }
 
   Future<Service?> updateService(
-    String vehicleId,
     String serviceId, {
     required DateTime date,
     required int odometer,
@@ -205,7 +202,6 @@ class TwApiClient(UriDesign urlDesign, Handler handler) {
     final response = await _jsonApi.updateResource(
       ResourceType.services,
       serviceId,
-      one: {'vehicle': Identifier(ResourceType.vehicles, vehicleId)},
       attributes: {'date': _date(date), 'odometer': odometer, 'details': ?details},
     );
     final resource = response.resource;
@@ -214,6 +210,52 @@ class TwApiClient(UriDesign urlDesign, Handler handler) {
 
   Future<void> deleteService(String serviceId) async {
     await _jsonApi.deleteResource(ResourceType.services, serviceId);
+  }
+
+  // Operations
+
+  Future<List<Operation>> listOperations(String serviceId) async =>
+      (await _jsonApi.fetchRelatedCollection(
+        ResourceType.services,
+        serviceId,
+        'operations',
+      )).collection.map(Operation.fromResource).toList();
+
+  Future<Operation> createOperation(
+    String serviceId, {
+    String? scheduleId,
+    String? name,
+    String? details,
+  }) async {
+    final response = await _jsonApi.createNew(
+      ResourceType.operations,
+      one: {
+        'service': Identifier(ResourceType.services, serviceId),
+        if (scheduleId != null) 'schedule': Identifier(ResourceType.schedules, scheduleId),
+      },
+      attributes: {'name': ?name, 'details': ?details},
+    );
+    return Operation.fromResource(response.resource);
+  }
+
+  Future<Operation?> updateOperation(
+    String operationId, {
+    String? scheduleId,
+    String? name,
+    String? details,
+  }) async {
+    final response = await _jsonApi.updateResource(
+      ResourceType.operations,
+      operationId,
+      one: {'schedule': scheduleId == null ? null : Identifier(ResourceType.schedules, scheduleId)},
+      attributes: {'name': ?name, 'details': ?details},
+    );
+    final updated = response.resource;
+    return updated == null ? null : Operation.fromResource(updated);
+  }
+
+  Future<void> deleteOperation(String operationId) async {
+    await _jsonApi.deleteResource(ResourceType.operations, operationId);
   }
 
   // State

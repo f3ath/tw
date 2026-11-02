@@ -71,6 +71,7 @@ CREATE TABLE schedules
     created_at        timestamp NOT NULL,
     updated_at        timestamp NOT NULL,
     UNIQUE (owner_id, id),
+    UNIQUE (owner_id, vehicle_id, id),
     FOREIGN KEY (owner_id, vehicle_id) REFERENCES vehicles (owner_id, id)
 );
 
@@ -103,6 +104,7 @@ CREATE TABLE services
     created_at timestamp NOT NULL,
     updated_at timestamp NOT NULL,
     UNIQUE (owner_id, id),
+    UNIQUE (owner_id, vehicle_id, id),
     FOREIGN KEY (owner_id, vehicle_id) REFERENCES vehicles (owner_id, id)
 );
 
@@ -124,3 +126,43 @@ CREATE
     USING (owner_id = current_setting('tw.tenant_id')::uuid)
     WITH CHECK (owner_id = current_setting('tw.tenant_id')::uuid);
 
+CREATE TABLE service_operations
+(
+    id          UUID PRIMARY KEY,
+    owner_id    UUID      NOT NULL DEFAULT current_setting('tw.tenant_id')::uuid REFERENCES users (id) ON DELETE CASCADE,
+    vehicle_id  UUID      NOT NULL,
+    service_id  UUID      NOT NULL,
+    schedule_id UUID,
+    name        text,
+    details     text,
+    created_at  timestamp NOT NULL,
+    updated_at  timestamp NOT NULL,
+    UNIQUE (owner_id, id),
+    UNIQUE (service_id, schedule_id),
+    FOREIGN KEY (owner_id, vehicle_id, service_id)
+        REFERENCES services (owner_id, vehicle_id, id) ON DELETE CASCADE,
+    FOREIGN KEY (owner_id, vehicle_id, schedule_id)
+        REFERENCES schedules (owner_id, vehicle_id, id),
+    CONSTRAINT service_operations_content_check CHECK (
+        (schedule_id IS NOT NULL AND name IS NULL AND details IS NULL)
+        OR (schedule_id IS NULL AND name IS NOT NULL AND BTRIM(name) <> '' AND details IS NOT NULL)
+    )
+);
+
+GRANT SELECT, INSERT, UPDATE, DELETE
+    ON TABLE public.service_operations
+    TO tw_tenant;
+
+ALTER TABLE service_operations
+    ENABLE ROW LEVEL SECURITY;
+
+ALTER TABLE service_operations
+    FORCE ROW LEVEL SECURITY;
+
+CREATE
+    POLICY owner_access
+    ON service_operations
+    FOR ALL
+    TO tw_tenant
+    USING (owner_id = current_setting('tw.tenant_id')::uuid)
+    WITH CHECK (owner_id = current_setting('tw.tenant_id')::uuid);

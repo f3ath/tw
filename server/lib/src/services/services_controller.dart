@@ -6,6 +6,8 @@ import 'package:server/src/auth/request_ext.dart';
 import 'package:server/src/db/invalid_record.dart';
 import 'package:server/src/json_api/base_controller.dart';
 import 'package:server/src/services/service_resource.dart';
+import 'package:server/src/services/operations_dao.dart';
+import 'package:server/src/services/operation_resource.dart';
 import 'package:server/src/services/services_dao.dart';
 import 'package:server/src/validation/date.dart';
 import 'package:shared/time.dart';
@@ -13,6 +15,7 @@ import 'package:uuid/uuid.dart';
 
 class ServicesController(
   final ServicesTDAOProvider _ownedServices,
+  final OperationsDAOProvider _ownedOperations,
   final UriBuilder _uriFor, {
   final Clock _clock = systemClock,
 }) extends BaseController {
@@ -52,23 +55,27 @@ class ServicesController(
   Future<Response> updateResource(Request request, ResourceTarget target, Resource resource) async {
     final input = _parseInput(resource.attributes);
     if (input == null) return badRequest();
-    final vehicle = resource.one('vehicle');
-    if (vehicle == null || vehicle.isEmpty) return badRequest();
+    if (resource.relationships.containsKey('vehicle')) return badRequest();
     final ServiceRecord? service;
     try {
-      service = await _ownedServices(request.userId).update(
-        id: target.id,
-        vehicleId: vehicle.single.id,
-        date: input.date,
-        odometer: input.odometer,
-        details: input.details,
-      );
+      service = await _ownedServices(
+        request.userId,
+      ).update(id: target.id, date: input.date, odometer: input.odometer, details: input.details);
     } on InvalidRecord {
       return badRequest();
     }
     if (service == null) return notFound();
 
     return ok(OutboundDataDocument.resource(ServiceResource(service)));
+  }
+
+  @override
+  Future<Response> fetchRelated(Request request, RelatedTarget target) async {
+    if (target.relationship != 'operations') return notFound();
+    final operations = await _ownedOperations(request.userId).fetchByServiceId(target.id);
+    return operations == null
+        ? notFound()
+        : ok(OutboundDataDocument.collection(operations.map(OperationResource.new)));
   }
 
   @override
