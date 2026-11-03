@@ -432,7 +432,7 @@ class _SignedInShellState() extends State<SignedInShell> {
     );
   }
 
-  void itemForm(Vehicle vehicle, [MaintenanceItem? original]) {
+  void itemForm(Vehicle vehicle, [Schedule? original]) {
     final vm = c.itemForm(vehicle, original);
     push(
       _Screen(
@@ -452,7 +452,7 @@ class _SignedInShellState() extends State<SignedInShell> {
     );
   }
 
-  void serviceForm(Vehicle vehicle, [ServiceRecord? original]) {
+  void serviceForm(Vehicle vehicle, [Service? original]) {
     final vm = c.serviceForm(vehicle, original);
     push(
       _Screen(
@@ -485,14 +485,14 @@ class _SignedInShellState() extends State<SignedInShell> {
       },
       archive: () async {
         final item = c.garage.data.item(id);
-        if (item.archived ||
+        if (item.isArchived ||
             await confirm(
               'Stop tracking this item?',
               'Its service history will be kept.',
               action: 'Archive',
             )) {
           if (await c.garage.archive(item)) {
-            saved(item.archived ? 'Item restored' : 'Item archived');
+            saved(item.isArchived ? 'Item restored' : 'Item archived');
           }
         }
       },
@@ -514,7 +514,7 @@ class _SignedInShellState() extends State<SignedInShell> {
         final s = c.garage.data.service(id);
         if (await confirm(
           'Delete service?',
-          '${dateText(s.date)} · ${s.mileage} ${c.garage.data.vehicle(s.vehicleId).unit}. Due dates and estimated mileage will be recalculated.',
+          '${dateText(s.date)} · ${s.odometer} ${c.garage.data.vehicle(s.vehicleId).distanceUnit.name}. Due dates and estimated mileage will be recalculated.',
           action: 'Delete',
         )) {
           // Missing-record presentation makes publication safe before navigation settles.

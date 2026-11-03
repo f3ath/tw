@@ -4,8 +4,8 @@ import '../../domain/models.dart';
 import '../../domain/policies.dart';
 import 'garage_view_model.dart';
 
-String recurrence(MaintenanceItem i, String unit) =>
-    'Every ${[if (i.distance != null) '${i.distance} $unit', if (i.months != null) '${i.months} months'].join(' or ')}${i.distance != null && i.months != null ? ', whichever comes first' : ''}';
+String recurrence(Schedule i, String unit) =>
+    'Every ${[if (i.intervalDistance != null) '${i.intervalDistance} $unit', if (i.intervalMonths != null) '${i.intervalMonths} months'].join(' or ')}${i.intervalDistance != null && i.intervalMonths != null ? ', whichever comes first' : ''}';
 
 class const Reading({
   super.key,
@@ -19,13 +19,13 @@ class const Reading({
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Estimated: ${model.data.estimate(vehicle.id) ?? 'Unknown'} ${vehicle.unit}',
+          'Estimated: ${model.data.estimate(vehicle.id) ?? 'Unknown'} ${vehicle.distanceUnit.name}',
           style: Theme.of(context).textTheme.titleMedium,
         ),
         Text(
           last == null
               ? 'No recorded mileage. Distance status unavailable.'
-              : 'Latest recorded: ${last.mileage} ${vehicle.unit} · ${dateText(last.date)}',
+              : 'Latest recorded: ${last.odometer} ${vehicle.distanceUnit.name} · ${dateText(last.date)}',
         ),
       ],
     );
@@ -76,10 +76,10 @@ class const GarageView({
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                '${due.item.description} · ${due.label}',
+                                '${due.item.name} · ${due.label}',
                                 style: Theme.of(context).textTheme.titleSmall,
                               ),
-                              Text(due.reason(vehicle.unit)),
+                              Text(due.reason(vehicle.distanceUnit.name)),
                             ],
                           ),
                         ),
@@ -199,7 +199,7 @@ class _VehicleViewState() extends State<VehicleView> with SingleTickerProviderSt
           if (tab == 0) ...[
             if (due.isEmpty) ...[
               Text(
-                vm.data.items.any((i) => i.vehicleId == vehicle.id && !i.archived)
+                vm.data.items.any((i) => i.vehicleId == vehicle.id && !i.isArchived)
                     ? (vm.incomplete(vehicle.id)
                           ? 'Distance status unavailable'
                           : 'No maintenance due soon')
@@ -219,8 +219,8 @@ class _VehicleViewState() extends State<VehicleView> with SingleTickerProviderSt
               for (final d in due.where((d) => d.status == status))
                 ListTile(
                   contentPadding: EdgeInsets.zero,
-                  title: Text(d.item.description),
-                  subtitle: Text('${d.label} · ${d.reason(vehicle.unit)}'),
+                  title: Text(d.item.name),
+                  subtitle: Text('${d.label} · ${d.reason(vehicle.distanceUnit.name)}'),
                   trailing: const Icon(Icons.chevron_right),
                   onTap: () => widget.openItem(d.item.id),
                 ),
@@ -243,9 +243,9 @@ class _VehicleViewState() extends State<VehicleView> with SingleTickerProviderSt
             for (final item in vm.schedule(vehicle.id, archived))
               ListTile(
                 contentPadding: EdgeInsets.zero,
-                title: Text(item.description),
+                title: Text(item.name),
                 subtitle: Text(
-                  '${recurrence(item, vehicle.unit)}\n${item.archived ? 'Archived' : vm.status(item).label}',
+                  '${recurrence(item, vehicle.distanceUnit.name)}\n${item.isArchived ? 'Archived' : vm.status(item).label}',
                 ),
                 isThreeLine: true,
                 onTap: () => widget.openItem(item.id),
@@ -257,7 +257,7 @@ class _VehicleViewState() extends State<VehicleView> with SingleTickerProviderSt
             for (final s in history.take(historyLimit))
               ListTile(
                 contentPadding: EdgeInsets.zero,
-                title: Text('${dateText(s.date)} · ${s.mileage} ${vehicle.unit}'),
+                title: Text('${dateText(s.date)} · ${s.odometer} ${vehicle.distanceUnit.name}'),
                 subtitle: Text(vm.summary(s).isEmpty ? 'Mileage update' : vm.summary(s)),
                 onTap: () => widget.openService(s.id),
                 trailing: const Icon(Icons.chevron_right),
@@ -330,34 +330,35 @@ class const ItemDetailView({
       final vehicle = model.data.vehicle(item.vehicleId);
       final status = model.status(item);
       return detailList([
-        Text(item.description, style: Theme.of(context).textTheme.headlineSmall),
-        Text(recurrence(item, vehicle.unit)),
+        Text(item.name, style: Theme.of(context).textTheme.headlineSmall),
+        if (item.details.isNotEmpty) Text(item.details),
+        Text(recurrence(item, vehicle.distanceUnit.name)),
         const SizedBox(height: 16),
-        if (item.archived)
+        if (item.isArchived)
           const Text('Archived')
         else ...[
-          Text('${status.label} · ${status.reason(vehicle.unit)}'),
+          Text('${status.label} · ${status.reason(vehicle.distanceUnit.name)}'),
           const SizedBox(height: 16),
           const Text('Next due'),
           Text(
             [
               if (status.dateDue != null) dateText(status.dateDue!),
-              if (status.distanceDue != null) '${status.distanceDue} ${vehicle.unit}',
+              if (status.distanceDue != null) '${status.distanceDue} ${vehicle.distanceUnit.name}',
             ].join(' · '),
           ),
           const SizedBox(height: 16),
           const Text('Last completed'),
           Text(
             status.last == null
-                ? 'No recorded service — calculated from manufacture date and 0 ${vehicle.unit}.'
-                : '${dateText(status.last!.date)} · ${status.last!.mileage} ${vehicle.unit}',
+                ? 'No recorded service — calculated from manufacture date and 0 ${vehicle.distanceUnit.name}.'
+                : '${dateText(status.last!.date)} · ${status.last!.odometer} ${vehicle.distanceUnit.name}',
           ),
         ],
         const SizedBox(height: 24),
         const Text('Service history'),
-        for (final s in model.data.history(vehicle.id).where((s) => s.links.contains(id)))
+        for (final s in model.data.history(vehicle.id).where((s) => model.data.completes(s.id, id)))
           ListTile(
-            title: Text('${dateText(s.date)} · ${s.mileage} ${vehicle.unit}'),
+            title: Text('${dateText(s.date)} · ${s.odometer} ${vehicle.distanceUnit.name}'),
             onTap: () => openService(s.id),
           ),
         Wrap(
@@ -369,7 +370,7 @@ class const ItemDetailView({
             ),
             TextButton(
               onPressed: model.offline || model.busy ? null : archive,
-              child: Text(item.archived ? 'Restore item' : 'Archive item'),
+              child: Text(item.isArchived ? 'Restore item' : 'Archive item'),
             ),
           ],
         ),
@@ -399,18 +400,26 @@ class const ServiceDetailView({
       final vehicle = model.data.vehicle(s.vehicleId);
       return detailList([
         Text(
-          '${dateText(s.date)} · ${s.mileage} ${vehicle.unit}',
+          '${dateText(s.date)} · ${s.odometer} ${vehicle.distanceUnit.name}',
           style: Theme.of(context).textTheme.headlineSmall,
         ),
         const SizedBox(height: 24),
-        if (s.links.isEmpty && s.custom.isEmpty) const Text('No maintenance operations recorded.'),
-        for (final id in s.links)
+        if (model.data.operationsFor(s.id).isEmpty)
+          const Text('No maintenance operations recorded.'),
+        for (final operation in model.data.operationsFor(s.id))
           ListTile(
-            title: Text(model.data.item(id).description),
-            subtitle: model.data.item(id).archived ? const Text('Archived') : null,
-            onTap: () => openItem(id),
+            title: Text(operation.name),
+            subtitle: Text(
+              [
+                if (operation.scheduleId == null)
+                  'Custom'
+                else if (model.data.item(operation.scheduleId!).isArchived)
+                  'Archived',
+                if (operation.details.isNotEmpty) operation.details,
+              ].join(' · '),
+            ),
+            onTap: operation.scheduleId == null ? null : () => openItem(operation.scheduleId!),
           ),
-        for (final text in s.custom) ListTile(title: Text(text), subtitle: const Text('Custom')),
         Wrap(
           spacing: 12,
           children: [

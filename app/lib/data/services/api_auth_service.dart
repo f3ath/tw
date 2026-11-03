@@ -21,9 +21,22 @@ class ApiAuthService(
   final http.Client Function() httpClientFactory = http.Client.new,
   final Duration pollInterval = const Duration(seconds: 1),
   final Duration signInTimeout = const Duration(minutes: 5),
+  final void Function()? onAuthenticationExpired,
   final Duration requestTimeout = const Duration(seconds: 15),
 }) {
   TwApiClient? _client;
+  String? _scope;
+
+  String get cacheScope =>
+      _scope ?? (throw const AppFailure(FailureKind.missing, 'Sign in to continue.'));
+
+  Future<T> withClient<T>(Future<T> Function(TwApiClient client) action) => _request(() async {
+    final client = _client;
+    if (client == null) {
+      throw const AppFailure(FailureKind.missing, 'Sign in to continue.');
+    }
+    return action(client);
+  });
 
   TwApiClient _clientFor(String address) =>
       TwApiClient(StandardUriDesign(Uri.parse(address)), (request) async {
@@ -44,7 +57,30 @@ class ApiAuthService(
       return await action();
     } on AppFailure {
       rethrow;
-    } on RequestFailure {
+    } on RequestFailure catch (failure) {
+      final status = failure.rawResponse.httpResponse.statusCode;
+      if (status == 400 || status == 422) {
+        throw const AppFailure(
+          FailureKind.validation,
+          'The server rejected these values. Review your changes.',
+        );
+      }
+      if (status == 409) {
+        throw const AppFailure(
+          FailureKind.conflict,
+          'Record changed. Refresh and review your changes.',
+        );
+      }
+      if (status == 401 || status == 403) {
+        onAuthenticationExpired?.call();
+        throw const AppFailure(
+          FailureKind.authentication,
+          'Your session expired. Sign in again. Your draft is retained.',
+        );
+      }
+      if (status == 404) {
+        throw const AppFailure(FailureKind.missing, 'Record not found or unavailable.');
+      }
       throw const AppFailure(
         FailureKind.connectivity,
         'The server could not complete the request. Retry.',
@@ -99,6 +135,7 @@ class ApiAuthService(
       final user = await client.fetchCurrentUser();
       if (user != null) {
         _client = client;
+        _scope = '$address/${user.id}';
         return user.email ?? user.displayName;
       }
     } on RequestFailure catch (failure) {
@@ -106,6 +143,7 @@ class ApiAuthService(
     }
     await _storage(() => persistence.remove('session'));
     _client = null;
+    _scope = null;
     return null;
   });
 
@@ -134,6 +172,7 @@ class ApiAuthService(
         if (user != null) {
           await _storage(() => persistence.write('session', {'state': state, 'address': address}));
           _client = client;
+          _scope = '$address/${user.id}';
           return user.email ?? user.displayName;
         }
         if (window.isClosed) {
@@ -163,6 +202,7 @@ class ApiAuthService(
       }
     }
     _client = null;
+    _scope = null;
     await _storage(() => persistence.remove('session'));
   });
 }

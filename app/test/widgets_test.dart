@@ -98,7 +98,7 @@ void main() {
       final router =
           Router.of(tester.element(find.byType(NavigationBar))).routerDelegate as TorqueRouter;
       expect(router.currentConfiguration.path, startsWith('/service/'));
-      expect(c.garage.data.history('runner').first.mileage, 91500);
+      expect(c.garage.data.history('runner').first.odometer, 91500);
       expect(tester.takeException(), isNull);
       await tester.pumpWidget(const SizedBox());
       c.dispose();

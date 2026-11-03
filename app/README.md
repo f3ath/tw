@@ -1,6 +1,6 @@
 # TorqueWrench (TW)
 
-Interactive Flutter Material 3 car-maintenance prototype. Read [ARCHITECTURE.md](ARCHITECTURE.md) for layer boundaries and concrete classes; [README-CODEX.md](README-CODEX.md) and [the UX specification](docs/ux/car-maintenance-ux-spec.md) define the handoff.
+Flutter Material 3 car-maintenance app backed by the TorqueWrench API. Read [ARCHITECTURE.md](ARCHITECTURE.md) for layer boundaries and concrete classes; [README-CODEX.md](README-CODEX.md) and [the UX specification](docs/ux/car-maintenance-ux-spec.md) define the handoff.
 
 ## Launch
 
@@ -28,31 +28,21 @@ The default Server address is `http://localhost:8080/api/v0`. Settings saves the
 
 Session ID, bearer key, and original server URL persist in platform preferences. App startup validates the saved session with the server; revoked sessions return to sign-in, while connection failures offer Retry. Changing the configured server never sends an old server's bearer to the new server. Sign out revokes the session at its original server before removing the saved session and local account cache; failed requests retain the session for retry.
 
-## Local maintenance data
+## Maintenance data
 
-Authentication is connected to the server; vehicles, schedules and service records still use the local demo repository. This change does not synchronize maintenance data with the server.
+Vehicles, schedules, services and operations use the authenticated `TwApiClient` through `ApiMaintenanceRepository` and `ApiMaintenanceService`. New accounts start empty. The server assigns record IDs; successful saves use those IDs for navigation. Scheduled operation names/details follow their schedules; custom operations have editable names/details. Service dates may be up to seven calendar days ahead.
 
-Session, server address, vehicles, schedules and services persist locally. The initial demo includes miles and kilometers, five versus two due-item examples, overdue/due-soon items, mileage-only history, linked/custom operations and an archived item. Dates seed relative to the injected clock. The clearly labeled Estimated reading deliberately equals the latest actual reading; this is a deterministic mock, not a production estimator.
+The app caches the complete garage by server URL and user ID. A failed maintenance fetch can display the saved snapshot and its original as-of time; writes remain disabled until a successful refresh. Session restoration still requires server validation. The Estimated reading currently equals the latest actual reading; due status is calculated locally.
 
 Add/edit vehicles and items, log/edit/delete services (including zero-operation mileage updates), archive/restore items, browse linked history, edit Settings, and sign out through the account menu. Units are fixed at vehicle creation. A month is 30 days. The garage previews three due items, with the remainder opening Due. The bottom bar always contains exactly Vehicles and Settings in the signed-in shell.
 
 Hash routes support `/vehicle/<id>?tab=0|1|2`, `/item/<id>`, `/service/<id>` and `/settings`, for example `http://localhost:8765/#/vehicle/runner`. Authentication restores the requested saved-record route; inaccessible IDs show Not found. Forms retain their saved parent URL on refresh; unsaved drafts survive navigation guards and temporary reauthentication only in the running process.
 
-## Reset and state demonstrations
+## Sign-out and development fixtures
 
-Sign out to clear the current demo account's records and session. Sign in again to re-seed. Settings survives sign out. Clear site/application storage to reset everything. To start with an empty garage, sign out first, then run with `--dart-define=TW_EMPTY=true`.
+Sign out revokes the session and clears the current account's local cache. Server records remain available after signing in again. Settings survives sign out. Clear site/application storage to reset local preferences.
 
-Optional launch defines (outside the product UI):
-
-| Define | Behavior |
-| --- | --- |
-| `TW_EMPTY=true` | Seed no vehicles for a new/reset account |
-| `TW_OFFLINE=true` | Restore saved data/as-of state; disable maintenance writes. Sign in online once first |
-| `TW_FAIL_LOADS=true` | Simulate fetch failure; Retry state without implying an empty garage |
-| `TW_FAIL_WRITES=true` | Fail maintenance saves while retaining form fields |
-| `TW_DELAY_MS=2000` | Slow asynchronous loads/saves to inspect pending states |
-
-While running, Ctrl+Alt+O toggles simulated offline mode and refreshes the saved snapshot; Ctrl+Alt+F toggles save failure; Ctrl+Alt+E opens the reauthentication screen. Reauthenticate to resume the same form. These are developer keyboard bindings, not additional Settings fields. Toggle failure back off and retry the retained draft. Programmatic fake dependencies in tests exercise the same recovery paths.
+`LocalMaintenanceRepository`, simulated authentication and failure controls remain available for isolated tests. The default composition uses the real API and does not seed demo data or enable simulated offline/save failures. Ctrl+Alt+E opens the reauthentication screen while retaining the running form.
 
 ## Scoped checks
 
@@ -63,13 +53,9 @@ flutter test
 flutter build web
 ```
 
-Tests cover threshold boundaries, chronological readings, account/session persistence, storage round-trips, atomic mutations/failures, mileage-only and linked saves, edit/delete recalculation, archive/restore, past-date suggestions, dirty navigation and phone/wide layouts with increased text scale. Dependency tests prevent UI-to-Service bypass and confine API, browser and storage dependencies to Services. Authentication tests cover saved configuration, bearer persistence/restore, polling, cancellation, timeout and logout retry.
+The API-backed repository test expects a running server at `localhost:8080` configured with `INSTANCE_TYPE=test` (TestOAuth). It creates a unique test account, completes the test callback, exercises forms and CRUD through the real client, and removes its vehicles during cleanup. It also covers session restore, cached reads during a connection failure, session expiry, retained drafts, and sign-out without deleting server records. Widget and policy tests retain injected fakes for deterministic layout and validation checks.
 
-## Current verification
-
-The authentication integration is covered by HTTP-boundary tests that execute the real `TwApiClient` and a widget test for Google login and failed logout retry. Analysis, Flutter tests and the release web build are checked during implementation. An interactive Google account authorization requires the running server and configured Google OAuth credentials; it is not automated by these tests. Native runner permissions and plugin registrations are included, but native builds are not revalidated by this change.
-
-Local preferences and maintenance records retain the prototype's storage behavior. Drafts are not persisted across process termination; service history is locally batched rather than fetched from a remote server.
+Dependency tests confine API, browser and storage dependencies to Services; model-only shared imports are allowed outside Services. API saves are sequential across endpoints. Partial-save recovery and server-enforced conditional writes remain future work. Current edit checks compare refreshed records with the form's original snapshot; they cannot prevent a concurrent write between the check and save.
 
 ## Native build compatibility
 

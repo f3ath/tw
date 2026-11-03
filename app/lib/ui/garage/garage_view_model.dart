@@ -14,19 +14,18 @@ class GarageViewModel(final VehicleMaintenanceRepository repository) extends Com
   Garage get data => repository.snapshot;
   bool get hasData => data.asOf.year != 2000;
   bool incomplete(String vehicle) => data.items
-      .where((i) => i.vehicleId == vehicle && !i.archived)
+      .where((i) => i.vehicleId == vehicle && !i.isArchived)
       .any((i) => status(i).status == DueStatus.incomplete);
   bool get offline => repository.offline;
   List<DueItem> due(String vehicle) => _policy.due(data, vehicle);
-  DueItem status(MaintenanceItem item) => _policy.calculate(data, item);
-  List<MaintenanceItem> schedule(String vehicle, bool archived) =>
-      data.items.where((i) => i.vehicleId == vehicle && i.archived == archived).toList()
-        ..sort((a, b) => a.description.compareTo(b.description));
-  String summary(ServiceRecord s) =>
-      [...s.links.map((id) => data.item(id).description), ...s.custom].join(' · ');
+  DueItem status(Schedule item) => _policy.calculate(data, item);
+  List<Schedule> schedule(String vehicle, bool archived) =>
+      data.items.where((i) => i.vehicleId == vehicle && i.isArchived == archived).toList()
+        ..sort((a, b) => a.name.compareTo(b.name));
+  String summary(Service s) =>
+      data.operationsFor(s.id).map((operation) => operation.name).join(' · ');
   Future<bool> refresh() => run(repository.refresh);
-  Future<bool> archive(MaintenanceItem item) =>
-      run(() => repository.archive(item.id, !item.archived));
+  Future<bool> archive(Schedule item) => run(() => repository.archive(item.id, !item.isArchived));
   Future<bool> delete(String id) => run(() => repository.deleteService(id));
   @override
   void dispose() {

@@ -20,9 +20,14 @@ abstract interface class VehicleMaintenanceRepository() {
   Future<void> clearAccount();
   Future<void> refresh();
   Future<String> saveVehicle(Vehicle vehicle, {int? initialMileage, Vehicle? expected});
-  Future<String> saveItem(MaintenanceItem item, {MaintenanceItem? expected});
+  Future<String> saveItem(Schedule item, {Schedule? expected});
   Future<void> archive(String id, bool archived);
-  Future<String> saveService(ServiceRecord service, {ServiceRecord? expected});
+  Future<String> saveService(
+    Service service, {
+    Iterable<Operation> operations = const [],
+    Service? expected,
+    Iterable<Operation>? expectedOperations,
+  });
   Future<void> deleteService(String id);
   String newId();
 }

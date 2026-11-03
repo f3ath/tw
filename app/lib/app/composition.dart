@@ -1,4 +1,6 @@
 import '../data/repositories/api_auth_repository.dart';
+import '../data/repositories/api_maintenance_repository.dart';
+import '../data/services/api_maintenance_service.dart';
 import '../data/services/api_auth_service.dart';
 import '../data/repositories/local_repositories.dart';
 import '../data/services/services.dart';
@@ -22,35 +24,33 @@ class Composition({
   }
   factory local() {
     final persistence = PreferencesPersistenceService.platform();
-    final simulation = DemoSimulation(
-      offline: const bool.fromEnvironment('TW_OFFLINE'),
-      failWrites: const bool.fromEnvironment('TW_FAIL_WRITES'),
-      failLoads: const bool.fromEnvironment('TW_FAIL_LOADS'),
-      delay: const Duration(milliseconds: int.fromEnvironment('TW_DELAY_MS', defaultValue: 240)),
-    );
     final settings = LocalSettingsRepository(persistence);
-    var sequence = 0;
-    return Composition(
-      demo: simulation,
-      auth: ApiAuthRepository(ApiAuthService(settings, persistence)),
-      maintenance: LocalMaintenanceRepository(
+    late final Composition composition;
+    final api = ApiAuthService(
+      settings,
+      persistence,
+      onAuthenticationExpired: () => composition.session.expire(),
+    );
+    composition = Composition(
+      auth: ApiAuthRepository(api),
+      maintenance: ApiMaintenanceRepository(
+        ApiMaintenanceService(api),
         persistence,
-        simulation,
         clock: DateTime.now,
-        idGenerator: () => '${DateTime.now().microsecondsSinceEpoch}-${sequence++}',
-        emptySeed: const bool.fromEnvironment('TW_EMPTY'),
       ),
       settings: settings,
       clock: DateTime.now,
     );
+    return composition;
   }
+
   late final SessionViewModel session;
   late final GarageViewModel garage;
   VehicleFormViewModel vehicleForm([Vehicle? vehicle]) =>
       VehicleFormViewModel(maintenance, day(clock()), original: vehicle);
-  ItemFormViewModel itemForm(Vehicle vehicle, [MaintenanceItem? item]) =>
+  ItemFormViewModel itemForm(Vehicle vehicle, [Schedule? item]) =>
       ItemFormViewModel(maintenance, vehicle, original: item);
-  ServiceFormViewModel serviceForm(Vehicle vehicle, [ServiceRecord? service]) =>
+  ServiceFormViewModel serviceForm(Vehicle vehicle, [Service? service]) =>
       ServiceFormViewModel(maintenance, vehicle, day(clock()), original: service);
   SettingsViewModel settingsForm() => SettingsViewModel(settings);
   void toggleOffline() {

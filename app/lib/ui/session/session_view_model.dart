@@ -27,11 +27,7 @@ class SessionViewModel(final AuthRepository auth, final SessionUseCase session)
     restored = true;
   });
   Future<bool> signIn() => _run(() async {
-    if (expired) {
-      await auth.signIn();
-    } else {
-      await session.signIn();
-    }
+    await session.signIn();
     expired = false;
   });
   Future<bool> signOut() => _run(session.signOut);

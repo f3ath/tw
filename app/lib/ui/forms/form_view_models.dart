@@ -21,15 +21,16 @@ class VehicleFormViewModel(
   this
     : id = original?.id ?? repository.newId(),
       name = original?.name ?? '',
-      date = dateText(original?.manufactured ?? today),
-      unit = original?.unit ?? 'mi';
-  final String id;
-  String name, date, unit, mileage = '';
+      date = dateText(original?.manufactureDate ?? today),
+      distanceUnit = original?.distanceUnit ?? DistanceUnit.mi;
+  String id;
+  String name, date, odometer = '';
+  DistanceUnit distanceUnit;
   Future<bool> save() => run(() async {
     final manufactured = parseDate(date);
-    final initial = original == null ? whole(mileage, 'mileage') : null;
-    await repository.saveVehicle(
-      Vehicle(id: id, name: name.trim(), manufactured: manufactured, unit: unit),
+    final initial = original == null ? whole(odometer, 'mileage') : null;
+    id = await repository.saveVehicle(
+      Vehicle(id, name: name.trim(), manufactureDate: manufactured, distanceUnit: distanceUnit),
       initialMileage: initial,
       expected: original,
     );
@@ -40,24 +41,26 @@ class VehicleFormViewModel(
 class ItemFormViewModel(
   final VehicleMaintenanceRepository repository,
   final Vehicle vehicle, {
-  final MaintenanceItem? original,
+  final Schedule? original,
 }) extends DraftViewModel {
   this
     : id = original?.id ?? repository.newId(),
-      description = original?.description ?? '',
-      distance = original?.distance?.toString() ?? '',
-      months = original?.months?.toString() ?? '';
-  final String id;
-  String description, distance, months;
+      name = original?.name ?? '',
+      details = original?.details ?? '',
+      intervalDistance = original?.intervalDistance?.toString() ?? '',
+      intervalMonths = original?.intervalMonths?.toString() ?? '';
+  String id;
+  String name, details, intervalDistance, intervalMonths;
   Future<bool> save() => run(() async {
-    await repository.saveItem(
-      MaintenanceItem(
+    id = await repository.saveItem(
+      Schedule(
         id: id,
         vehicleId: vehicle.id,
-        description: description.trim(),
-        distance: distance.isEmpty ? null : whole(distance, 'interval'),
-        months: months.isEmpty ? null : whole(months, 'interval'),
-        archived: original?.archived ?? false,
+        name: name.trim(),
+        intervalDistance: intervalDistance.isEmpty ? null : whole(intervalDistance, 'interval'),
+        intervalMonths: intervalMonths.isEmpty ? null : whole(intervalMonths, 'interval'),
+        isArchived: original?.isArchived ?? false,
+        details: details,
       ),
       expected: original,
     );
@@ -65,60 +68,103 @@ class ItemFormViewModel(
   });
 }
 
+class OperationDraft(final String id, {var String name = '', var String details = ''});
+
 class ServiceFormViewModel(
   final VehicleMaintenanceRepository repository,
   final Vehicle vehicle,
   final DateTime today, {
-  final ServiceRecord? original,
+  final Service? original,
 }) extends DraftViewModel {
   this
     : id = original?.id ?? repository.newId(),
       date = dateText(original?.date ?? today),
-      mileage = original?.mileage.toString() ?? '',
-      selected = {...?original?.links},
-      custom = [...?original?.custom];
-  final String id;
-  String date, mileage;
-  final Set<String> selected;
-  final List<String> custom;
+      odometer = original?.odometer.toString() ?? '' {
+    _originalOperations = original == null
+        ? const []
+        : repository.snapshot.operationsFor(original!.id);
+    selected = {
+      for (final operation in _originalOperations)
+        if (operation.scheduleId != null) operation.scheduleId!,
+    };
+    custom = [
+      for (final operation in _originalOperations)
+        if (operation.scheduleId == null)
+          OperationDraft(operation.id, name: operation.name, details: operation.details),
+    ];
+  }
+  String id;
+  String date, odometer;
+  late final List<Operation> _originalOperations;
+  late final Set<String> selected;
+  late final List<OperationDraft> custom;
   bool get isToday => date == dateText(today);
-  List<MaintenanceItem> get suggestions => isToday
+  List<Schedule> get suggestions => isToday
       ? const SchedulingPolicy()
             .due(repository.snapshot, vehicle.id)
-            .where((d) => d.status == DueStatus.overdue)
-            .map((d) => d.item)
+            .where((due) => due.status == DueStatus.overdue)
+            .map((due) => due.item)
             .toList()
       : [];
-  List<MaintenanceItem> get others {
-    final suggested = suggestions.map((i) => i.id).toSet();
+  List<Schedule> get others {
+    final suggested = suggestions.map((item) => item.id).toSet();
     return repository.snapshot.items
         .where(
-          (i) =>
-              i.vehicleId == vehicle.id &&
-              !suggested.contains(i.id) &&
-              (!i.archived || (original?.links.contains(i.id) ?? false)),
+          (item) =>
+              item.vehicleId == vehicle.id &&
+              !suggested.contains(item.id) &&
+              (!item.isArchived ||
+                  _originalOperations.any((operation) => operation.scheduleId == item.id)),
         )
         .toList();
   }
 
-  int get count => selected.length + custom.where((s) => s.trim().isNotEmpty).length;
+  int get count => selected.length + custom.where((draft) => draft.name.trim().isNotEmpty).length;
   int? get estimate => repository.snapshot.estimate(vehicle.id);
   void toggle(String id, bool value) {
     value ? selected.add(id) : selected.remove(id);
     changed();
   }
 
+  void addCustom() {
+    custom.add(OperationDraft(repository.newId()));
+    changed();
+  }
+
   Future<bool> save() => run(() async {
-    await repository.saveService(
-      ServiceRecord(
-        id: id,
+    final operations = <Operation>[
+      for (final scheduleId in selected)
+        Operation(
+          _originalOperations
+                  .where((operation) => operation.scheduleId == scheduleId)
+                  .firstOrNull
+                  ?.id ??
+              repository.newId(),
+          serviceId: id,
+          scheduleId: scheduleId,
+          name: repository.snapshot.item(scheduleId).name,
+          details: repository.snapshot.item(scheduleId).details,
+        ),
+      for (final draft in custom)
+        if (draft.name.trim().isNotEmpty)
+          Operation(
+            draft.id,
+            serviceId: id,
+            name: draft.name.trim(),
+            details: draft.details.trim(),
+          ),
+    ];
+    id = await repository.saveService(
+      Service(
+        id,
         vehicleId: vehicle.id,
         date: parseDate(date),
-        mileage: whole(mileage, 'mileage'),
-        links: selected,
-        custom: custom.map((s) => s.trim()).where((s) => s.isNotEmpty),
+        odometer: whole(odometer, 'mileage'),
+        details: original?.details ?? '',
       ),
+      operations: operations,
       expected: original,
+      expectedOperations: original == null ? null : _originalOperations,
     );
     dirty = false;
   });

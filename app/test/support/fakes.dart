@@ -22,9 +22,17 @@ class MemoryStorage() implements LocalPersistenceService {
 class FakeMaintenanceRepository() implements VehicleMaintenanceRepository {
   Garage data = Garage(
     asOf: DateTime(2026, 10, 25),
-    vehicles: [Vehicle(id: 'v', name: 'Test car', manufactured: DateTime(2020), unit: 'mi')],
+    vehicles: [
+      Vehicle(
+        'v',
+        name: 'Test car',
+        manufactureDate: DateTime(2020),
+        distanceUnit: DistanceUnit.mi,
+      ),
+    ],
   );
-  ServiceRecord? saved;
+  Service? saved;
+  List<Operation> savedOperations = [];
   AppFailure? error;
   @override
   Garage get snapshot => data;
@@ -35,9 +43,15 @@ class FakeMaintenanceRepository() implements VehicleMaintenanceRepository {
   @override
   String newId() => 'new';
   @override
-  Future<String> saveService(ServiceRecord service, {ServiceRecord? expected}) async {
+  Future<String> saveService(
+    Service service, {
+    Iterable<Operation> operations = const [],
+    Service? expected,
+    Iterable<Operation>? expectedOperations,
+  }) async {
     if (error != null) throw error!;
     saved = service;
+    savedOperations = List.of(operations);
     return service.id;
   }
 
@@ -55,5 +69,5 @@ class FakeMaintenanceRepository() implements VehicleMaintenanceRepository {
   Future<String> saveVehicle(Vehicle vehicle, {int? initialMileage, Vehicle? expected}) async =>
       vehicle.id;
   @override
-  Future<String> saveItem(MaintenanceItem item, {MaintenanceItem? expected}) async => item.id;
+  Future<String> saveItem(Schedule item, {Schedule? expected}) async => item.id;
 }

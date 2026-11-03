@@ -151,7 +151,7 @@ class LocalMaintenanceRepository(
         if (expected != null && !sameVehicle(data.vehicle(vehicle.id), expected)) stale();
         _validation.vehicle(data, vehicle, clock());
         final exists = data.vehicles.any((v) => v.id == vehicle.id);
-        if (exists && data.vehicle(vehicle.id).unit != vehicle.unit) {
+        if (exists && data.vehicle(vehicle.id).distanceUnit != vehicle.distanceUnit) {
           invalid('Distance unit is fixed.', 'unit');
         }
         if (!exists && (initialMileage == null || initialMileage < 0)) {
@@ -163,11 +163,12 @@ class LocalMaintenanceRepository(
             services: [
               ...data.services,
               if (!exists)
-                ServiceRecord(
-                  id: newId(),
+                Service(
+                  newId(),
                   vehicleId: vehicle.id,
                   date: day(clock()),
-                  mileage: initialMileage!,
+                  odometer: initialMileage!,
+                  details: '',
                 ),
             ],
           ),
@@ -175,7 +176,7 @@ class LocalMaintenanceRepository(
         );
       });
   @override
-  Future<String> saveItem(MaintenanceItem item, {MaintenanceItem? expected}) => _commit((data) {
+  Future<String> saveItem(Schedule item, {Schedule? expected}) => _commit((data) {
     data.vehicle(item.vehicleId);
     if (expected != null && !sameItem(data.item(item.id), expected)) stale();
     _validation.item(item);
@@ -192,19 +193,44 @@ class LocalMaintenanceRepository(
   }
 
   @override
-  Future<String> saveService(ServiceRecord service, {ServiceRecord? expected}) => _commit((data) {
-    if (expected != null && !sameService(data.service(service.id), expected)) stale();
-    _validation.service(data, service, clock());
-    return (
-      data.copy(services: [...data.services.where((s) => s.id != service.id), service]),
-      service.id,
-    );
-  });
+  Future<String> saveService(
+    Service service, {
+    Iterable<Operation> operations = const [],
+    Service? expected,
+    Iterable<Operation>? expectedOperations,
+  }) {
+    final savedOperations = List<Operation>.of(operations);
+    return _commit((data) {
+      if (expected != null && !sameService(data.service(service.id), expected)) stale();
+      if (expectedOperations != null &&
+          !sameOperations(data.operationsFor(service.id), expectedOperations)) {
+        stale();
+      }
+      _validation.service(data, service, clock(), operations: savedOperations);
+      return (
+        data.copy(
+          services: [...data.services.where((existing) => existing.id != service.id), service],
+          operations: [
+            ...data.operations.where((operation) => operation.serviceId != service.id),
+            ...savedOperations,
+          ],
+        ),
+        service.id,
+      );
+    });
+  }
+
   @override
   Future<void> deleteService(String id) async {
     await _commit((data) {
       data.service(id);
-      return (data.copy(services: data.services.where((s) => s.id != id)), id);
+      return (
+        data.copy(
+          services: data.services.where((s) => s.id != id),
+          operations: data.operations.where((operation) => operation.serviceId != id),
+        ),
+        id,
+      );
     });
   }
 }
@@ -215,73 +241,113 @@ Garage seed(DateTime now, {bool empty = false}) {
   return Garage(
     asOf: now,
     vehicles: [
-      Vehicle(id: 'runner', name: '4Runner', manufactured: calendarAdd(today, -734), unit: 'mi'),
-      Vehicle(id: 'santa', name: 'Santa Fe', manufactured: calendarAdd(today, -156), unit: 'km'),
+      Vehicle(
+        'runner',
+        name: '4Runner',
+        manufactureDate: calendarAdd(today, -734),
+        distanceUnit: DistanceUnit.mi,
+      ),
+      Vehicle(
+        'santa',
+        name: 'Santa Fe',
+        manufactureDate: calendarAdd(today, -156),
+        distanceUnit: DistanceUnit.km,
+      ),
     ],
     items: [
-      const MaintenanceItem(
+      const Schedule(
         id: 'oil',
         vehicleId: 'runner',
-        description: 'Engine oil & filter',
-        distance: 5000,
-        months: 6,
+        name: 'Engine oil & filter',
+        intervalDistance: 5000,
+        intervalMonths: 6,
+        details: '',
       ),
-      const MaintenanceItem(
+      const Schedule(
         id: 'brakes',
         vehicleId: 'runner',
-        description: 'Brake fluid',
-        months: 24,
+        name: 'Brake fluid',
+        intervalMonths: 24,
+        details: '',
+        intervalDistance: null,
       ),
-      const MaintenanceItem(
+      const Schedule(
         id: 'tires',
         vehicleId: 'runner',
-        description: 'Tire rotation',
-        distance: 92000,
+        name: 'Tire rotation',
+        intervalDistance: 92000,
+        details: '',
+        intervalMonths: null,
       ),
-      const MaintenanceItem(
+      const Schedule(
         id: 'cabin',
         vehicleId: 'runner',
-        description: 'Cabin air filter',
-        months: 25,
+        name: 'Cabin air filter',
+        intervalMonths: 25,
+        details: '',
+        intervalDistance: null,
       ),
-      const MaintenanceItem(
+      const Schedule(
         id: 'air',
         vehicleId: 'runner',
-        description: 'Engine air filter',
-        distance: 92140,
+        name: 'Engine air filter',
+        intervalDistance: 92140,
+        details: '',
+        intervalMonths: null,
       ),
-      const MaintenanceItem(
+      const Schedule(
         id: 'archived',
         vehicleId: 'runner',
-        description: 'Wiper inspection',
-        months: 3,
-        archived: true,
+        name: 'Wiper inspection',
+        intervalMonths: 3,
+        isArchived: true,
+        details: '',
+        intervalDistance: null,
       ),
-      const MaintenanceItem(
+      const Schedule(
         id: 'santa-oil',
         vehicleId: 'santa',
-        description: 'Engine oil & filter',
-        distance: 91000,
-        months: 6,
+        name: 'Engine oil & filter',
+        intervalDistance: 91000,
+        intervalMonths: 6,
+        details: '',
       ),
-      const MaintenanceItem(
+      const Schedule(
         id: 'santa-cabin',
         vehicleId: 'santa',
-        description: 'Cabin air filter',
-        months: 6,
+        name: 'Cabin air filter',
+        intervalMonths: 6,
+        details: '',
+        intervalDistance: null,
       ),
     ],
+    operations: [
+      const Operation('r1-oil', serviceId: 'r1', scheduleId: 'oil', name: '', details: ''),
+      const Operation(
+        'r1-archived',
+        serviceId: 'r1',
+        scheduleId: 'archived',
+        name: '',
+        details: '',
+      ),
+      const Operation('r1-wipers', serviceId: 'r1', name: 'Replace wiper blades', details: ''),
+    ],
     services: [
-      ServiceRecord(
-        id: 'r1',
+      Service(
+        'r1',
         vehicleId: 'runner',
         date: calendarAdd(today, -200),
-        mileage: 86000,
-        links: ['oil', 'archived'],
-        custom: ['Replace wiper blades'],
+        odometer: 86000,
+        details: '',
       ),
-      ServiceRecord(id: 'r2', vehicleId: 'runner', date: calendarAdd(today, -5), mileage: 91240),
-      ServiceRecord(id: 's1', vehicleId: 'santa', date: calendarAdd(today, -9), mileage: 90480),
+      Service(
+        'r2',
+        vehicleId: 'runner',
+        date: calendarAdd(today, -5),
+        odometer: 91240,
+        details: '',
+      ),
+      Service('s1', vehicleId: 'santa', date: calendarAdd(today, -9), odometer: 90480, details: ''),
     ],
   );
 }

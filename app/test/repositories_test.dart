@@ -38,7 +38,12 @@ void main() {
     await restored.restore();
     expect(restored.identity, auth.identity);
     await repo.saveVehicle(
-      Vehicle(id: 'own', name: 'My car', manufactured: DateTime(2020), unit: 'mi'),
+      Vehicle(
+        'own',
+        name: 'My car',
+        manufactureDate: DateTime(2020),
+        distanceUnit: DistanceUnit.mi,
+      ),
       initialMileage: 10,
     );
     await repo.open('another');
@@ -56,7 +61,7 @@ void main() {
     storage.fail = true;
     await expectLater(
       repo.saveVehicle(
-        Vehicle(id: 'v', name: 'New', manufactured: DateTime(2020), unit: 'km'),
+        Vehicle('v', name: 'New', manufactureDate: DateTime(2020), distanceUnit: DistanceUnit.km),
         initialMileage: 20,
       ),
       throwsA(isA<AppFailure>().having((e) => e.kind, 'kind', FailureKind.persistence)),
@@ -64,11 +69,11 @@ void main() {
     expect(identical(old, repo.snapshot), isTrue);
     storage.fail = false;
     await repo.saveVehicle(
-      Vehicle(id: 'v', name: 'New', manufactured: DateTime(2020), unit: 'km'),
+      Vehicle('v', name: 'New', manufactureDate: DateTime(2020), distanceUnit: DistanceUnit.km),
       initialMileage: 20,
     );
     expect(repo.snapshot.history('v'), hasLength(1));
-    expect(repo.snapshot.history('v').single.links, isEmpty);
+    expect(repo.snapshot.operationsFor(repo.snapshot.history('v').single.id), isEmpty);
     expect(old.vehicles, hasLength(2));
     expect(() => repo.snapshot.vehicles.clear(), throwsUnsupportedError);
   });
@@ -77,44 +82,51 @@ void main() {
     const policy = SchedulingPolicy();
     expect(policy.due(repo.snapshot, 'runner'), hasLength(5));
     await repo.saveService(
-      ServiceRecord(id: 'new', vehicleId: 'runner', date: now, mileage: 92000),
+      Service('new', vehicleId: 'runner', date: now, odometer: 92000, details: ''),
     );
     expect(policy.calculate(repo.snapshot, repo.snapshot.item('oil')).distanceDue, 91000);
     await repo.saveService(
-      ServiceRecord(
-        id: 'new',
-        vehicleId: 'runner',
-        date: now,
-        mileage: 92000,
-        links: ['oil'],
-        custom: ['Oil'],
-      ),
+      Service('new', vehicleId: 'runner', date: now, odometer: 92000, details: ''),
+      operations: [
+        const Operation('new-oil', serviceId: 'new', scheduleId: 'oil', name: 'Oil', details: ''),
+        const Operation('new-custom', serviceId: 'new', name: 'Oil', details: ''),
+      ],
     );
     expect(policy.calculate(repo.snapshot, repo.snapshot.item('oil')).distanceDue, 97000);
     await repo.saveItem(
-      const MaintenanceItem(
+      const Schedule(
         id: 'oil',
         vehicleId: 'runner',
-        description: 'Renamed oil',
-        distance: 5000,
-        months: 6,
+        name: 'Renamed oil',
+        intervalDistance: 5000,
+        intervalMonths: 6,
+        details: '',
       ),
     );
+    expect(repo.snapshot.operationsFor('new').first.name, 'Renamed oil');
     expect(
-      repo.snapshot.item(repo.snapshot.service('new').links.single).description,
-      'Renamed oil',
+      repo.snapshot
+          .operationsFor('new')
+          .singleWhere((operation) => operation.scheduleId == null)
+          .name,
+      'Oil',
     );
-    expect(repo.snapshot.service('new').custom.single, 'Oil');
     await repo.archive('oil', true);
     expect(policy.due(repo.snapshot, 'runner').any((d) => d.item.id == 'oil'), isFalse);
     await expectLater(
       repo.saveService(
-        ServiceRecord(id: 'bad', vehicleId: 'runner', date: now, mileage: 92000, links: ['oil']),
+        Service('bad', vehicleId: 'runner', date: now, odometer: 92000, details: ''),
+        operations: [
+          const Operation('bad-oil', serviceId: 'bad', scheduleId: 'oil', name: 'Oil', details: ''),
+        ],
       ),
       throwsA(isA<AppFailure>()),
     );
     await repo.saveService(
-      ServiceRecord(id: 'new', vehicleId: 'runner', date: now, mileage: 92000, links: ['oil']),
+      Service('new', vehicleId: 'runner', date: now, odometer: 92000, details: ''),
+      operations: [
+        const Operation('new-oil', serviceId: 'new', scheduleId: 'oil', name: 'Oil', details: ''),
+      ],
     );
     await repo.archive('oil', false);
     expect(policy.calculate(repo.snapshot, repo.snapshot.item('oil')).distanceDue, 97000);
@@ -156,11 +168,13 @@ void main() {
       final original = repo.snapshot.item('oil');
       await repo.refresh();
       await repo.saveItem(
-        const MaintenanceItem(
+        const Schedule(
           id: 'oil',
           vehicleId: 'runner',
-          description: 'Changed',
-          distance: 6000,
+          name: 'Changed',
+          intervalDistance: 6000,
+          details: '',
+          intervalMonths: null,
         ),
         expected: original,
       );
@@ -168,7 +182,132 @@ void main() {
         repo.saveItem(original, expected: original),
         throwsA(isA<AppFailure>().having((e) => e.kind, 'kind', FailureKind.conflict)),
       );
-      expect(repo.snapshot.item('oil').description, 'Changed');
+      expect(repo.snapshot.item('oil').name, 'Changed');
     },
   );
+  test(
+    'operation-only stale edits are rejected and failed saves leave operations intact',
+    () async {
+      await repo.open('a');
+      final service = repo.snapshot.service('r1');
+      final originalOperations = repo.snapshot.operationsFor(service.id);
+      final edited = [
+        for (final operation in originalOperations)
+          operation.scheduleId != null
+              ? operation
+              : Operation(
+                  operation.id,
+                  serviceId: service.id,
+                  name: operation.name,
+                  details: 'Changed details',
+                ),
+      ];
+      final snapshot = repo.snapshot;
+      storage.fail = true;
+      await expectLater(repo.saveService(service, operations: edited), throwsA(isA<AppFailure>()));
+      expect(repo.snapshot, same(snapshot));
+      storage.fail = false;
+      await repo.saveService(service, operations: edited);
+      await expectLater(
+        repo.saveService(
+          service,
+          operations: originalOperations,
+          expected: service,
+          expectedOperations: originalOperations,
+        ),
+        throwsA(isA<AppFailure>().having((failure) => failure.kind, 'kind', FailureKind.conflict)),
+      );
+      expect(repo.snapshot.operationsFor(service.id).last.details, 'Changed details');
+      await repo.deleteService(service.id);
+      expect(repo.snapshot.operationsFor(service.id), isEmpty);
+      expect(snapshot.operationsFor(service.id), hasLength(3));
+    },
+  );
+
+  test('legacy caches migrate links and custom strings to stable operation IDs', () {
+    final legacy = <String, Object?>{
+      'asOf': now.toIso8601String(),
+      'vehicles': [
+        {'id': 'v', 'name': 'Car', 'date': '2020-01-01T00:00:00.000', 'unit': 'km'},
+      ],
+      'items': [
+        {
+          'id': 'oil',
+          'vehicle': 'v',
+          'description': 'Oil',
+          'distance': 5000,
+          'months': null,
+          'archived': true,
+        },
+      ],
+      'services': [
+        {
+          'id': 's',
+          'vehicle': 'v',
+          'date': '2024-01-15T00:00:00.000',
+          'mileage': 100,
+          'links': ['oil'],
+          'custom': ['Wash car', 'Wash car'],
+        },
+      ],
+    };
+    const codec = GarageCodec();
+    final migrated = codec.decode(legacy);
+    expect(migrated.vehicle('v').distanceUnit, DistanceUnit.km);
+    expect(migrated.service('s').odometer, 100);
+    expect(migrated.item('oil').isArchived, isTrue);
+    final operations = migrated.operationsFor('s');
+    expect(operations, hasLength(3));
+    expect(operations.first.scheduleId, 'oil');
+    expect(operations.first.name, 'Oil');
+    expect(
+      operations
+          .where((operation) => operation.scheduleId == null)
+          .map((operation) => operation.name),
+      ['Wash car', 'Wash car'],
+    );
+    expect(operations.map((operation) => operation.id).toSet(), hasLength(3));
+    expect(
+      codec.decode(legacy).operations.map((operation) => operation.id),
+      operations.map((operation) => operation.id),
+    );
+    final encoded = codec.encode(migrated);
+    expect(encoded['version'], 2);
+    expect(codec.encode(codec.decode(encoded)), encoded);
+  });
+
+  test('operation names and details round-trip independently of service fields', () async {
+    await repo.open('a');
+    final service = repo.snapshot.service('r1');
+    final operations = [
+      const Operation('custom-details', serviceId: 'r1', name: 'Wash car', details: 'Hand wash'),
+      const Operation(
+        'linked-details',
+        serviceId: 'r1',
+        scheduleId: 'oil',
+        name: 'Ignored snapshot',
+        details: 'Ignored snapshot',
+      ),
+    ];
+    await repo.saveService(service, operations: operations);
+    final oldItem = repo.snapshot.item('oil');
+    await repo.saveItem(
+      Schedule(
+        id: oldItem.id,
+        vehicleId: oldItem.vehicleId,
+        name: 'Engine oil',
+        details: 'Use specified oil',
+        intervalDistance: oldItem.intervalDistance,
+        intervalMonths: oldItem.intervalMonths,
+      ),
+    );
+    const codec = GarageCodec();
+    final restored = codec.decode(codec.encode(repo.snapshot));
+    final custom = restored.operations.singleWhere((operation) => operation.id == 'custom-details');
+    final linked = restored.operations.singleWhere((operation) => operation.id == 'linked-details');
+    expect(custom.name, 'Wash car');
+    expect(custom.details, 'Hand wash');
+    expect(linked.name, 'Engine oil');
+    expect(linked.details, 'Use specified oil');
+  });
 }

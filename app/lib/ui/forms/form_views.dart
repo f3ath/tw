@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'form_view_models.dart';
+import '../../domain/models.dart' show DistanceUnit;
 
 Widget field(
   String label,
@@ -92,23 +93,23 @@ class const VehicleFormView({
           },
         ),
         if (model.original == null) ...[
-          DropdownButtonFormField<String>(
-            initialValue: model.unit,
+          DropdownButtonFormField<DistanceUnit>(
+            initialValue: model.distanceUnit,
             decoration: const InputDecoration(labelText: 'Distance unit'),
             items: const [
-              DropdownMenuItem(value: 'mi', child: Text('Miles')),
-              DropdownMenuItem(value: 'km', child: Text('Kilometers')),
+              DropdownMenuItem(value: DistanceUnit.mi, child: Text('Miles')),
+              DropdownMenuItem(value: DistanceUnit.km, child: Text('Kilometers')),
             ],
             onChanged: (v) {
-              model.unit = v!;
+              model.distanceUnit = v!;
               model.changed();
             },
           ),
           field(
             'Current odometer',
-            model.mileage,
+            model.odometer,
             (v) {
-              model.mileage = v;
+              model.odometer = v;
               model.changed();
             },
             number: true,
@@ -117,7 +118,7 @@ class const VehicleFormView({
           ),
         ] else
           Text(
-            'Distance unit: ${model.unit} · fixed after creation. Use Update mileage for a new reading.',
+            'Distance distanceUnit: ${model.distanceUnit.name} · fixed after creation. Use Update mileage for a new reading.',
           ),
       ],
     ),
@@ -136,22 +137,26 @@ class const ItemFormView({
       model: model,
       onSave: onSave,
       children: [
-        field('Description', model.description, (v) {
-          model.description = v;
+        field('Description', model.name, (v) {
+          model.name = v;
           model.changed();
         }, error: model.error('description')),
+        field('Details', model.details, (value) {
+          model.details = value;
+          model.changed();
+        }),
         field(
-          'Every · ${model.vehicle.unit}',
-          model.distance,
+          'Every · ${model.vehicle.distanceUnit.name}',
+          model.intervalDistance,
           (v) {
-            model.distance = v;
+            model.intervalDistance = v;
             model.changed();
           },
           number: true,
           error: model.error('interval'),
         ),
-        field('Every · months', model.months, (v) {
-          model.months = v;
+        field('Every · months', model.intervalMonths, (v) {
+          model.intervalMonths = v;
           model.changed();
         }, number: true),
         const Text(
@@ -190,22 +195,22 @@ class const ServiceFormView({
         ),
         field(
           'Odometer',
-          model.mileage,
+          model.odometer,
           (v) {
-            model.mileage = v;
+            model.odometer = v;
             model.changed();
           },
           number: true,
           error: model.error('mileage'),
           hint:
-              'Estimated now: ${model.estimate ?? 'Unknown'} ${model.vehicle.unit}. Enter the actual reading.',
+              'Estimated now: ${model.estimate ?? 'Unknown'} ${model.vehicle.distanceUnit.name}. Enter the actual reading.',
         ),
         if (model.isToday && model.suggestions.isNotEmpty) ...[
           const Text('Overdue suggestions'),
           const Text('Select only the work you performed.'),
           for (final item in model.suggestions)
             CheckboxListTile(
-              title: Text(item.description),
+              title: Text(item.name),
               value: model.selected.contains(item.id),
               onChanged: (v) => model.toggle(item.id, v!),
             ),
@@ -213,7 +218,7 @@ class const ServiceFormView({
         Text(model.isToday ? 'Other scheduled maintenance' : 'Scheduled maintenance'),
         for (final item in model.others)
           CheckboxListTile(
-            title: Text('${item.description}${item.archived ? ' · Archived' : ''}'),
+            title: Text('${item.name}${item.isArchived ? ' · Archived' : ''}'),
             value: model.selected.contains(item.id),
             onChanged: (v) => model.toggle(item.id, v!),
           ),
@@ -221,13 +226,21 @@ class const ServiceFormView({
         const Text('Custom operations'),
         for (var i = 0; i < model.custom.length; i++)
           Row(
-            key: ValueKey('custom-$i-${model.custom.length}'),
+            key: ValueKey(model.custom[i].id),
             children: [
               Expanded(
-                child: field('Custom operation', model.custom[i], (v) {
-                  model.custom[i] = v;
-                  model.changed();
-                }),
+                child: Column(
+                  children: [
+                    field('Custom operation', model.custom[i].name, (value) {
+                      model.custom[i].name = value;
+                      model.changed();
+                    }),
+                    field('Details', model.custom[i].details, (value) {
+                      model.custom[i].details = value;
+                      model.changed();
+                    }),
+                  ],
+                ),
               ),
               IconButton(
                 tooltip: 'Remove custom operation',
@@ -240,10 +253,7 @@ class const ServiceFormView({
             ],
           ),
         TextButton.icon(
-          onPressed: () {
-            model.custom.add('');
-            model.changed();
-          },
+          onPressed: model.addCustom,
           icon: const Icon(Icons.add),
           label: const Text('Add custom operation'),
         ),

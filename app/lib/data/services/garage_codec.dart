@@ -1,66 +1,122 @@
 import '../../domain/models.dart';
 
 class const GarageCodec() {
-  Map<String, Object?> encode(Garage g) => {
-    'asOf': g.asOf.toIso8601String(),
+  Map<String, Object?> encode(Garage garage) => {
+    'version': 2,
+    'asOf': garage.asOf.toIso8601String(),
     'vehicles': [
-      for (final v in g.vehicles)
-        {'id': v.id, 'name': v.name, 'date': v.manufactured.toIso8601String(), 'unit': v.unit},
+      for (final vehicle in garage.vehicles)
+        {
+          'id': vehicle.id,
+          'name': vehicle.name,
+          'date': dateText(vehicle.manufactureDate),
+          'unit': vehicle.distanceUnit.name,
+        },
     ],
     'items': [
-      for (final i in g.items)
+      for (final item in garage.items)
         {
-          'id': i.id,
-          'vehicle': i.vehicleId,
-          'description': i.description,
-          'distance': i.distance,
-          'months': i.months,
-          'archived': i.archived,
+          'id': item.id,
+          'vehicle': item.vehicleId,
+          'name': item.name,
+          'details': item.details,
+          'distance': item.intervalDistance,
+          'months': item.intervalMonths,
+          'archived': item.isArchived,
         },
     ],
     'services': [
-      for (final s in g.services)
+      for (final service in garage.services)
         {
-          'id': s.id,
-          'vehicle': s.vehicleId,
-          'date': s.date.toIso8601String(),
-          'mileage': s.mileage,
-          'links': s.links,
-          'custom': s.custom,
+          'id': service.id,
+          'vehicle': service.vehicleId,
+          'date': dateText(service.date),
+          'odometer': service.odometer,
+          'details': service.details,
+        },
+    ],
+    'operations': [
+      for (final operation in garage.operations)
+        {
+          'id': operation.id,
+          'service': operation.serviceId,
+          'schedule': operation.scheduleId,
+          'name': operation.name,
+          'details': operation.details,
         },
     ],
   };
-  Garage decode(Map<String, Object?> json) => Garage(
-    asOf: DateTime.parse(json['asOf'] as String),
-    vehicles: rows(json, 'vehicles').map(
-      (v) => Vehicle(
-        id: v['id'] as String,
-        name: v['name'] as String,
-        manufactured: DateTime.parse(v['date'] as String),
-        unit: v['unit'] as String,
+
+  Garage decode(Map<String, Object?> json) {
+    final serviceRows = rows(json, 'services').toList();
+    return Garage(
+      asOf: DateTime.parse(json['asOf'] as String),
+      vehicles: rows(json, 'vehicles').map(
+        (vehicle) => Vehicle(
+          vehicle['id'] as String,
+          name: vehicle['name'] as String,
+          manufactureDate: day(DateTime.parse(vehicle['date'] as String)),
+          distanceUnit: DistanceUnit.values.byName(vehicle['unit'] as String),
+        ),
       ),
-    ),
-    items: rows(json, 'items').map(
-      (i) => MaintenanceItem(
-        id: i['id'] as String,
-        vehicleId: i['vehicle'] as String,
-        description: i['description'] as String,
-        distance: i['distance'] as int?,
-        months: i['months'] as int?,
-        archived: i['archived'] as bool,
+      items: rows(json, 'items').map(
+        (item) => Schedule(
+          id: item['id'] as String,
+          vehicleId: item['vehicle'] as String,
+          name: (item['name'] ?? item['description']) as String,
+          details: item['details'] as String? ?? '',
+          intervalDistance: item['distance'] as int?,
+          intervalMonths: item['months'] as int?,
+          isArchived: item['archived'] as bool,
+        ),
       ),
-    ),
-    services: rows(json, 'services').map(
-      (s) => ServiceRecord(
-        id: s['id'] as String,
-        vehicleId: s['vehicle'] as String,
-        date: DateTime.parse(s['date'] as String),
-        mileage: s['mileage'] as int,
-        links: (s['links'] as List).cast<String>(),
-        custom: (s['custom'] as List).cast<String>(),
+      services: serviceRows.map(
+        (service) => Service(
+          service['id'] as String,
+          vehicleId: service['vehicle'] as String,
+          date: day(DateTime.parse(service['date'] as String)),
+          odometer: (service['odometer'] ?? service['mileage']) as int,
+          details: service['details'] as String? ?? '',
+        ),
       ),
-    ),
-  );
+      operations: json.containsKey('operations')
+          ? rows(json, 'operations').map(
+              (operation) => Operation(
+                operation['id'] as String,
+                serviceId: operation['service'] as String,
+                scheduleId: operation['schedule'] as String?,
+                name: operation['name'] as String,
+                details: operation['details'] as String,
+              ),
+            )
+          : _legacyOperations(serviceRows),
+    );
+  }
+
+  Iterable<Operation> _legacyOperations(List<Map<String, Object?>> services) sync* {
+    for (final service in services) {
+      final serviceId = service['id'] as String;
+      for (final id in (service['links'] as List).cast<String>()) {
+        yield Operation(
+          '$serviceId:schedule:$id',
+          serviceId: serviceId,
+          scheduleId: id,
+          name: '',
+          details: '',
+        );
+      }
+      final custom = (service['custom'] as List).cast<String>();
+      for (var index = 0; index < custom.length; index++) {
+        yield Operation(
+          '$serviceId:custom:$index',
+          serviceId: serviceId,
+          name: custom[index],
+          details: '',
+        );
+      }
+    }
+  }
+
   Iterable<Map<String, Object?>> rows(Map<String, Object?> json, String key) =>
-      (json[key] as List).map((e) => Map<String, Object?>.from(e as Map));
+      (json[key] as List).map((row) => Map<String, Object?>.from(row as Map));
 }

@@ -1,11 +1,10 @@
 # Server integration ROADMAP
 
 Originally based on a static review on 2026-10-28; updated against the code and
-use-case tests on 2026-11-01. Authentication is
-already connected to the server. Maintenance data still uses
-`LocalMaintenanceRepository`. The server has basic vehicle CRUD, schedule
-create/list/update/delete, and service create/list-by-vehicle/update/delete,
-with authentication and ownership isolation.
+use-case tests on 2026-11-01. Authentication is connected to the server. The API
+supports vehicles, schedules, services, and service operations, with ownership
+isolation and business validation. Maintenance data in the app still uses
+`LocalMaintenanceRepository`; API wiring can begin now.
 
 ## Required to preserve current app behavior
 
@@ -24,47 +23,55 @@ with authentication and ownership isolation.
   explicit nulls.
 - [x] **Schedule archive/restore state:** Persist `is_archived`, include archived
   items in schedule collections, and restore the same ID, description, and intervals.
-- [ ] **Archive/restore linked history:** Preserve service links and reuse existing
-  historical completions when restoring an item. Depends on linked service operations.
-- [ ] **Linked service operations:** Persist the schedule items completed by
-  each service. These links drive due calculations and item-specific history.
-  Historical linked descriptions must resolve through the current schedule
-  name. Services currently expose only date, `odometer`, and `details`.
-- [ ] **Multiple custom service operations:** Round-trip a structured list of
-  custom operations alongside linked items. Allow zero-operation mileage-only
-  services. Custom text must never reset a schedule baseline, even if it matches
-  a schedule name.
+- [x] **Archive/restore linked history:** Preserve operation IDs and schedule
+  references while archiving and restoring items. Existing historical completions
+  remain available for client-derived calculations.
+- [x] **Linked service operations:** Persist operations in `service_operations`,
+  linked to a service and optionally a schedule. Scheduled operations expose
+  read-only `name` and `details` from the current schedule, including after edits.
+- [x] **Multiple custom service operations:** Persist multiple custom operations
+  with editable `name` and `details`, alongside scheduled operations. Services can
+  have no operations. Custom text never implicitly creates a schedule link.
 - [ ] **Atomic vehicle creation with initial reading:** Create a vehicle and its
   initial mileage-only service dated today in one transaction. Separate requests
   can leave a partially created vehicle when the second request fails.
-- [ ] **Authoritative business validation:** Enforce the rules below on the
-  server, including consistency under concurrent requests.
+- [ ] **Atomic service and operation saves:** Commit service fields and all operation
+  additions, edits, and removals in one transaction. Current endpoints save each
+  resource separately, so a failed request can leave a partially saved service.
+- [x] **Core business validation:** Enforce names, intervals, dates, odometer
+  consistency, operation ownership, duplicate selections, and archive restrictions.
+  Service writes and manufacture-date edits coordinate through vehicle locks;
+  operation writes serialize selections per service and lock referenced schedules.
 - [ ] **Stale-edit protection:** Support conditional updates using a version,
   ETag, or equivalent. Reject edits based on an outdated record with a conflict
   response instead of silently overwriting another client's changes.
 - [ ] **Safe create retries:** Support idempotency keys or stable client-generated
   IDs. Retrying after a lost response must not create duplicate vehicles,
-  schedules, or services. Current creates generate fresh server UUIDs.
+  schedules, services, or operations. Client create methods do not currently expose
+  stable IDs or idempotency keys.
 
 ## Server validation rules
 
 - [x] Require nonblank vehicle names and schedule descriptions.
 - [x] Reject future manufacture dates.
-- [ ] Reject manufacture dates later than existing services.
-- [ ] Reject services before manufacture or after today.
+- [x] Reject manufacture dates later than existing services.
+- [x] Reject services before manufacture or more than seven calendar days ahead.
+  The seventh day is allowed on both creation and editing.
 - [x] Require positive whole schedule interval values, with at least one interval present.
-- [ ] Require nonnegative whole odometer readings.
-- [ ] Enforce chronological odometer consistency on service creation and edits.
-  Same-date services may have different mileage. Use date, then mileage, then a
-  stable identifier to select and order completions consistently.
-- [ ] Require linked schedule items to belong to the same vehicle and caller.
-- [ ] Permit each linked schedule item at most once per service.
-- [ ] Reject newly selected archived items, including on past-date entries.
-  Allow existing archived links to remain when editing their service.
-- [ ] Ignore blank custom operation rows when saving.
-- [ ] Agree on the user's local calendar-date context for date validation.
-  Date-only rules must match the app rather than accidentally using a different
-  server day.
+- [x] Require nonnegative whole odometer readings.
+- [x] Enforce chronological odometer consistency on service creation and edits.
+  Equal readings across dates and different readings on the same date are allowed.
+  Exclude the edited service's previous version from its bounds calculation.
+- [x] Require linked schedule items to belong to the same vehicle and caller.
+- [x] Permit each linked schedule item at most once per service, including under
+  concurrent requests.
+- [x] Reject newly selected archived items, including on past-date entries.
+  Allow existing archived links to remain or be removed while editing.
+- [x] Preserve calendar components for vehicle and service dates. PostgreSQL uses
+  `DATE`; client serialization and DTO parsing do not convert dates between timezones.
+  Validation uses the clock's calendar components, with the service allowance above.
+- [x] Reject blank custom operation names at the individual operation endpoint.
+  Filtering blank draft rows before submitting operations is an app responsibility.
 
 ## Additional server contracts
 
@@ -75,7 +82,8 @@ with authentication and ownership isolation.
 - [ ] **Current-distance estimates:** Define and expose a server estimate with
   its as-of context, as required by the UX specification. Editing or deleting
   readings must update the result. The app currently uses the latest actual
-  reading as a deterministic placeholder.
+  reading as a deterministic placeholder; this can remain client-derived for
+  initial wiring.
 
 Due status can remain client-derived initially; a dedicated due-status endpoint
 is optional. Preserve the existing scheduling rules: latest linked completion
@@ -88,19 +96,30 @@ reset schedule baselines. Archived items are excluded from due selections.
 
 - [ ] Paginated history with deterministic date/mileage/ID ordering. The app
   currently batches the complete local history in groups of 30.
-- [ ] A consistent aggregate-read mechanism for vehicles, schedules, and
-  services, to avoid assembling mismatched snapshots during concurrent writes.
+- [ ] A consistent aggregate-read mechanism for vehicles, schedules,
+  services, and operations, to avoid assembling mismatched snapshots during
+  concurrent writes.
 - [ ] Individual schedule and service fetch endpoints. Initially, the app can
   resolve details from complete per-vehicle collections.
 
-## App/shared follow-up after server support
+## App/shared follow-up
 
 - [ ] Replace `LocalMaintenanceRepository` with an API-backed implementation.
-- [x] Add typed vehicle and schedule DTOs to `TwApiClient`, including distance units,
-  nullable schedule intervals, and `is_archived` updates.
-- [ ] Extend `TwApiClient` for linked/custom service operations, conditional writes,
-  idempotency, and structured errors.
-- [ ] Map server-generated IDs or adopt a compatible client ID scheme.
+- [ ] Share authenticated client/session access with the maintenance repository;
+  `ApiAuthService` currently holds its client privately.
+- [x] Add typed vehicle, schedule, service, and operation DTOs to `TwApiClient`,
+  including distance units, nullable intervals, archive/restore, operation
+  relationships, and custom operation names/details.
+- [ ] Extend `TwApiClient` for atomic saves, conditional writes, idempotency,
+  and structured errors once those server contracts exist.
+- [ ] Map server-generated IDs to app models and navigation. Preserve operation
+  IDs so edits can identify operation additions, updates, and deletions.
+- [ ] Replace custom-operation strings in app models/forms with name/details
+  values. Map scheduled operations to schedule IDs for due/history calculations.
+- [ ] Filter blank custom draft rows before creating operations; remove existing
+  operations when their rows are removed from the saved draft.
+- [ ] Align app date validation with the server's seven-day service allowance,
+  preserving calendar components throughout serialization and caching.
 - [ ] Retain account-scoped offline caching, read-only offline behavior, and
   draft retention on failures and reauthentication.
 - [ ] Clear local account cache on sign-out while retaining server records.
@@ -121,4 +140,10 @@ reset schedule baselines. Archived items are excluded from due selections.
 - [Schedule persistence](lib/src/schedules/schedules_dao.dart)
 - [Service controller](lib/src/services/services_controller.dart)
 - [Service resource](lib/src/services/service_resource.dart)
+- [Operation controller](lib/src/services/operations_controller.dart)
+- [Operation persistence](lib/src/services/operations_dao.dart)
+- [Vehicle use cases](test/usecases/vehicles_test.dart)
+- [Schedule use cases](test/usecases/schedules_test.dart)
+- [Service use cases](test/usecases/services_test.dart)
+- [Operation use cases](test/usecases/operations_test.dart)
 - [Server error handling](lib/src/server/server.dart)

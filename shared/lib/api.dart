@@ -1,11 +1,5 @@
 library;
 
-export 'src/api/client/operation.dart';
-export 'src/api/client/schedule.dart';
-export 'src/api/client/service.dart';
-export 'src/api/client/session.dart';
+export 'model.dart';
 export 'src/api/client/tw_api_client.dart';
-export 'src/api/client/user.dart';
-export 'src/api/client/vehicle.dart';
-export 'src/api/distance_unit.dart';
 export 'src/api/resource_type.dart';

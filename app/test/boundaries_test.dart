@@ -12,7 +12,8 @@ void main() {
           .map((m) => m[1]!);
       for (final path in imports) {
         if (RegExp(r'package:(shared/|http/|http_interop|json_api|url_launcher|web/)')
-            .hasMatch(path)) {
+                .hasMatch(path) &&
+            path != 'package:shared/model.dart') {
           expect(file.path.startsWith('lib/data/services/'), isTrue, reason: file.path);
         }
         if (file.path.startsWith('lib/domain/')) {
