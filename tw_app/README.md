@@ -13,6 +13,8 @@ Read it before continuing work in `tw_app/`.
 - Introduce abstractions when needed; keep the first iteration small.
 - Testability and coverage are essential. Tests are the source of truth for app behavior; teach and add meaningful behavior tests alongside features.
 - Use ports/adapters: application orchestration and its tests depend on semantic ports, not HTTP messages or TwApiClient. Keep transport concerns in adapters and adapter-specific tests.
+- User explicitly chose to skip API adapter unit tests while mappings are trivial and TwApiClient is evolving. Keep application behavior tests; revisit only if adapters gain substantial logic.
+- User confirmed null-to-empty User field mapping is deliberate and exceptions cross ports unchanged for now. URI completeness/scheme validation is deferred by explicit user choice; retain the adapter's missing completion URI handling.
 
 ## Agreed scope
 
@@ -21,6 +23,7 @@ Platform priority: **web → iOS → Android**. Native Linux and macOS are optio
 First iteration:
 
 - Google login, session restoration, and logout.
+- Logout must always let the user leave the account: clear local authentication/session state and return to welcome even when server revocation fails. A pending or failed server request must not block local logout or restore the logged-out account.
 - CRUD for vehicles.
 - CRUD for schedules belonging to vehicles.
 - CRUD for services and their operations, including custom operations.
@@ -31,6 +34,14 @@ First iteration:
 Out of scope: offline mode, synchronization, and advanced network behavior such as atomicity. Do not carry these features over from the reference app.
 
 Web priorities include meaningful URLs, browser back/forward and refresh, responsive layouts, and keyboard/mouse interaction alongside touch. Isolate platform-specific authentication and persistence where necessary.
+
+## Next iteration — deferred work
+
+These tasks are outside the first iteration; this backlog does not imply they have been implemented.
+
+- Clean up old server sessions, including sessions left behind when logout cannot revoke them. Define the cleanup policy and mechanism in that iteration.
+
+Offline mode, synchronization, and advanced network behavior remain out of scope; they are not committed next-iteration features.
 
 ## Proposed learning sequence
 
@@ -60,6 +71,22 @@ Tentative structure: views → view models → repositories → API client. Intr
 - Source reviewed; browser layout/keyboard checks have not been independently verified. No builds or tests run by the assistant.
 
 ## Next session
+
+2026-11-05 decision: local logout must always succeed independently of server revocation. This supersedes earlier suggestions to retain the garage on logout failure or require a revocation retry before leaving. Next exercise: tests proving local logout clears authentication and returns to welcome on server success, failure, and a pending request; then user implements that behavior. Ensure saved credentials cannot restore the account after local logout. Old server-session cleanup is deferred to the next iteration. Documentation only changed in this session; no tests run.
+
+Latest verification: user updated test/ui/tw_app_test.dart to inject a controlled Completer<User> through AuthServiceStub.loginResult, assert pending state before completing login, then verify garage/logout. Obsolete two-second pump removed. Assistant ran full flutter test: all 9 passed. Earlier review items (port location and HTTP resource ownership) remain pending unless source changes show otherwise.
+
+### Earlier checkpoints (historical; latest decisions above take precedence)
+
+Latest error-presentation checkpoint: UserCancelledException moved to application/auth/auth_exceptions.dart; WelcomeScreen silently handles cancellation and retains generic failure snackbar. Both welcome tests now create Completers/counters inside testWidgets, and pass. Full flutter test: 8 passed, 1 failed in test/ui/tw_app_test.dart:25. That test's login stub completes immediately, so after pump the welcome button no longer exists; replace stub login result with controlled Completer<User> (complete after busy assertion), remove obsolete two-second pumping. main no longer closes HTTP client immediately after runApp; lifecycle ownership still deferred. AuthServicePort remains in tw_app.dart.
+
+Latest composition review: main constructs http.Client → TwApiClient → TwAuthApiAdapter → AuthService, injected via AuthServicePort into TwApp. Full flutter test: 8 passed. Critical fix needed: main's try/finally closes HTTP client immediately after runApp returns (runApp does not await application lifetime). Other findings: remove leftover two-second UI login delay and control pending login via Completer in widget test; logout needs mounted guard and busy/error handling (GarageScreen currently passes async callback directly to IconButton). AuthServicePort is declared in tw_app.dart, causing data service to import Flutter app library; move port to standalone application/domain file. No production/test edits by assistant.
+
+Latest platform checkpoint: open_login_window.dart conditionally exports native vs web using dart.library.js_interop; each exposes synchronous openLoginWindow(), with private concrete classes. Async navigate stub added for test URI. Assistant ran full flutter test: all 8 passed. Browser/native launch not exercised by widget tests. Native close comment remains incomplete. Next composition lesson: construct long-lived HTTP/API/auth dependencies outside build, inject authentication callbacks/service into TwApp while keeping widget tests on fakes; wire real login/logout without losing testability.
+
+Latest platform adapter review: user added LoginWindowNative using url_launcher externalApplication and LoginWindowWeb wrapping web.Window. LoginWindow.navigate now returns Future<void>, awaited by AuthService. Native implementation matches intended limited capabilities. Conditional factory/export not yet present. Assistant ran auth_service_test.dart: 2 passed, 4 failed because Mocktail navigate is unstubbed and returns null instead of Future<void>. Next add shared stub `when(() => window.navigate(any())).thenAnswer((_) async {});`, then rerun. Complete native close comment to explain external browser cannot be closed by this adapter.
+
+Latest adapter review: TwAuthApiAdapter implemented (pending-null preserved, User maps null name/email to empty strings, missing completion URI throws ServerException, logout delegates). User opts out of API adapter tests. Review considerations: blank defaults lose absent-value distinction; completion URI currently checks null only; client exceptions currently cross the port unchanged. No adapter tests run or required for this step.
 
 Latest review: user added asynchronous getCurrentUser failure cleanup test and restored short cancellation interval. Assistant ran auth_service_test.dart: 6 passed. One correction remains: duration assertion uses same(tenSeconds); prefer equals(tenSeconds) to require value equality without object identity. Login orchestration coverage is sufficient to proceed to AuthApiPort adapter. No production/test edits by assistant.
 

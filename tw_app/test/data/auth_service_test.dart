@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
+import 'package:tw_app/application/auth/auth_exceptions.dart';
 import 'package:tw_app/data/auth/auth_service.dart';
 import 'package:tw_app/domain/user.dart';
 import 'package:tw_app/time/clock.dart';
@@ -23,6 +24,7 @@ void main() {
       // Default behavior, gets overridden in some tests
       when(() => window.isClosed).thenReturn(false);
       when(() => authApi.startLogin()).thenAnswer((_) async => oauthUri);
+      when(() => window.navigate(oauthUri)).thenAnswer((_) async {});
     });
 
     group('login()', () {
@@ -30,7 +32,7 @@ void main() {
         var newWindowCalled = false;
 
         final service = AuthService(
-          authPort: authApi,
+          authApi: authApi,
           newWindow: () {
             newWindowCalled = true;
             return window;
@@ -54,7 +56,7 @@ void main() {
 
       for (final sync in [true, false]) {
         test('closes the window when startLogin fails ${sync ? 'sync' : 'async'}', () async {
-          final service = AuthService(authPort: authApi, newWindow: () => window);
+          final service = AuthService(authApi: authApi, newWindow: () => window);
 
           final error = Exception('Network error');
           if (sync) {
@@ -72,7 +74,7 @@ void main() {
       }
 
       test('closes the window when getCurrentUser fails', () async {
-        final service = AuthService(authPort: authApi, newWindow: () => window);
+        final service = AuthService(authApi: authApi, newWindow: () => window);
         final error = Exception('Network error');
 
         when(() => authApi.getCurrentUser()).thenAnswer((_) async => throw error);
@@ -89,7 +91,7 @@ void main() {
 
       test('throws TimeoutException if user never completes login', () async {
         final clock = ClockMock();
-        final service = AuthService(authPort: authApi, newWindow: () => window, clock: clock);
+        final service = AuthService(authApi: authApi, newWindow: () => window, clock: clock);
 
         var inDelay = false;
 
@@ -135,7 +137,7 @@ void main() {
       });
 
       test('aborts polling when user closes the window', () async {
-        final service = AuthService(authPort: authApi, newWindow: () => window);
+        final service = AuthService(authApi: authApi, newWindow: () => window);
 
         when(() => authApi.getCurrentUser()).thenAnswer((_) async {
           // user closes the window!

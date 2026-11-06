@@ -43,6 +43,7 @@ dependencies:
       url: https://github.com/f3ath/json-api-dart
       ref: v9
   url_launcher: ^6.3.3
+  web: ^1.1.2
 
 dev_dependencies:
   flutter_test:

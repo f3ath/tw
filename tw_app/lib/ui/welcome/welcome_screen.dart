@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:tw_app/application/auth/auth_exceptions.dart';
 
 class const WelcomeScreen({super.key, required final Future<void> Function() onLogin})
     extends StatefulWidget {
@@ -20,6 +21,8 @@ class _WelcomeScreenState() extends State<WelcomeScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).clearSnackBars();
       }
+    } on UserCancelledException {
+      // no error
     } on Exception {
       if (mounted) {
         ScaffoldMessenger.of(context)
