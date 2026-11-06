@@ -1,15 +1,18 @@
 import 'dart:async';
 
+import 'package:tw_app/app/auth_service.dart';
 import 'package:tw_app/app/tw_app.dart';
 import 'package:tw_app/application/auth/auth_exceptions.dart';
+import 'package:tw_app/data/auth/auth_api.dart';
+import 'package:tw_app/data/auth/login_window.dart';
 import 'package:tw_app/domain/user.dart';
 import 'package:tw_app/time/clock.dart';
 
-class AuthService({
-  required final AuthApiPort _authApi,
+class BackendAuthService({
+  required final AuthApi _authApi,
   required final LoginWindow Function() _newWindow,
   final Clock _clock = const Clock(),
-}) implements AuthServicePort {
+}) implements AuthService {
   @override
   Future<User> login({
     Duration pollInterval = const Duration(seconds: 2),
@@ -38,23 +41,3 @@ class AuthService({
   Future<void> logout() => _authApi.logout();
 }
 
-class const LoginWindowException(final String message) implements Exception;
-
-/// Outbound port to call server API
-abstract interface class AuthApiPort {
-  /// Calls the API and starts authentication. Returns the OAuth URI to finish login.
-  Future<Uri> startLogin();
-
-  Future<void> logout();
-
-  Future<User?> getCurrentUser();
-}
-
-/// A browser window abstraction
-abstract interface class LoginWindow {
-  Future<void> navigate(Uri uri);
-
-  void close();
-
-  bool get isClosed;
-}

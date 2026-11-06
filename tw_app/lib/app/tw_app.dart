@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:tw_app/app/auth_service.dart';
 import 'package:tw_app/domain/user.dart';
+import 'package:tw_app/testing/stub.dart' as fake;
 import 'package:tw_app/ui/garage/garage_screen.dart';
 import 'package:tw_app/ui/welcome/welcome_screen.dart';
 
-class const TwApp({super.key, required final AuthServicePort _authService}) extends StatefulWidget {
+class const TwApp({super.key, required final AuthService _authService}) extends StatefulWidget {
   @override
   State<TwApp> createState() => _TwAppState();
 }
@@ -18,7 +20,7 @@ class _TwAppState() extends State<TwApp> {
       title: 'Torque Wrench',
       theme: ThemeData(colorScheme: .fromSeed(seedColor: Colors.deepPurple)),
       home: user != null
-          ? GarageScreen(onLogout: logout, userName: user.name)
+          ? GarageScreen(onLogout: logout, userName: user.name, vehicles: fake.vehicles)
           : WelcomeScreen(onLogin: login),
     );
   }
@@ -37,11 +39,4 @@ class _TwAppState() extends State<TwApp> {
     });
     await widget._authService.logout();
   }
-}
-
-/// Authentication handling
-abstract interface class AuthServicePort {
-  Future<User> login({Duration pollInterval, Duration pollTimeout});
-
-  Future<void> logout();
 }

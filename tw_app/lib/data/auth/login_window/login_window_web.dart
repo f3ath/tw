@@ -1,4 +1,4 @@
-import 'package:tw_app/data/auth/auth_service.dart';
+import 'package:tw_app/data/auth/login_window.dart';
 import 'package:web/web.dart' as web;
 
 LoginWindow openLoginWindow() {

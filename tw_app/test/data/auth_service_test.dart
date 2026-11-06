@@ -3,7 +3,9 @@ import 'dart:async';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:tw_app/application/auth/auth_exceptions.dart';
-import 'package:tw_app/data/auth/auth_service.dart';
+import 'package:tw_app/data/auth/auth_api.dart';
+import 'package:tw_app/data/auth/backend_auth_service.dart';
+import 'package:tw_app/data/auth/login_window.dart';
 import 'package:tw_app/domain/user.dart';
 import 'package:tw_app/time/clock.dart';
 
@@ -15,11 +17,11 @@ void main() {
   group('AuthService', () {
     final oauthUri = Uri.parse('https://example.com');
     final user = User('id', name: 'name', email: 'email');
-    late AuthApiPort authApi;
+    late AuthApi authApi;
     late LoginWindow window;
 
     setUp(() {
-      authApi = AuthApiPortMock();
+      authApi = AuthApiMock();
       window = LoginWindowMock();
       // Default behavior, gets overridden in some tests
       when(() => window.isClosed).thenReturn(false);
@@ -31,7 +33,7 @@ void main() {
       test('successful', () async {
         var newWindowCalled = false;
 
-        final service = AuthService(
+        final service = BackendAuthService(
           authApi: authApi,
           newWindow: () {
             newWindowCalled = true;
@@ -56,7 +58,7 @@ void main() {
 
       for (final sync in [true, false]) {
         test('closes the window when startLogin fails ${sync ? 'sync' : 'async'}', () async {
-          final service = AuthService(authApi: authApi, newWindow: () => window);
+          final service = BackendAuthService(authApi: authApi, newWindow: () => window);
 
           final error = Exception('Network error');
           if (sync) {
@@ -74,7 +76,7 @@ void main() {
       }
 
       test('closes the window when getCurrentUser fails', () async {
-        final service = AuthService(authApi: authApi, newWindow: () => window);
+        final service = BackendAuthService(authApi: authApi, newWindow: () => window);
         final error = Exception('Network error');
 
         when(() => authApi.getCurrentUser()).thenAnswer((_) async => throw error);
@@ -91,7 +93,7 @@ void main() {
 
       test('throws TimeoutException if user never completes login', () async {
         final clock = ClockMock();
-        final service = AuthService(authApi: authApi, newWindow: () => window, clock: clock);
+        final service = BackendAuthService(authApi: authApi, newWindow: () => window, clock: clock);
 
         var inDelay = false;
 
@@ -137,7 +139,7 @@ void main() {
       });
 
       test('aborts polling when user closes the window', () async {
-        final service = AuthService(authApi: authApi, newWindow: () => window);
+        final service = BackendAuthService(authApi: authApi, newWindow: () => window);
 
         when(() => authApi.getCurrentUser()).thenAnswer((_) async {
           // user closes the window!
@@ -158,6 +160,6 @@ void main() {
 
 class LoginWindowMock extends Mock implements LoginWindow;
 
-class AuthApiPortMock extends Mock implements AuthApiPort;
+class AuthApiMock extends Mock implements AuthApi;
 
 class ClockMock extends Mock implements Clock;

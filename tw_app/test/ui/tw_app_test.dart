@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:tw_app/app/auth_service.dart';
 import 'package:tw_app/app/tw_app.dart';
 import 'package:tw_app/domain/user.dart';
 import 'package:tw_app/ui/garage/garage_screen.dart';
@@ -15,7 +16,7 @@ void main() {
     final findLogoutButton = find.byKey(GarageScreen.logoutButtonKey);
 
     final authResult = Completer<User>();
-    final authService = AuthServiceStub();
+    final authService = AuthServiceMock();
     authService.loginResult = authResult.future;
 
     await tester.pumpWidget(TwApp(authService: authService));
@@ -46,7 +47,7 @@ void main() {
   });
 }
 
-class AuthServiceStub() implements AuthServicePort {
+class AuthServiceMock() implements AuthService {
   Future<User> loginResult = Future.value(User('id', name: 'name', email: 'email'));
 
   @override

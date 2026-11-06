@@ -1,9 +1,10 @@
 import 'package:shared/api.dart' as api;
-import 'package:tw_app/data/auth/auth_service.dart';
+import 'package:tw_app/data/auth/auth_api.dart';
+import 'package:tw_app/data/auth/backend_auth_service.dart';
 import 'package:tw_app/data/auth/server_exception.dart';
 import 'package:tw_app/domain/user.dart';
 
-class TwAuthApiAdapter(final api.TwApiClient _client) implements AuthApiPort {
+class TwAuthApiAdapter(final api.TwApiClient _client) implements AuthApi {
   @override
   Future<User?> getCurrentUser() async {
     final user = await _client.fetchCurrentUser();

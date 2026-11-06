@@ -4,11 +4,13 @@ import 'package:http_interop_http/http_interop_http.dart';
 import 'package:json_api/routing.dart';
 import 'package:shared/api.dart';
 import 'package:tw_app/app/tw_app.dart';
-import 'package:tw_app/data/auth/auth_service.dart';
-import 'package:tw_app/data/auth/open_login_window.dart';
+import 'package:tw_app/data/auth/backend_auth_service.dart';
+import 'package:tw_app/data/auth/login_window/open_login_window.dart';
 import 'package:tw_app/data/auth/tw_auth_api_adapter.dart';
+import 'package:tw_app/testing/stub.dart';
 
 void main() {
+  final fake = true;
   final httpClient = http.Client();
   final authApi = TwAuthApiAdapter(
     TwApiClient(
@@ -16,7 +18,7 @@ void main() {
       httpClient.sendInterop,
     ),
   );
-  final authService = AuthService(authApi: authApi, newWindow: openLoginWindow);
+  final authService = BackendAuthService(authApi: authApi, newWindow: openLoginWindow);
 
-  runApp(TwApp(authService: authService));
+  runApp(TwApp(authService: fake ? AuthServiceStub() : authService));
 }
