@@ -9,28 +9,33 @@ class const TwApp({super.key, required final AuthServicePort _authService}) exte
 }
 
 class _TwAppState() extends State<TwApp> {
-  var _isLoggedIn = false;
+  User? _user;
 
   @override
-  Widget build(BuildContext context) => MaterialApp(
-    title: 'Torque Wrench',
-    theme: ThemeData(colorScheme: .fromSeed(seedColor: Colors.deepPurple)),
-    home: _isLoggedIn ? GarageScreen(onLogout: logout) : WelcomeScreen(onLogin: login),
-  );
+  Widget build(BuildContext context) {
+    final user = _user;
+    return MaterialApp(
+      title: 'Torque Wrench',
+      theme: ThemeData(colorScheme: .fromSeed(seedColor: Colors.deepPurple)),
+      home: user != null
+          ? GarageScreen(onLogout: logout, userName: user.name)
+          : WelcomeScreen(onLogin: login),
+    );
+  }
 
   Future<void> login() async {
-    await widget._authService.login();
+    final user = await widget._authService.login();
     if (!mounted) return;
     setState(() {
-      _isLoggedIn = true;
+      _user = user;
     });
   }
 
   Future<void> logout() async {
-    await widget._authService.logout();
     setState(() {
-      _isLoggedIn = false;
+      _user = null;
     });
+    await widget._authService.logout();
   }
 }
 

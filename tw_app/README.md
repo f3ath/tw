@@ -40,6 +40,7 @@ Web priorities include meaningful URLs, browser back/forward and refresh, respon
 These tasks are outside the first iteration; this backlog does not imply they have been implemented.
 
 - Clean up old server sessions, including sessions left behind when logout cannot revoke them. Define the cleanup policy and mechanism in that iteration.
+- Finish authentication hardening: local logout independent of pending revocation, handled revocation failures, lifecycle guards, and retained credential cleanup. User accepts current login/logout implementation as sufficient for the first iteration; do not block vehicle work on these items.
 
 Offline mode, synchronization, and advanced network behavior remain out of scope; they are not committed next-iteration features.
 
@@ -71,6 +72,12 @@ Tentative structure: views → view models → repositories → API client. Intr
 - Source reviewed; browser layout/keyboard checks have not been independently verified. No builds or tests run by the assistant.
 
 ## Next session
+
+Latest direction: user explicitly accepts login/logout as good enough for iteration one and wants to move on. Start vehicle listing: loading, empty, populated, failure/retry states using semantic vehicle port and test-controlled results. First small exercise: application-owned Vehicle model and GarageScreen populated rendering test with supplied vehicles, then ListView.builder/ListTile implementation. No CRUD forms or API wiring yet. Existing shared Vehicle fields: id, name, manufactureDate, distanceUnit.
+
+Latest review: user deferred name layout constraints. App-level name assertion added and verified; `flutter test test/ui/tw_app_test.dart`: 1 passed. TwApp.logout now clears User in finally, which covers completion/failure but still blocks on pending revocation, rethrows failure into IconButton callback, and can call setState after disposal. Next add controlled logout failure/pending tests; clear local UI immediately and explicitly handle background revocation failure. Session credential cleanup remains separate from merely clearing displayed User.
+
+Latest name-display review: TwApp retains nullable User and passes name to GarageScreen; isolated garage test checks keyed Text data. Full flutter test: 10 passed. Follow-ups: constrain AppBar name width (ellipsis alone does not bound Row child), center/pad name, add long-name narrow-layout test and app-level assertion for authenticated user's name. Logout still awaits server before clearing User, contrary to latest always-local-logout requirement; add pending/failure tests and fix as next auth task.
 
 2026-11-05 decision: local logout must always succeed independently of server revocation. This supersedes earlier suggestions to retain the garage on logout failure or require a revocation retry before leaving. Next exercise: tests proving local logout clears authentication and returns to welcome on server success, failure, and a pending request; then user implements that behavior. Ensure saved credentials cannot restore the account after local logout. Old server-session cleanup is deferred to the next iteration. Documentation only changed in this session; no tests run.
 

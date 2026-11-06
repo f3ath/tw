@@ -30,12 +30,13 @@ void main() {
 
     expect(tester.widget<FilledButton>(findLoginButton).onPressed, isNull);
 
-    authResult.complete(User('id', name: 'name', email: 'email'));
+    authResult.complete(User('id', name: 'User Name', email: 'email'));
 
     await tester.pumpAndSettle();
 
     expect(findWelcomeScreen, findsNothing);
     expect(findGarageScreen, findsOneWidget);
+    expect(tester.widget<Text>(find.byKey(GarageScreen.userNameTextKey)).data, equals('User Name'));
 
     await tester.tap(findLogoutButton);
     await tester.pumpAndSettle();
