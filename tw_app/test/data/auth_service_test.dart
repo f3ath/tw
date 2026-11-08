@@ -84,10 +84,10 @@ void main() {
         await expectLater(service.login(), throwsA(same(error)));
 
         verifyInOrder([
-              () => authApi.startLogin(),
-              () => window.navigate(oauthUri),
-              () => authApi.getCurrentUser(),
-              () => window.close(),
+          () => authApi.startLogin(),
+          () => window.navigate(oauthUri),
+          () => authApi.getCurrentUser(),
+          () => window.close(),
         ]);
       });
 
@@ -114,7 +114,7 @@ void main() {
           expect(
             i.positionalArguments[0],
             equals(tenSeconds),
-            reason: 'Provided pollInterval must be used'
+            reason: 'Provided pollInterval must be used',
           );
           return Future(() {
             elapsed += 10;
@@ -122,10 +122,7 @@ void main() {
           });
         });
 
-        final result = service.login(
-          pollInterval: tenSeconds,
-          pollTimeout: Duration(seconds: 30),
-        );
+        final result = service.login(pollInterval: tenSeconds, pollTimeout: Duration(seconds: 30));
 
         await expectLater(result, throwsA(isA<TimeoutException>()));
 

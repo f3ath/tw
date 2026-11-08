@@ -55,7 +55,9 @@ void main() {
       expect(tester.widget<FilledButton>(findLoginButton).enabled, isTrue);
     });
 
-    testWidgets('cancelled login enables retry without showing an error', (WidgetTester tester) async {
+    testWidgets('cancelled login enables retry without showing an error', (
+      WidgetTester tester,
+    ) async {
       var attempt = Completer<void>();
       var loginCalls = 0;
 

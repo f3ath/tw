@@ -6,4 +6,4 @@ export 'src/api/model/service.dart';
 export 'src/api/model/session.dart';
 export 'src/api/model/user.dart';
 export 'src/api/model/vehicle.dart';
-export 'src/api/distance_unit.dart';
+export 'src/api/model/distance_unit.dart';

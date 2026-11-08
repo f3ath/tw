@@ -2,8 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:tw_app/app/vehicle_repo.dart';
 import 'package:tw_app/domain/vehicle.dart';
 
-class GarageViewModel({required final VehicleRepo _vehicleRepository})
-    extends ChangeNotifier {
+class GarageViewModel({required final VehicleRepo _vehicleRepository}) extends ChangeNotifier {
   var _isLoading = false;
   var _isDisposed = false;
   var _hasError = false;

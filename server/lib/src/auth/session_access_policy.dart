@@ -24,7 +24,7 @@ class const SessionAccessPolicy() {
       FetchRelatedRequest(
         target: RelatedTarget(type: ResourceType.sessions, :final id, relationship: 'user'),
       ) =>
-      (id == session.id || id == 'current'),
+        (id == session.id || id == 'current'),
       _ => false,
     };
   }

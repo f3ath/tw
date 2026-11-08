@@ -24,9 +24,7 @@ void main() {
 
       final repo = fake.FakeVehicleRepo();
       repo.listCompleter.complete(vehicles);
-      await tester.pumpWidget(
-        TwApp(authService: authService, vehicleRepo: repo),
-      );
+      await tester.pumpWidget(TwApp(authService: authService, vehicleRepo: repo));
 
       expect(findWelcomeScreen, findsOneWidget);
       expect(findGarageScreen, findsNothing);

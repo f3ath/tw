@@ -1,6 +1,6 @@
 import 'package:json_api/document.dart';
 import 'package:shared/time.dart';
-import 'package:shared/src/api/distance_unit.dart';
+import 'package:shared/src/api/model/distance_unit.dart';
 
 class const Vehicle(
   final String id, {
