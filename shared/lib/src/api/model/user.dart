@@ -1,17 +1,8 @@
 import 'package:json_api/document.dart';
 
-class const User(final String id, {final String? name, final String? email}) {
-  static User fromResource(Resource resource) => User(
-    resource.id,
-    name: resource.attributes['name'] as String?,
-    email: resource.attributes['email'] as String?,
-  );
+class const User(final String id, {required final String name, required final String email});
 
-  String get displayName {
-    for (final value in [name, email]) {
-      final trimmed = value?.trim();
-      if (trimmed != null && trimmed.isNotEmpty) return trimmed;
-    }
-    return 'Signed in';
-  }
+extension ResourceToUserExt on Resource {
+  User toUser() =>
+      User(id, name: attributes['name'] as String, email: attributes['email'] as String);
 }

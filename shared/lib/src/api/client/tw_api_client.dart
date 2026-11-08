@@ -65,7 +65,7 @@ class TwApiClient(UriDesign urlDesign, Handler handler) {
       'current',
       'user',
     )).resource;
-    return resource == null ? null : User.fromResource(resource);
+    return resource?.toUser();
   }
 
   // Vehicles

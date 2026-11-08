@@ -136,7 +136,7 @@ class ApiAuthService(
       if (user != null) {
         _client = client;
         _scope = '$address/${user.id}';
-        return user.email ?? user.displayName;
+        return user.email;
       }
     } on RequestFailure catch (failure) {
       if (!_expired(failure)) rethrow;
@@ -173,7 +173,7 @@ class ApiAuthService(
           await _storage(() => persistence.write('session', {'state': state, 'address': address}));
           _client = client;
           _scope = '$address/${user.id}';
-          return user.email ?? user.displayName;
+          return user.email;
         }
         if (window.isClosed) {
           throw const AppFailure(
