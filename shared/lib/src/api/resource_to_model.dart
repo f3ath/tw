@@ -2,7 +2,7 @@ import 'package:json_api/document.dart';
 import 'package:shared/model.dart';
 import 'package:shared/time.dart';
 
-extension ResourceToModelExt on Resource {
+extension ModelResource on Resource {
   Vehicle toVehicle() => Vehicle(
     id,
     name: attributes['name'] as String,
