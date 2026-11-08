@@ -1,15 +1,11 @@
 import 'dart:convert';
 
-import 'package:app/app/composition.dart';
-import 'package:app/app/torque_wrench_app.dart';
 import 'package:app/data/repositories/api_auth_repository.dart';
 import 'package:app/data/repositories/local_repositories.dart';
 import 'package:app/data/services/api_auth_service.dart';
 import 'package:app/data/services/oauth_window.dart';
-import 'package:app/data/services/services.dart';
 import 'package:app/domain/models.dart';
 import 'package:app/domain/session_use_case.dart';
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
