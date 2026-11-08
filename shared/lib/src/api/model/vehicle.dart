@@ -1,6 +1,6 @@
 import 'package:json_api/document.dart';
-import 'package:shared/time.dart';
 import 'package:shared/src/api/model/distance_unit.dart';
+import 'package:shared/time.dart';
 
 class const Vehicle(
   final String id, {
@@ -8,12 +8,16 @@ class const Vehicle(
   required final DateTime manufactureDate,
   required final DistanceUnit distanceUnit,
 }) {
-  static Vehicle fromResource(Resource resource) => Vehicle(
-    resource.id,
-    name: resource.attributes['name'] as String,
+  static Vehicle fromResource(Resource resource) => resource.toVehicle();
+}
+
+extension ResourceToVehicleExt on Resource {
+  Vehicle toVehicle() => Vehicle(
+    id,
+    name: attributes['name'] as String,
     manufactureDate:
-        tryParseDate(resource.attributes['manufacture_date']) ??
+        tryParseDate(attributes['manufacture_date']) ??
         (throw const FormatException('Invalid manufacture_date')),
-    distanceUnit: DistanceUnit.values.byName(resource.attributes['distance_unit'] as String),
+    distanceUnit: DistanceUnit.values.byName(attributes['distance_unit'] as String),
   );
 }
