@@ -12,8 +12,8 @@ make format-check  # Check formatting without changing files
 make db-stop       # Stop and remove the database containers
 ```
 
-Use `-app`, `-shared`, or `-server` to select a package, for example
-`make test-app`, `make analyze-shared`, or `make format-check-server`.
+Use `-app_proto`, `-shared`, or `-server` to select a package, for example
+`make test-app_proto`, `make analyze-shared`, or `make format-check-server`.
 The shared test target skips testing until a `shared/test` directory exists.
 
 Server tests require the database. Its storage uses tmpfs, so stopping it discards

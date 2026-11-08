@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:app/domain/models.dart';
-import 'package:app/domain/policies.dart';
+import 'package:app_proto/domain/models.dart';
+import 'package:app_proto/domain/policies.dart';
 
 void main() {
   final today = DateTime(2026, 10, 25);

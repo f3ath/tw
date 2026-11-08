@@ -1,4 +1,4 @@
-name: app
+name: app_proto
 description: TorqueWrench Material 3 maintenance app
 publish_to: none
 version: 1.0.0+1

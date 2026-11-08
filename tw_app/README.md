@@ -8,7 +8,7 @@ Session handover for `tw_app/`. Read this before continuing; inspect current sou
 - Teach through small exercises: explain concepts and tradeoffs, define an observable checkpoint, then review the user's implementation.
 - The user writes application code. Do not implement features or provide complete solutions unless asked. Documentation updates are authorized.
 - Tests are the source of truth for behavior. Add meaningful tests alongside features, using controlled futures/time for asynchronous behavior.
-- Use `../app/` as a reference, not a template to copy. Introduce abstractions through concrete needs.
+- Use `../app_proto/` as a reference, not a template to copy. Introduce abstractions through concrete needs.
 
 ## Scope
 

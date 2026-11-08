@@ -1,6 +1,6 @@
-import 'package:app/data/services/services.dart';
-import 'package:app/domain/models.dart';
-import 'package:app/domain/repositories.dart';
+import 'package:app_proto/data/services/services.dart';
+import 'package:app_proto/domain/models.dart';
+import 'package:app_proto/domain/repositories.dart';
 
 class MemoryStorage() implements LocalPersistenceService {
   final values = <String, Map<String, Object?>>{};

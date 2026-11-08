@@ -6,10 +6,10 @@ COMPOSE = $(DOCKER) compose -f "$(ROOT)/server/docker-compose.yml"
 
 .DEFAULT_GOAL := help
 
-.PHONY: help test test-app test-tw-app test-shared test-server \
-        analyze analyze-app analyze-tw_app analyze-shared analyze-server \
-        format format-app format-tw_app format-shared format-server \
-        format-check format-check-app format-check-tw_app format-check-shared format-check-server \
+.PHONY: help test test-app_proto test-tw-app test-shared test-server \
+        analyze analyze-app_proto analyze-tw_app analyze-shared analyze-server \
+        format format-app_proto format-tw_app format-shared format-server \
+        format-check format-check-app_proto format-check-tw_app format-check-shared format-check-server \
         db-start db-stop
 
 help:
@@ -18,14 +18,14 @@ help:
 	  'make analyze       Run dart analyze in every package' \
 	  'make format        Format every package' \
 	  'make format-check  Check formatting without modifying files' \
-	  'Append -app, -shared, or -server to select one package.' \
+	  'Append -app_proto, -shared, or -server to select one package.' \
 	  'make db-start      Start PostgreSQL and wait for readiness' \
 	  'make db-stop       Stop and remove the database containers'
 
-test: test-app test-tw_app test-shared test-server
+test: test-app_proto test-tw_app test-shared test-server
 
-test-app:
-	cd "$(ROOT)/app" && $(FLUTTER) test
+test-app_proto:
+	cd "$(ROOT)/app_proto" && $(FLUTTER) test
 
 test-tw_app:
 	cd "$(ROOT)/tw_app" && $(FLUTTER) test
@@ -40,19 +40,19 @@ test-shared:
 test-server:
 	cd "$(ROOT)/server" && $(DART) test
 
-analyze: analyze-app analyze-tw_app analyze-shared analyze-server
+analyze: analyze-app_proto analyze-tw_app analyze-shared analyze-server
 
-analyze-app analyze-tw_app analyze-shared analyze-server:
+analyze-app_proto analyze-tw_app analyze-shared analyze-server:
 	cd "$(ROOT)/$(patsubst analyze-%,%,$@)" && $(DART) analyze
 
-format: format-app format-tw_app format-shared format-server
+format: format-app_proto format-tw_app format-shared format-server
 
-format-app format-tw_app format-shared format-server:
+format-app_proto format-tw_app format-shared format-server:
 	cd "$(ROOT)/$(patsubst format-%,%,$@)" && $(DART) format .
 
-format-check: format-check-app format-check-tw_app format-check-shared format-check-server
+format-check: format-check-app_proto format-check-tw_app format-check-shared format-check-server
 
-format-check-app format-check-tw_app format-check-shared format-check-server:
+format-check-app_proto format-check-tw_app format-check-shared format-check-server:
 	cd "$(ROOT)/$(patsubst format-check-%,%,$@)" && $(DART) format --output=none --set-exit-if-changed .
 
 db-start:

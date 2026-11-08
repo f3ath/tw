@@ -126,13 +126,13 @@ reset schedule baselines. Archived items are excluded from due selections.
 
 ## Source references
 
-- [App repository contract](../app/lib/domain/repositories.dart)
-- [App models](../app/lib/domain/models.dart)
-- [Scheduling and validation policies](../app/lib/domain/policies.dart)
-- [Local save and conflict behavior](../app/lib/data/repositories/local_repositories.dart)
-- [Form behavior](../app/lib/ui/forms/form_view_models.dart)
-- [Current composition](../app/lib/app/composition.dart)
-- [UX requirements](../app/docs/ux/car-maintenance-ux-spec.md)
+- [App repository contract](../app_proto/lib/domain/repositories.dart)
+- [App models](../app_proto/lib/domain/models.dart)
+- [Scheduling and validation policies](../app_proto/lib/domain/policies.dart)
+- [Local save and conflict behavior](../app_proto/lib/data/repositories/local_repositories.dart)
+- [Form behavior](../app_proto/lib/ui/forms/form_view_models.dart)
+- [Current composition](../app_proto/lib/app/composition.dart)
+- [UX requirements](../app_proto/docs/ux/car-maintenance-ux-spec.md)
 - [Shared API client](../shared/lib/src/api/client/tw_api_client.dart)
 - [Database schema](assets/db/0000-init.sql)
 - [Vehicle controller](lib/src/vehicles/vehicles_controller.dart)

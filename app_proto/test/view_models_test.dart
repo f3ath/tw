@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:app/domain/models.dart';
-import 'package:app/ui/forms/form_view_models.dart';
+import 'package:app_proto/domain/models.dart';
+import 'package:app_proto/ui/forms/form_view_models.dart';
 
 import 'support/fakes.dart';
 

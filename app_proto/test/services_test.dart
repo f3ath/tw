@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:app/data/services/services.dart';
+import 'package:app_proto/data/services/services.dart';
 
 class FakePreferences() extends Fake implements SharedPreferencesAsync {
   final values = <String, String>{};

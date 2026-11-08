@@ -5,12 +5,12 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:app/app/composition.dart';
-import 'package:app/app/torque_wrench_app.dart';
-import 'package:app/data/repositories/local_repositories.dart';
-import 'package:app/data/services/services.dart';
-import 'package:app/ui/forms/form_view_models.dart';
-import 'package:app/ui/forms/form_views.dart';
+import 'package:app_proto/app/composition.dart';
+import 'package:app_proto/app/torque_wrench_app.dart';
+import 'package:app_proto/data/repositories/local_repositories.dart';
+import 'package:app_proto/data/services/services.dart';
+import 'package:app_proto/ui/forms/form_view_models.dart';
+import 'package:app_proto/ui/forms/form_views.dart';
 
 import 'support/fakes.dart';
 

@@ -1,10 +1,10 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:app/data/repositories/local_repositories.dart';
-import 'package:app/data/services/garage_codec.dart';
-import 'package:app/data/services/services.dart';
-import 'package:app/domain/models.dart';
-import 'package:app/domain/policies.dart';
-import 'package:app/domain/session_use_case.dart';
+import 'package:app_proto/data/repositories/local_repositories.dart';
+import 'package:app_proto/data/services/garage_codec.dart';
+import 'package:app_proto/data/services/services.dart';
+import 'package:app_proto/domain/models.dart';
+import 'package:app_proto/domain/policies.dart';
+import 'package:app_proto/domain/session_use_case.dart';
 
 import 'support/fakes.dart';
 
