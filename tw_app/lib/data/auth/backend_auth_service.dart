@@ -1,8 +1,7 @@
 import 'dart:async';
 
+import 'package:tw_app/app/auth/auth_exceptions.dart';
 import 'package:tw_app/app/auth_service.dart';
-import 'package:tw_app/app/tw_app.dart';
-import 'package:tw_app/application/auth/auth_exceptions.dart';
 import 'package:tw_app/data/auth/auth_api.dart';
 import 'package:tw_app/data/auth/login_window.dart';
 import 'package:tw_app/domain/user.dart';
@@ -40,4 +39,3 @@ class BackendAuthService({
   @override
   Future<void> logout() => _authApi.logout();
 }
-

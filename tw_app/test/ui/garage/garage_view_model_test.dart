@@ -36,7 +36,7 @@ void main() {
       expect(observed?.vehicles, isEmpty);
 
       final error = Exception('Network error');
-      repo.completer.completeError(error);
+      repo.listCompleter.completeError(error);
       await result;
 
       expect(observed?.loading, isFalse);
@@ -50,7 +50,7 @@ void main() {
       expect(observed?.error, isFalse);
       expect(observed?.vehicles, isEmpty);
 
-      repo.completer.complete(stub.vehicles);
+      repo.listCompleter.complete(stub.vehicles);
       await result2;
 
       expect(observed?.loading, isFalse);
@@ -62,7 +62,7 @@ void main() {
       final res = garageVM.load();
       observed = null;
       garageVM.dispose();
-      repo.completer.complete([]);
+      repo.listCompleter.complete([]);
       await res;
       expect(observed, isNull);
     });
@@ -71,7 +71,7 @@ void main() {
       final res = garageVM.load();
       observed = null;
       garageVM.dispose();
-      repo.completer.completeError(Exception('Network error'));
+      repo.listCompleter.completeError(Exception('Network error'));
       await res;
       expect(observed, isNull);
     });

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:tw_app/application/vehicle_repo.dart';
+import 'package:tw_app/app/vehicle_repo.dart';
 import 'package:tw_app/ui/garage/garage_view_model.dart';
+import 'package:tw_app/ui/vehicles/vehicle_form_screen.dart';
 
 class const GarageScreen({
   super.key,
@@ -11,6 +12,7 @@ class const GarageScreen({
   static const userNameTextKey = ValueKey('user-name-text');
   static const logoutButtonKey = ValueKey('logout-button');
   static const retryButtonKey = ValueKey('retry-button');
+  static const addButtonKey = ValueKey('add-button');
 
   @override
   State<GarageScreen> createState() => _GarageScreenState();
@@ -81,6 +83,15 @@ class _GarageScreenState extends State<GarageScreen> {
             title: Text(model.vehicles[index].name),
           ),
         );
+      },
+    ),
+    floatingActionButton: FloatingActionButton(
+      key: GarageScreen.addButtonKey,
+      tooltip: 'Add new vehicle',
+      child: const Icon(Icons.add),
+      onPressed: () {
+        Navigator.of(context)
+            .push<void>(MaterialPageRoute(builder: (_) => VehicleFormScreen(repo: widget.repo)));
       },
     ),
   );

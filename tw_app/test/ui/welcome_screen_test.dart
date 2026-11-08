@@ -2,7 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:tw_app/application/auth/auth_exceptions.dart';
+import 'package:tw_app/app/auth/auth_exceptions.dart';
 import 'package:tw_app/ui/welcome/welcome_screen.dart';
 
 void main() {

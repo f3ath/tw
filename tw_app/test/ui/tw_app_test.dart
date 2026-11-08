@@ -23,7 +23,7 @@ void main() {
       authService.loginResult = authResult.future;
 
       final repo = fake.FakeVehicleRepo();
-      repo.completer.complete(vehicles);
+      repo.listCompleter.complete(vehicles);
       await tester.pumpWidget(
         TwApp(authService: authService, vehicleRepo: repo),
       );

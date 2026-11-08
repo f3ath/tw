@@ -2,7 +2,7 @@ import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
-import 'package:tw_app/application/auth/auth_exceptions.dart';
+import 'package:tw_app/app/auth/auth_exceptions.dart';
 import 'package:tw_app/data/auth/auth_api.dart';
 import 'package:tw_app/data/auth/backend_auth_service.dart';
 import 'package:tw_app/data/auth/login_window.dart';

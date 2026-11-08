@@ -1,5 +1,5 @@
 import 'package:tw_app/app/auth_service.dart';
-import 'package:tw_app/application/vehicle_repo.dart';
+import 'package:tw_app/app/vehicle_repo.dart';
 import 'package:tw_app/domain/user.dart';
 import 'package:tw_app/domain/vehicle.dart';
 
@@ -36,5 +36,19 @@ class VehicleRepoStub implements VehicleRepo {
   Future<List<Vehicle>> listVehicles() async {
     await Future<void>.delayed(Duration(seconds: 1));
     return vehicles;
+  }
+
+  @override
+  Future<Vehicle> createVehicle({
+    required String name,
+    required DateTime manufactureDate,
+    required DistanceUnit distanceUnit,
+  }) async {
+    return Vehicle(
+      'new-id',
+      name: name,
+      manufactureDate: manufactureDate,
+      distanceUnit: distanceUnit,
+    );
   }
 }

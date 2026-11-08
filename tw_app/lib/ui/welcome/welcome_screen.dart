@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:tw_app/application/auth/auth_exceptions.dart';
+import 'package:tw_app/app/auth/auth_exceptions.dart';
 
 class const WelcomeScreen({super.key, required final Future<void> Function() onLogin})
     extends StatefulWidget {
@@ -25,6 +25,8 @@ class _WelcomeScreenState() extends State<WelcomeScreen> {
       // no error
     } on Exception {
       if (mounted) {
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+
         ScaffoldMessenger.of(context)
             .showSnackBar(const SnackBar(content: Text('Login failed. Please try again.')));
       }

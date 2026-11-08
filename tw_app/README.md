@@ -44,16 +44,16 @@ Offline mode, synchronization, and advanced network behavior such as atomicity a
 - Welcome handles pending, failure/retry, and cancellation states.
 - Domain Vehicle includes id, name, manufactureDate, and distanceUnit.
 - GarageScreen owns GarageViewModel in State, creates/loads it in initState, and disposes it on unmount. ListenableBuilder renders loading, error/retry, empty, and keyed vehicle rows. TwApp still supplies a development repository stub; real vehicle loading/CRUD adapters are not implemented.
-- Latest full verification: `flutter test` — **15 passed**. Real browser/native authentication has not been verified by these tests.
+- Latest full verification: `flutter test` — **20 passed**. Real browser/native authentication has not been verified by these tests.
 - Tests cover auth orchestration, welcome failure/retry/cancellation, app login/logout and name wiring, and garage empty/populated rendering.
 
 ## Next exercise
 
-Vehicle loading/rendering lifecycle checkpoint is complete: garage tests verify empty/populated results, failure/retry, and rebuilding with changed user name while retaining vehicles and making only one repository call. Latest targeted garage run: 4 passed. Pending-load disposal is covered in view-model tests; latest full run: 15 passed (before added rebuild test).
+Vehicle form validates and calls VehicleRepo.createVehicle, disables Save while pending, and re-enables it after completion. Fake records created vehicles and controls completion. Full suite: 20 passed. Ports moved to app/vehicle_repo.dart; tests now under test/ui/garage.
 
-Next inject a required VehicleRepository into TwApp and forward it to GarageScreen. Construct the development stub in main, not build. Update the app widget test to inject a controlled repository and verify loaded vehicles after login. Then implement the real vehicle adapter, sharing the authenticated TwApiClient instance with the auth adapter. Keep adapter tests skipped per the user's decision.
+Review follow-ups: trim submitted name (currently raw text), use padded valid input to verify trimming, assert fake.created empty after invalid saves and length one while pending. Add mounted guard in save finally for navigating back during request. BackendVehicleRepo.createVehicle is still UnimplementedError; live creation not ready.
 
-Continue with vehicle CRUD, schedules, services/operations, and URL navigation as needed. Session restoration remains planned, not completed.
+Next cover save failure with preserved inputs and enabled retry, then successful route pop and garage refresh, and implement backend creation. No trivial adapter unit tests required per user choice. Session restoration remains planned, not completed.
 
 ## Next iteration — deferred work
 

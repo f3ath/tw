@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:tw_app/app/auth_service.dart';
-import 'package:tw_app/application/vehicle_repo.dart';
+import 'package:tw_app/app/vehicle_repo.dart';
 import 'package:tw_app/domain/user.dart';
 import 'package:tw_app/ui/garage/garage_screen.dart';
 import 'package:tw_app/ui/welcome/welcome_screen.dart';

@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:tw_app/application/vehicle_repo.dart';
+import 'package:tw_app/app/vehicle_repo.dart';
 import 'package:tw_app/domain/vehicle.dart';
 
 class GarageViewModel({required final VehicleRepo _vehicleRepository})

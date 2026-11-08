@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:tw_app/testing/fake.dart';
 import 'package:tw_app/testing/stub.dart' as stub;
 import 'package:tw_app/ui/garage/garage_screen.dart';
+import 'package:tw_app/ui/vehicles/vehicle_form_screen.dart';
 
 void main() {
   group('GarageScreen', () {
@@ -11,7 +12,7 @@ void main() {
 
       expectUserNameIsShown(tester);
 
-      repo.completer.complete([]);
+      repo.listCompleter.complete([]);
       await tester.pumpAndSettle();
       expect(find.textContaining('Nothing'), findsOne);
       expect(find.text(stub.vehicle1.name), findsNothing);
@@ -24,7 +25,7 @@ void main() {
       expect(find.byType(CircularProgressIndicator), findsOne);
       expect(find.textContaining('Nothing'), findsNothing);
 
-      repo.completer.complete(stub.vehicles);
+      repo.listCompleter.complete(stub.vehicles);
       await tester.pumpAndSettle();
 
       expectVehiclesLoaded();
@@ -37,7 +38,7 @@ void main() {
       expect(find.byType(CircularProgressIndicator), findsOne);
       expect(find.textContaining('Nothing'), findsNothing);
 
-      repo.completer.completeError(Exception('Network error'));
+      repo.listCompleter.completeError(Exception('Network error'));
 
       await tester.pumpAndSettle();
 
@@ -50,7 +51,7 @@ void main() {
 
       expect(find.byType(CircularProgressIndicator), findsOne);
 
-      repo.completer.complete(stub.vehicles);
+      repo.listCompleter.complete(stub.vehicles);
       await tester.pumpAndSettle();
 
       expectVehiclesLoaded();
@@ -63,7 +64,7 @@ void main() {
           home: GarageScreen(onLogout: () async {}, userName: 'First', repo: repo),
         ),
       );
-      repo.completer.complete(stub.vehicles);
+      repo.listCompleter.complete(stub.vehicles);
       await tester.pumpAndSettle();
       expect(repo.listCalls, equals(1));
       expect(tester.widget<Text>(find.byKey(GarageScreen.userNameTextKey)).data, equals('First'));
@@ -79,6 +80,23 @@ void main() {
       expect(tester.widget<Text>(find.byKey(GarageScreen.userNameTextKey)).data, equals('Second'));
       expectVehiclesLoaded();
       expect(repo.listCalls, equals(1));
+    });
+
+    testWidgets('Add button opens the form', (WidgetTester tester) async {
+      final repo = await setUpTestHarness(tester);
+      repo.listCompleter.complete(stub.vehicles);
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(GarageScreen.addButtonKey));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(VehicleFormScreen), findsOne);
+
+      await tester.pageBack();
+      await tester.pumpAndSettle();
+
+      expect(find.byType(VehicleFormScreen), findsNothing);
+      expect(find.byType(GarageScreen), findsOne);
+      expectVehiclesLoaded();
     });
   });
 }
