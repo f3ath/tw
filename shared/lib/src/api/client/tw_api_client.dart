@@ -10,7 +10,9 @@ class TwApiClient(UriDesign urlDesign, Handler handler) {
   }
 
   late final RoutingClient _jsonApi;
-  String? _token;
+
+  /// Auth token
+  String? token;
 
   // Sessions
 
@@ -21,7 +23,7 @@ class TwApiClient(UriDesign urlDesign, Handler handler) {
     if (token is! String) {
       throw InvalidResponse('Missing session token');
     }
-    _token = token;
+    this.token = token;
     return resource.toSession();
   }
 
@@ -34,20 +36,20 @@ class TwApiClient(UriDesign urlDesign, Handler handler) {
   }
 
   Future<Session> fetchCurrentSession() async {
-    if (_token == null) {
+    if (token == null) {
       throw StateError('Unauthenticated');
     }
     return fetchSession('current');
   }
 
   Future<void> deleteCurrentSession() async {
-    if (_token == null) {
+    if (token == null) {
       throw StateError('Unauthenticated');
     }
     try {
       await _jsonApi.deleteResource(ResourceType.sessions, 'current');
     } finally {
-      _token = null;
+      token = null;
     }
   }
 
@@ -57,7 +59,7 @@ class TwApiClient(UriDesign urlDesign, Handler handler) {
   // Users
 
   Future<User?> fetchCurrentUser() async {
-    if (_token == null) {
+    if (token == null) {
       throw StateError('Unauthenticated');
     }
     final resource = (await _jsonApi.fetchRelatedResource(
@@ -213,7 +215,7 @@ class TwApiClient(UriDesign urlDesign, Handler handler) {
         ResourceType.services,
         serviceId,
         'operations',
-      )).collection.map(Operation.fromResource).toList();
+      )).collection.map((it) => it.toOperation()).toList();
 
   Future<Operation> createOperation(
     String serviceId, {
@@ -229,7 +231,7 @@ class TwApiClient(UriDesign urlDesign, Handler handler) {
       },
       attributes: {'name': ?name, 'details': ?details},
     );
-    return Operation.fromResource(response.resource);
+    return response.resource.toOperation();
   }
 
   Future<Operation?> updateOperation(
@@ -244,27 +246,17 @@ class TwApiClient(UriDesign urlDesign, Handler handler) {
       one: {'schedule': scheduleId == null ? null : Identifier(ResourceType.schedules, scheduleId)},
       attributes: {'name': ?name, 'details': ?details},
     );
-    final updated = response.resource;
-    return updated == null ? null : Operation.fromResource(updated);
+    return response.resource?.toOperation();
   }
 
   Future<void> deleteOperation(String operationId) async {
     await _jsonApi.deleteResource(ResourceType.operations, operationId);
   }
 
-  // State
-
-  String saveState() => _token ?? '';
-
-  void restoreState(String token) {
-    if (token.isEmpty) throw ArgumentError('Empty token');
-    _token = token;
-  }
-
   Handler _authenticated(Handler inner) => (request) {
-    final token = _token;
-    if (token != null) {
-      request.headers['Authorization'] = ['Bearer $token'];
+    final t = token;
+    if (t != null) {
+      request.headers['Authorization'] = ['Bearer $t'];
     }
     return inner(request);
   };

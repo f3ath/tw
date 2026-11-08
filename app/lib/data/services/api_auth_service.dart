@@ -118,16 +118,12 @@ class ApiAuthService(
     final saved = await _storage(() => persistence.read('session'));
     if (saved == null) return null;
     final address = await settings.load();
-    final state = saved['state'];
+    final token = saved['state'];
     final client = _clientFor(address);
-    if (state is String && saved['address'] == address) {
-      try {
-        client.restoreState(state);
-      } on ArgumentError {
-        // ignore invalid string
-      }
+    if (token is String && saved['address'] == address) {
+      client.token = token;
     }
-    if (client.saveState().isEmpty) {
+    if (client.token == null) {
       await _storage(() => persistence.remove('session'));
       return null;
     }
@@ -154,9 +150,9 @@ class ApiAuthService(
       final address = await settings.load();
       final client = _clientFor(address);
       final session = await client.createSession();
-      final state = client.saveState();
+      final token = client.token;
       final uri = session.completionUri;
-      if (state.isEmpty ||
+      if (token == null ||
           uri == null ||
           !['http', 'https'].contains(uri.scheme) ||
           uri.host.isEmpty) {
@@ -170,7 +166,7 @@ class ApiAuthService(
       while (elapsed.elapsed < signInTimeout) {
         final user = await client.fetchCurrentUser();
         if (user != null) {
-          await _storage(() => persistence.write('session', {'state': state, 'address': address}));
+          await _storage(() => persistence.write('session', {'state': token, 'address': address}));
           _client = client;
           _scope = '$address/${user.id}';
           return user.email;

@@ -1,9 +1,9 @@
 library;
 
-export 'src/api/model/operation.dart';
-export 'src/api/model/schedule.dart';
-export 'src/api/model/service.dart';
-export 'src/api/model/session.dart';
-export 'src/api/model/user.dart';
-export 'src/api/model/vehicle.dart';
-export 'src/api/model/distance_unit.dart';
+export 'src/model/operation.dart';
+export 'src/model/schedule.dart';
+export 'src/model/service.dart';
+export 'src/model/session.dart';
+export 'src/model/user.dart';
+export 'src/model/vehicle.dart';
+export 'src/model/distance_unit.dart';
