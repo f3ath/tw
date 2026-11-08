@@ -1,4 +1,4 @@
-import 'package:tw_app/domain/user.dart';
+import 'package:shared/model.dart';
 
 /// Outbound port to call server API
 abstract interface class AuthApi {

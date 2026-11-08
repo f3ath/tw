@@ -1,6 +1,6 @@
 import 'package:tw_app/data/api_client.dart';
 import 'package:tw_app/data/auth/auth_api.dart';
-import 'package:tw_app/domain/user.dart';
+import 'package:shared/model.dart';
 
 class ApiClientAdapter(final ApiClient _client) implements AuthApi {
   @override

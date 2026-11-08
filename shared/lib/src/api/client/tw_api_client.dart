@@ -22,7 +22,7 @@ class TwApiClient(UriDesign urlDesign, Handler handler) {
       throw InvalidResponse('Missing session token');
     }
     _token = token;
-    return Session.fromResource(resource);
+    return resource.toSession();
   }
 
   Future<List<Resource>> listSessions() async =>
@@ -30,7 +30,7 @@ class TwApiClient(UriDesign urlDesign, Handler handler) {
 
   Future<Session> fetchSession(String id) async {
     final r = await _jsonApi.fetchResource(ResourceType.sessions, id);
-    return Session.fromResource(r.resource);
+    return r.resource.toSession();
   }
 
   Future<Session> fetchCurrentSession() async {
@@ -83,16 +83,16 @@ class TwApiClient(UriDesign urlDesign, Handler handler) {
         'distance_unit': distanceUnit.name,
       },
     );
-    return Vehicle.fromResource(response.resource);
+    return response.resource.toVehicle();
   }
 
   Future<List<Vehicle>> listVehicles() async =>
       (await _jsonApi.fetchCollection(ResourceType.vehicles)).collection
-          .map(Vehicle.fromResource)
+          .map((it) => it.toVehicle())
           .toList();
 
   Future<Vehicle> fetchVehicle(String id) async =>
-      Vehicle.fromResource((await _jsonApi.fetchResource(ResourceType.vehicles, id)).resource);
+      (await _jsonApi.fetchResource(ResourceType.vehicles, id)).resource.toVehicle();
 
   Future<Vehicle?> updateVehicle(String id, {String? name, DateTime? manufactureDate}) async {
     final response = await _jsonApi.updateResource(
@@ -103,8 +103,7 @@ class TwApiClient(UriDesign urlDesign, Handler handler) {
         if (manufactureDate != null) 'manufacture_date': _date(manufactureDate),
       },
     );
-    final resource = response.resource;
-    return resource == null ? null : Vehicle.fromResource(resource);
+    return response.resource?.toVehicle();
   }
 
   Future<void> deleteVehicle(String id) async {
@@ -118,7 +117,7 @@ class TwApiClient(UriDesign urlDesign, Handler handler) {
         ResourceType.vehicles,
         vehicleId,
         'schedule',
-      )).collection.map(Schedule.fromResource).toList();
+      )).collection.map((it) => it.toSchedule()).toList();
 
   Future<Schedule> createSchedule(
     String vehicleId, {
@@ -137,7 +136,7 @@ class TwApiClient(UriDesign urlDesign, Handler handler) {
         'details': details,
       },
     );
-    return Schedule.fromResource(response.resource);
+    return response.resource.toSchedule();
   }
 
   Future<Schedule?> updateSchedule(
@@ -159,8 +158,7 @@ class TwApiClient(UriDesign urlDesign, Handler handler) {
         'is_archived': ?isArchived,
       },
     );
-    final resource = response.resource;
-    return resource == null ? null : Schedule.fromResource(resource);
+    return response.resource?.toSchedule();
   }
 
   Future<void> deleteSchedule(String scheduleId) async {
@@ -174,7 +172,7 @@ class TwApiClient(UriDesign urlDesign, Handler handler) {
         ResourceType.vehicles,
         vehicleId,
         'service',
-      )).collection.map(Service.fromResource).toList();
+      )).collection.map((it) => it.toService()).toList();
 
   Future<Service> createService(
     String vehicleId, {
@@ -187,7 +185,7 @@ class TwApiClient(UriDesign urlDesign, Handler handler) {
       one: {'vehicle': Identifier(ResourceType.vehicles, vehicleId)},
       attributes: {'date': _date(date), 'odometer': odometer, 'details': details},
     );
-    return Service.fromResource(response.resource);
+    return response.resource.toService();
   }
 
   Future<Service?> updateService(
@@ -201,8 +199,7 @@ class TwApiClient(UriDesign urlDesign, Handler handler) {
       serviceId,
       attributes: {'date': _date(date), 'odometer': odometer, 'details': ?details},
     );
-    final resource = response.resource;
-    return resource == null ? null : Service.fromResource(resource);
+    return response.resource?.toService();
   }
 
   Future<void> deleteService(String serviceId) async {

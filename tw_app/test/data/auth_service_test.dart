@@ -6,7 +6,7 @@ import 'package:tw_app/app/auth/auth_exceptions.dart';
 import 'package:tw_app/data/auth/auth_api.dart';
 import 'package:tw_app/data/auth/backend_auth_service.dart';
 import 'package:tw_app/data/auth/login_window.dart';
-import 'package:tw_app/domain/user.dart';
+import 'package:shared/model.dart';
 import 'package:tw_app/time/clock.dart';
 
 void main() {

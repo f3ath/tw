@@ -1,7 +1,7 @@
 import 'package:json_api/document.dart';
 import 'package:tw_app/app/vehicle_repo.dart';
 import 'package:tw_app/data/api_client.dart';
-import 'package:tw_app/domain/vehicle.dart';
+import 'package:shared/model.dart';
 
 class BackendVehicleRepo(final ApiClient _client) implements VehicleRepo {
   @override

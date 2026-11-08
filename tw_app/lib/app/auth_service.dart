@@ -1,4 +1,4 @@
-import 'package:tw_app/domain/user.dart';
+import 'package:shared/model.dart';
 
 /// Authentication handling
 abstract interface class AuthService {

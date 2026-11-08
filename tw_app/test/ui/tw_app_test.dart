@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tw_app/app/auth_service.dart';
 import 'package:tw_app/app/tw_app.dart';
-import 'package:tw_app/domain/user.dart';
+import 'package:shared/model.dart';
 import 'package:tw_app/testing/fake.dart' as fake;
 import 'package:tw_app/testing/stub.dart';
 import 'package:tw_app/ui/garage/garage_screen.dart';

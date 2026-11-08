@@ -8,14 +8,16 @@ class const Schedule({
   required final int? intervalMonths,
   required final String details,
   final bool isArchived = false,
-}) {
-  static Schedule fromResource(Resource resource) => Schedule(
-    id: resource.id,
-    vehicleId: resource.relationships['vehicle']!.single.id,
-    name: resource.attributes['name'] as String,
-    intervalDistance: resource.attributes['interval_distance'] as int?,
-    intervalMonths: resource.attributes['interval_months'] as int?,
-    details: resource.attributes['details'] as String,
-    isArchived: resource.attributes['is_archived'] as bool? ?? false,
+});
+
+extension ResourceToScheduleExt on Resource {
+  Schedule toSchedule() => Schedule(
+    id: id,
+    vehicleId: relationships['vehicle']!.single.id,
+    name: attributes['name'] as String,
+    intervalDistance: attributes['interval_distance'] as int?,
+    intervalMonths: attributes['interval_months'] as int?,
+    details: attributes['details'] as String,
+    isArchived: attributes['is_archived'] as bool? ?? false,
   );
 }

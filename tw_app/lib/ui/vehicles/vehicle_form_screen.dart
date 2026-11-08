@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:tw_app/app/vehicle_repo.dart';
-import 'package:tw_app/domain/vehicle.dart';
+import 'package:shared/model.dart';
 import 'package:tw_app/time/clock.dart';
 
 class const VehicleFormScreen({

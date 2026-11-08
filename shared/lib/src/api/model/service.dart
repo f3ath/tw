@@ -7,13 +7,14 @@ class const Service(
   required final DateTime date,
   required final int odometer,
   required final String details,
-}) {
-  static Service fromResource(Resource resource) => Service(
-    resource.id,
-    vehicleId: resource.one('vehicle')!.single.id,
-    date:
-        tryParseDate(resource.attributes['date']) ?? (throw const FormatException('Invalid date')),
-    odometer: resource.attributes['odometer'] as int,
-    details: resource.attributes['details'] as String,
+});
+
+extension ResourceToServiceExt on Resource {
+  Service toService() => Service(
+    id,
+    vehicleId: one('vehicle')!.single.id,
+    date: tryParseDate(attributes['date']) ?? (throw const FormatException('Invalid date')),
+    odometer: attributes['odometer'] as int,
+    details: attributes['details'] as String,
   );
 }

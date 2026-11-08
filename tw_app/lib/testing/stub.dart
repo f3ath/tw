@@ -1,7 +1,6 @@
 import 'package:tw_app/app/auth_service.dart';
 import 'package:tw_app/app/vehicle_repo.dart';
-import 'package:tw_app/domain/user.dart';
-import 'package:tw_app/domain/vehicle.dart';
+import 'package:shared/model.dart';
 
 const user1 = User('user-1', name: 'Begelme Ashambe', email: 'begelme@example.com');
 

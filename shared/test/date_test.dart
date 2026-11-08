@@ -1,6 +1,6 @@
+import 'package:json_api/document.dart';
 import 'package:shared/api.dart';
 import 'package:shared/time.dart';
-import 'package:json_api/document.dart';
 import 'package:test/test.dart';
 
 void main() {
@@ -17,19 +17,18 @@ void main() {
   });
 
   test('vehicle and service DTOs preserve calendar dates', () {
-    final vehicle = Vehicle.fromResource(
-      Resource('vehicles', 'vehicle-id')
-        ..attributes.addAll({
-          'name': 'Civic',
-          'manufacture_date': '2020-05-01',
-          'distance_unit': 'mi',
-        }),
-    );
-    final service = Service.fromResource(
-      Resource('services', 'service-id')
-        ..attributes.addAll({'date': '2024-01-15', 'odometer': 150, 'details': ''})
-        ..relationships['vehicle'] = ToOne(Identifier('vehicles', 'vehicle-id')),
-    );
+    final resource = Resource('vehicles', 'vehicle-id')
+      ..attributes.addAll({
+        'name': 'Civic',
+        'manufacture_date': '2020-05-01',
+        'distance_unit': 'mi',
+      });
+    final vehicle = resource.toVehicle();
+    final service =
+        (Resource('services', 'service-id')
+              ..attributes.addAll({'date': '2024-01-15', 'odometer': 150, 'details': ''})
+              ..relationships['vehicle'] = ToOne(Identifier('vehicles', 'vehicle-id')))
+            .toService();
     expect(vehicle.manufactureDate.isUtc, isFalse);
     expect(vehicle.manufactureDate, DateTime(2020, 5, 1));
     expect(service.date.isUtc, isFalse);

@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:tw_app/domain/vehicle.dart';
+import 'package:shared/model.dart';
 import 'package:tw_app/testing/fake.dart';
 import 'package:tw_app/testing/stub.dart' as stub;
 import 'package:tw_app/ui/garage/garage_view_model.dart';

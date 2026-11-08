@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
-import 'package:tw_app/domain/vehicle.dart';
+import 'package:shared/model.dart';
 import 'package:tw_app/testing/fake.dart';
 import 'package:tw_app/time/clock.dart';
 import 'package:tw_app/ui/vehicles/vehicle_form_screen.dart';

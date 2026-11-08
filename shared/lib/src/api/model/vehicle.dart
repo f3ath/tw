@@ -7,9 +7,7 @@ class const Vehicle(
   required final String name,
   required final DateTime manufactureDate,
   required final DistanceUnit distanceUnit,
-}) {
-  static Vehicle fromResource(Resource resource) => resource.toVehicle();
-}
+});
 
 extension ResourceToVehicleExt on Resource {
   Vehicle toVehicle() => Vehicle(
