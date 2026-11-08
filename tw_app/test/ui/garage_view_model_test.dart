@@ -1,19 +1,17 @@
-import 'dart:async';
-
 import 'package:flutter_test/flutter_test.dart';
-import 'package:tw_app/application/vehicle_repository.dart';
 import 'package:tw_app/domain/vehicle.dart';
+import 'package:tw_app/testing/fake.dart';
 import 'package:tw_app/testing/stub.dart' as stub;
 import 'package:tw_app/ui/garage/garage_view_model.dart';
 
 void main() {
   group('GarageViewModel', () {
-    late VehicleRepositoryFake repo;
+    late FakeVehicleRepo repo;
     late GarageViewModel garageVM;
     ({bool loading, bool error, List<Vehicle> vehicles})? observed;
 
     setUp(() {
-      repo = VehicleRepositoryFake();
+      repo = FakeVehicleRepo();
       garageVM = GarageViewModel(vehicleRepository: repo);
       observed = null;
       garageVM.addListener(() {
@@ -25,9 +23,9 @@ void main() {
       });
     });
 
-    tearDown(() => garageVM.dispose());
-
     test('failed loading can be retried successfully', () async {
+      addTearDown(garageVM.dispose);
+
       expect(garageVM.hasError, isFalse);
       expect(garageVM.isLoading, isFalse);
       expect(garageVM.vehicles, isEmpty);
@@ -59,16 +57,23 @@ void main() {
       expect(observed?.error, isFalse);
       expect(observed?.vehicles, equals(stub.vehicles));
     });
+
+    test('stops notifying after disposal', () async {
+      final res = garageVM.load();
+      observed = null;
+      garageVM.dispose();
+      repo.completer.complete([]);
+      await res;
+      expect(observed, isNull);
+    });
+
+    test('handles failed loading after error', () async {
+      final res = garageVM.load();
+      observed = null;
+      garageVM.dispose();
+      repo.completer.completeError(Exception('Network error'));
+      await res;
+      expect(observed, isNull);
+    });
   });
-}
-
-class VehicleRepositoryFake implements VehicleRepository {
-  void reset() {
-    completer = Completer<List<Vehicle>>();
-  }
-
-  var completer = Completer<List<Vehicle>>();
-
-  @override
-  Future<List<Vehicle>> listVehicles() => completer.future;
 }

@@ -17,13 +17,14 @@ class const SessionAccessPolicy() {
     if (session.userId != null) return true;
 
     // A pending session may only fetch itself and its related user.
+    // TODO: possible logic duplication related to "current"
     return switch (request) {
       FetchResourceRequest(target: ResourceTarget(type: ResourceType.sessions, :final id)) =>
-        id == session.id,
+        (id == session.id || id == 'current'),
       FetchRelatedRequest(
         target: RelatedTarget(type: ResourceType.sessions, :final id, relationship: 'user'),
       ) =>
-        id == session.id,
+      (id == session.id || id == 'current'),
       _ => false,
     };
   }

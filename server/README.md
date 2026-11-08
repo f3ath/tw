@@ -1,5 +1,8 @@
 # TW Server
 
+## TODO
+- request UUID validation
+
 ## Database setup
 
 Start PostgreSQL from the repository root:

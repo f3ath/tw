@@ -36,28 +36,24 @@ Offline mode, synchronization, and advanced network behavior such as atomicity a
 - User-facing feedback belongs in presentation. Cancellation is handled silently; other login exceptions currently show a generic snackbar.
 - Select login-window adapters through conditional exports. Web reserves a popup synchronously before awaiting requests. Native launches an external browser, cannot observe closure, and cannot close it.
 
-## Current state — 2026-11-05
+## Current state — 2026-11-06
 
 - Auth service orchestrates session creation, navigation, polling, timeout/cancellation, and window cleanup through ports.
 - Real API and platform adapters exist. `main.dart` currently selects fake authentication for development.
 - TwApp retains the authenticated User and switches between welcome and garage. The name appears beside logout.
 - Welcome handles pending, failure/retry, and cancellation states.
 - Domain Vehicle includes id, name, manufactureDate, and distanceUnit.
-- GarageScreen is stateless, renders supplied vehicles with keyed ListTiles, and has an empty state. TwApp supplies sample vehicles; vehicle loading/CRUD is not implemented.
-- Latest full verification: `flutter test` — **12 passed**. Real browser/native authentication has not been verified by these tests.
+- GarageScreen owns GarageViewModel in State, creates/loads it in initState, and disposes it on unmount. ListenableBuilder renders loading, error/retry, empty, and keyed vehicle rows. TwApp still supplies a development repository stub; real vehicle loading/CRUD adapters are not implemented.
+- Latest full verification: `flutter test` — **15 passed**. Real browser/native authentication has not been verified by these tests.
 - Tests cover auth orchestration, welcome failure/retry/cancellation, app login/logout and name wiring, and garage empty/populated rendering.
 
 ## Next exercise
 
-Vehicle loading checkpoint: VehicleRepository is in `application/vehicle_repository.dart`. GarageViewModel exposes loading/error and an unmodifiable result list, notifies at start/completion, resets loading in finally, and handles failure as state without rethrow. Controlled-future failure → retry → success test passes (`flutter test test/ui/garage_view_model_test.dart`: 1 passed); tearDown disposes view model. Small follow-ups: narrow catch (_) to on Exception; rename test to describe retry, retain initial idle assertions. Next connect loading/error/list rendering with ListenableBuilder and explicitly owned view-model lifecycle; no API adapter yet.
+Vehicle loading/rendering lifecycle checkpoint is complete: garage tests verify empty/populated results, failure/retry, and rebuilding with changed user name while retaining vehicles and making only one repository call. Latest targeted garage run: 4 passed. Pending-load disposal is covered in view-model tests; latest full run: 15 passed (before added rebuild test).
 
-Continue asynchronous vehicle loading:
+Next inject a required VehicleRepository into TwApp and forward it to GarageScreen. Construct the development stub in main, not build. Update the app widget test to inject a controlled repository and verify loaded vehicles after login. Then implement the real vehicle adapter, sharing the authenticated TwApiClient instance with the auth adapter. Keep adapter tests skipped per the user's decision.
 
-1. Final view-model corrections verified: on Exception catch, initial idle assertions, descriptive retry test. Targeted test passes.
-2. Connect presentation with ListenableBuilder: inject GarageViewModel instead of ready-made vehicles; body renders loading, error/retry, empty, or list. Start with a controlled-future widget test for loading → populated; load outside build. Explicit view-model ownership and app wiring follow. Cover empty results; dispose view model after unmount in widget tests.
-5. Add the API adapter after behavior is established. No HTTP details in application tests.
-
-Continue with vehicle CRUD, schedules, services/operations, and URL navigation as the workflows require them. Session restoration remains planned, not completed.
+Continue with vehicle CRUD, schedules, services/operations, and URL navigation as needed. Session restoration remains planned, not completed.
 
 ## Next iteration — deferred work
 

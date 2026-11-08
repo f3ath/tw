@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:tw_app/application/vehicle_repository.dart';
+import 'package:tw_app/application/vehicle_repo.dart';
 import 'package:tw_app/domain/vehicle.dart';
 
-class GarageViewModel({required final VehicleRepository _vehicleRepository})
+class GarageViewModel({required final VehicleRepo _vehicleRepository})
     extends ChangeNotifier {
   var _isLoading = false;
+  var _isDisposed = false;
   var _hasError = false;
   var _vehicles = <Vehicle>[];
 
@@ -24,7 +25,13 @@ class GarageViewModel({required final VehicleRepository _vehicleRepository})
       _hasError = true;
     } finally {
       _isLoading = false;
-      notifyListeners();
+      if (!_isDisposed) notifyListeners();
     }
+  }
+
+  @override
+  void dispose() {
+    _isDisposed = true;
+    super.dispose();
   }
 }

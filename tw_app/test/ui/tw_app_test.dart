@@ -5,45 +5,56 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:tw_app/app/auth_service.dart';
 import 'package:tw_app/app/tw_app.dart';
 import 'package:tw_app/domain/user.dart';
+import 'package:tw_app/testing/fake.dart' as fake;
+import 'package:tw_app/testing/stub.dart';
 import 'package:tw_app/ui/garage/garage_screen.dart';
 import 'package:tw_app/ui/welcome/welcome_screen.dart';
 
 void main() {
-  testWidgets('Login opens Garage, Logout returns to Welcome', (WidgetTester tester) async {
-    final findWelcomeScreen = find.byType(WelcomeScreen);
-    final findGarageScreen = find.byType(GarageScreen);
-    final findLoginButton = find.byKey(WelcomeScreen.loginButtonKey);
-    final findLogoutButton = find.byKey(GarageScreen.logoutButtonKey);
+  group('TwApp', () {
+    testWidgets('Login opens Garage, Logout returns to Welcome', (WidgetTester tester) async {
+      final findWelcomeScreen = find.byType(WelcomeScreen);
+      final findGarageScreen = find.byType(GarageScreen);
+      final findLoginButton = find.byKey(WelcomeScreen.loginButtonKey);
+      final findLogoutButton = find.byKey(GarageScreen.logoutButtonKey);
 
-    final authResult = Completer<User>();
-    final authService = AuthServiceMock();
-    authService.loginResult = authResult.future;
+      final authResult = Completer<User>();
+      final authService = AuthServiceMock();
+      authService.loginResult = authResult.future;
 
-    await tester.pumpWidget(TwApp(authService: authService));
+      final repo = fake.FakeVehicleRepo();
+      repo.completer.complete(vehicles);
+      await tester.pumpWidget(
+        TwApp(authService: authService, vehicleRepo: repo),
+      );
 
-    expect(findWelcomeScreen, findsOneWidget);
-    expect(findGarageScreen, findsNothing);
+      expect(findWelcomeScreen, findsOneWidget);
+      expect(findGarageScreen, findsNothing);
 
-    expect(tester.widget<FilledButton>(findLoginButton).onPressed, isNotNull);
+      expect(tester.widget<FilledButton>(findLoginButton).onPressed, isNotNull);
 
-    await tester.tap(findLoginButton);
-    await tester.pump();
+      await tester.tap(findLoginButton);
+      await tester.pump();
 
-    expect(tester.widget<FilledButton>(findLoginButton).onPressed, isNull);
+      expect(tester.widget<FilledButton>(findLoginButton).onPressed, isNull);
 
-    authResult.complete(User('id', name: 'User Name', email: 'email'));
+      authResult.complete(User('id', name: 'User Name', email: 'email'));
 
-    await tester.pumpAndSettle();
+      await tester.pumpAndSettle();
 
-    expect(findWelcomeScreen, findsNothing);
-    expect(findGarageScreen, findsOneWidget);
-    expect(tester.widget<Text>(find.byKey(GarageScreen.userNameTextKey)).data, equals('User Name'));
+      expect(findWelcomeScreen, findsNothing);
+      expect(findGarageScreen, findsOneWidget);
+      expect(
+        tester.widget<Text>(find.byKey(GarageScreen.userNameTextKey)).data,
+        equals('User Name'),
+      );
 
-    await tester.tap(findLogoutButton);
-    await tester.pumpAndSettle();
+      await tester.tap(findLogoutButton);
+      await tester.pumpAndSettle();
 
-    expect(findWelcomeScreen, findsOneWidget);
-    expect(findGarageScreen, findsNothing);
+      expect(findWelcomeScreen, findsOneWidget);
+      expect(findGarageScreen, findsNothing);
+    });
   });
 }
 

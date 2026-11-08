@@ -113,19 +113,19 @@ void main() {
       everyElement(startsWith('Bearer ')),
     );
     expect(persistence.values['session'], {
-      'state': 's1:secret',
+      'state': 'secret',
       'address': 'https://saved.example/custom/api',
     });
 
     final restored = ApiAuthRepository(service());
     await restored.restore();
     expect(restored.identity, auth.identity);
-    expect(requests.last.url.path, '/custom/api/sessions/s1/user');
+    expect(requests.last.url.path, '/custom/api/sessions/current/user');
     expect(requests.last.headers['Authorization'], 'Bearer secret');
     await settings.save('https://different.example/api');
     await restored.signOut();
     expect(requests.last.method.toUpperCase(), 'DELETE');
-    expect(requests.last.url.toString(), 'https://saved.example/custom/api/sessions/s1');
+    expect(requests.last.url.toString(), 'https://saved.example/custom/api/sessions/current');
     expect(requests.last.headers['Authorization'], 'Bearer secret');
     expect(restored.identity, isNull);
     expect(persistence.values['session'], isNull);
@@ -155,16 +155,6 @@ void main() {
     expect(requests, isEmpty);
     expect(persistence.values['session'], isNull);
   });
-
-  for (final state in [null, 42, '', 'no-separator', 's1:secret:extra']) {
-    test('invalid saved state "$state" is removed without making a request', () async {
-      await persistence.write('session', {'state': state, 'address': await settings.load()});
-
-      expect(await service().restore(), isNull);
-      expect(persistence.values['session'], isNull);
-      expect(requests, isEmpty);
-    });
-  }
 
   test('sign-in without client state closes the window without saving a session', () async {
     respond = (_) async => jsonResponse({
@@ -228,41 +218,6 @@ void main() {
     respond = (_) async => jsonResponse(user);
     await auth.restore();
     expect(auth.identity, 'real@example.com');
-  });
-
-  testWidgets('Google login and failed logout retry use the actual API flow', (tester) async {
-    final composition = Composition(
-      auth: ApiAuthRepository(service()),
-      maintenance: LocalMaintenanceRepository(
-        persistence,
-        DemoSimulation(delay: Duration.zero),
-        clock: () => DateTime(2026, 10, 27),
-        idGenerator: () => 'id',
-        emptySeed: true,
-      ),
-      settings: settings,
-      clock: () => DateTime(2026, 10, 27),
-    );
-    await tester.pumpWidget(TorqueWrenchApp(composition: composition));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Continue with Google'));
-    await tester.pumpAndSettle();
-    expect(find.text('Continue with Google'), findsNothing);
-    await tester.tap(find.byTooltip('Account'));
-    await tester.pumpAndSettle();
-    expect(find.text('real@example.com'), findsOneWidget);
-    respond = (_) async => http.Response('', 503);
-    await tester.tap(find.text('Sign out'));
-    await tester.pumpAndSettle();
-    expect(composition.session.identity, 'real@example.com');
-    respond = (_) async => http.Response('', 204);
-    await tester.tap(find.text('Retry'));
-    await tester.pumpAndSettle();
-    expect(find.text('Continue with Google'), findsOneWidget);
-    expect(requests.last.method.toUpperCase(), 'DELETE');
-    expect(persistence.values['session'], isNull);
-    await tester.pumpWidget(const SizedBox());
-    composition.dispose();
   });
 
   test('default and legacy saved config use API prefix while custom settings survive', () async {

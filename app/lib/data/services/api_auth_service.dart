@@ -196,7 +196,7 @@ class ApiAuthService(
     final client = _client;
     if (client != null) {
       try {
-        await client.deleteSession();
+        await client.deleteCurrentSession();
       } on RequestFailure catch (failure) {
         if (!_expired(failure)) rethrow;
       }

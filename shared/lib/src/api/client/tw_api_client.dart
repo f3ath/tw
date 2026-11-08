@@ -4,15 +4,13 @@ import 'package:json_api/document.dart';
 import 'package:json_api/routing.dart';
 import 'package:shared/api.dart';
 
-
-
 class TwApiClient(UriDesign urlDesign, Handler handler) {
   this {
     _jsonApi = RoutingClient(urlDesign.uri, Client(_authenticated(handler)));
   }
 
   late final RoutingClient _jsonApi;
-  _State? _state;
+  String? _token;
 
   // Sessions
 
@@ -23,7 +21,7 @@ class TwApiClient(UriDesign urlDesign, Handler handler) {
     if (token is! String) {
       throw InvalidResponse('Missing session token');
     }
-    _state = _State(resource.id, token);
+    _token = token;
     return Session.fromResource(resource);
   }
 
@@ -36,38 +34,35 @@ class TwApiClient(UriDesign urlDesign, Handler handler) {
   }
 
   Future<Session> fetchCurrentSession() async {
-    final state = _state;
-    if (state == null) {
+    if (_token == null) {
       throw StateError('Unauthenticated');
     }
-    return fetchSession(state.id);
+    return fetchSession('current');
   }
 
-  Future<void> deleteSession() async {
-    final state = _state;
-    if (state == null) {
+  Future<void> deleteCurrentSession() async {
+    if (_token == null) {
       throw StateError('Unauthenticated');
     }
-    await deleteSessionById(state.id);
-  }
-
-  Future<void> deleteSessionById(String id) async {
-    await _jsonApi.deleteResource(ResourceType.sessions, id);
-    if (_state?.id == id) {
-      _state = null;
+    try {
+      await _jsonApi.deleteResource(ResourceType.sessions, 'current');
+    } finally {
+      _token = null;
     }
   }
+
+  Future<void> deleteSessionById(String id) async =>
+      await _jsonApi.deleteResource(ResourceType.sessions, id);
 
   // Users
 
   Future<User?> fetchCurrentUser() async {
-    final state = _state;
-    if (state == null) {
+    if (_token == null) {
       throw StateError('Unauthenticated');
     }
     final resource = (await _jsonApi.fetchRelatedResource(
       ResourceType.sessions,
-      state.id,
+      'current',
       'user',
     )).resource;
     return resource == null ? null : User.fromResource(resource);
@@ -262,28 +257,17 @@ class TwApiClient(UriDesign urlDesign, Handler handler) {
 
   // State
 
-  String saveState() {
-    final state = _state;
-    if (state == null) {
-      return '';
-    }
-    return '${state.id}:${state.token}';
-  }
+  String saveState() => _token ?? '';
 
-  void restoreState(String state) {
-    if (state.split(':') case [final id, final token]) {
-      _state = _State(id, token);
-    } else if (state.isEmpty) {
-      _state = null;
-    } else {
-      throw ArgumentError('Invalid state');
-    }
+  void restoreState(String token) {
+    if (token.isEmpty) throw ArgumentError('Empty token');
+    _token = token;
   }
 
   Handler _authenticated(Handler inner) => (request) {
-    final state = _state;
-    if (state != null) {
-      request.headers['Authorization'] = ['Bearer ${state.token}'];
+    final token = _token;
+    if (token != null) {
+      request.headers['Authorization'] = ['Bearer $token'];
     }
     return inner(request);
   };
@@ -292,5 +276,3 @@ class TwApiClient(UriDesign urlDesign, Handler handler) {
 }
 
 class InvalidResponse(final String message) implements Exception;
-
-class _State(final String id, final String token);

@@ -133,6 +133,7 @@ class const VehicleView({
 
 class _VehicleViewState() extends State<VehicleView> with SingleTickerProviderStateMixin {
   late final TabController controller;
+
   @override
   void initState() {
     super.initState();
@@ -148,6 +149,7 @@ class _VehicleViewState() extends State<VehicleView> with SingleTickerProviderSt
   late int tab = widget.initialTab;
   bool archived = false;
   int historyLimit = 30;
+
   void selectTab(int value) {
     setState(() {
       tab = value;

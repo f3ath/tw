@@ -1,4 +1,3 @@
-import 'package:tw_app/data/auth/backend_auth_service.dart';
 import 'package:tw_app/data/auth/login_window.dart';
 import 'package:url_launcher/url_launcher.dart';
 

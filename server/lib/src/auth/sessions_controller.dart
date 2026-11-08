@@ -9,6 +9,7 @@ import 'package:server/src/auth/token_hash.dart';
 import 'package:server/src/auth/session_resource.dart';
 import 'package:server/src/auth/sessions_dao.dart';
 import 'package:server/src/auth/oauth/oauth.dart';
+import 'package:server/src/http/responses.dart';
 import 'package:server/src/users/user_resource.dart';
 import 'package:server/src/users/users_dao.dart';
 import 'package:server/src/json_api/base_controller.dart';
@@ -44,6 +45,14 @@ class SessionsController(
 
   @override
   Future<Response> deleteResource(Request request, ResourceTarget target) async {
+    if (target.id == 'current') {
+      final token = request.sessionToken;
+      if (token == null) return unauthorized();
+      final session = await _sessionsDAO.fetchByTokenHash(tokenHash(token));
+      if (session == null) return notFound();
+      await _sessionsDAO.delete(id: session.id, userId: request.userId);
+      return noContent();
+    }
     if (!await _sessionsDAO.delete(id: target.id, userId: request.userId)) {
       return notFound();
     }
@@ -70,9 +79,14 @@ class SessionsController(
   }
 
   Future<SessionRecord?> _fetchAccessibleSession(Request request, String id) async {
+    final token = request.sessionToken;
+    print(token);
+    if (id == 'current') {
+      if (token == null) return null;
+      return await _sessionsDAO.fetchByTokenHash(tokenHash(token));
+    }
     final session = await _sessionsDAO.fetch(id);
     if (session == null) return null;
-    final token = request.sessionToken;
     if (token != null && session.tokenHash == tokenHash(token)) {
       return session;
     }

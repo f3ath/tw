@@ -184,7 +184,7 @@ void main() {
     final retained = ServiceFormViewModel(repository, vehicle, day(DateTime.now()))
       ..odometer = '250';
     retained.changed();
-    await restoredAuth.withClient((client) => client.deleteSession());
+    await restoredAuth.withClient((client) => client.deleteCurrentSession());
     expect(await retained.save(), isFalse);
     expect(retained.failure?.kind, FailureKind.authentication);
     expect(expirations, 1);
