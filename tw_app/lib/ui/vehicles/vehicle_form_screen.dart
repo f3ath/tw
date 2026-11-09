@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:tw_app/app/vehicle_repo.dart';
 import 'package:shared/model.dart';
+import 'package:tw_app/app/vehicle_repo.dart';
 import 'package:tw_app/time/clock.dart';
 
 class const VehicleFormScreen({
@@ -89,28 +89,7 @@ class _VehicleFormScreenState extends State<VehicleFormScreen> {
             ),
             FilledButton(
               key: VehicleFormScreen.saveButtonKey,
-              onPressed: _isSaving
-                  ? null
-                  : () async {
-                      final valid = formKey.currentState!.validate();
-                      if (!valid) return;
-                      setState(() {
-                        _isSaving = true;
-                      });
-                      try {
-                        await widget.repo.createVehicle(
-                          name: nameController.text.trim(),
-                          manufactureDate: manufactureDate!,
-                          distanceUnit: distanceUnit,
-                        );
-                      } finally {
-                        if (mounted) {
-                          setState(() {
-                            _isSaving = false;
-                          });
-                        }
-                      }
-                    },
+              onPressed: _isSaving ? null : _saveForm,
               child: _isSaving ? Text('Saving...') : Text('Save'),
             ),
           ],
@@ -118,6 +97,35 @@ class _VehicleFormScreenState extends State<VehicleFormScreen> {
       ),
     ),
   );
+
+  Future<void> _saveForm() async {
+    final valid = formKey.currentState!.validate();
+    if (!valid) return;
+    setState(() {
+      _isSaving = true;
+    });
+    try {
+      final vehicle = await widget.repo.createVehicle(
+        name: nameController.text.trim(),
+        manufactureDate: manufactureDate!,
+        distanceUnit: distanceUnit,
+      );
+      if (!mounted) return;
+      Navigator.of(context).pop(vehicle);
+    } on Exception {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+          ..hideCurrentSnackBar()
+          ..showSnackBar(const SnackBar(content: Text('Save failed. Please try again.')));
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isSaving = false;
+        });
+      }
+    }
+  }
 }
 
 String day(DateTime? value) => value == null

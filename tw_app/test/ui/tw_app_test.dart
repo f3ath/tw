@@ -1,22 +1,18 @@
 import 'dart:async';
 
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared/model.dart';
 import 'package:tw_app/app/auth_service.dart';
 import 'package:tw_app/app/tw_app.dart';
-import 'package:shared/model.dart';
 import 'package:tw_app/testing/fake.dart' as fake;
 import 'package:tw_app/testing/stub.dart';
-import 'package:tw_app/ui/garage/garage_screen.dart';
-import 'package:tw_app/ui/welcome/welcome_screen.dart';
+
+import '../use_case.dart';
 
 void main() {
   group('TwApp', () {
     testWidgets('Login opens Garage, Logout returns to Welcome', (WidgetTester tester) async {
-      final findWelcomeScreen = find.byType(WelcomeScreen);
-      final findGarageScreen = find.byType(GarageScreen);
-      final findLoginButton = find.byKey(WelcomeScreen.loginButtonKey);
-      final findLogoutButton = find.byKey(GarageScreen.logoutButtonKey);
+      final useCase = UseCase(tester);
 
       final authResult = Completer<User>();
       final authService = AuthServiceMock();
@@ -29,12 +25,11 @@ void main() {
       expect(findWelcomeScreen, findsOneWidget);
       expect(findGarageScreen, findsNothing);
 
-      expect(tester.widget<FilledButton>(findLoginButton).onPressed, isNotNull);
+      expect(useCase.loginButton.onPressed, isNotNull);
 
-      await tester.tap(findLoginButton);
-      await tester.pump();
+      await useCase.tapLoginButton();
 
-      expect(tester.widget<FilledButton>(findLoginButton).onPressed, isNull);
+      expect(useCase.loginButton.onPressed, isNull);
 
       authResult.complete(User('id', name: 'User Name', email: 'email'));
 
@@ -42,13 +37,9 @@ void main() {
 
       expect(findWelcomeScreen, findsNothing);
       expect(findGarageScreen, findsOneWidget);
-      expect(
-        tester.widget<Text>(find.byKey(GarageScreen.userNameTextKey)).data,
-        equals('User Name'),
-      );
+      expect(useCase.userNameText.data, equals('User Name'));
 
-      await tester.tap(findLogoutButton);
-      await tester.pumpAndSettle();
+      await useCase.tapLogoutButton(settle:true);
 
       expect(findWelcomeScreen, findsOneWidget);
       expect(findGarageScreen, findsNothing);

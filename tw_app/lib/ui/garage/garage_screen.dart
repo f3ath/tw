@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:shared/model.dart';
 import 'package:tw_app/app/vehicle_repo.dart';
+import 'package:tw_app/time/clock.dart';
 import 'package:tw_app/ui/garage/garage_view_model.dart';
 import 'package:tw_app/ui/vehicles/vehicle_form_screen.dart';
 
@@ -8,6 +10,7 @@ class const GarageScreen({
   required final Future<void> Function() onLogout,
   required final String userName,
   required final VehicleRepo repo,
+  final Clock clock = const Clock(),
 }) extends StatefulWidget {
   static const userNameTextKey = ValueKey('user-name-text');
   static const logoutButtonKey = ValueKey('logout-button');
@@ -89,9 +92,15 @@ class _GarageScreenState extends State<GarageScreen> {
       key: GarageScreen.addButtonKey,
       tooltip: 'Add new vehicle',
       child: const Icon(Icons.add),
-      onPressed: () {
-        Navigator.of(context)
-            .push<void>(MaterialPageRoute(builder: (_) => VehicleFormScreen(repo: widget.repo)));
+      onPressed: () async {
+        final newVehicle = await Navigator.of(context).push<Vehicle>(
+          MaterialPageRoute(
+            builder: (_) => VehicleFormScreen(repo: widget.repo, clock: widget.clock),
+          ),
+        );
+        if (newVehicle != null && mounted) {
+          await model.load();
+        }
       },
     ),
   );

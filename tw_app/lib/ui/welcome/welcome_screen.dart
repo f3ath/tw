@@ -25,10 +25,9 @@ class _WelcomeScreenState() extends State<WelcomeScreen> {
       // no error
     } on Exception {
       if (mounted) {
-        ScaffoldMessenger.of(context).hideCurrentSnackBar();
-
         ScaffoldMessenger.of(context)
-            .showSnackBar(const SnackBar(content: Text('Login failed. Please try again.')));
+          ..hideCurrentSnackBar()
+          ..showSnackBar(const SnackBar(content: Text('Login failed. Please try again.')));
       }
     } finally {
       if (mounted) {

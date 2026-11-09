@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mocktail/mocktail.dart';
 import 'package:tw_app/testing/fake.dart';
 import 'package:tw_app/testing/stub.dart' as stub;
+import 'package:tw_app/time/clock.dart';
 import 'package:tw_app/ui/garage/garage_screen.dart';
-import 'package:tw_app/ui/vehicles/vehicle_form_screen.dart';
+
+import '../../use_case.dart';
 
 void main() {
   group('GarageScreen', () {
@@ -58,6 +61,7 @@ void main() {
     });
 
     testWidgets('repo is reused', (WidgetTester tester) async {
+      final useCase = UseCase(tester);
       final repo = FakeVehicleRepo();
       await tester.pumpWidget(
         MaterialApp(
@@ -67,7 +71,7 @@ void main() {
       repo.listCompleter.complete(stub.vehicles);
       await tester.pumpAndSettle();
       expect(repo.listCalls, equals(1));
-      expect(tester.widget<Text>(find.byKey(GarageScreen.userNameTextKey)).data, equals('First'));
+      expect(useCase.userNameText.data, equals('First'));
       expectVehiclesLoaded();
 
       await tester.pumpWidget(
@@ -77,26 +81,51 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(tester.widget<Text>(find.byKey(GarageScreen.userNameTextKey)).data, equals('Second'));
+      expect(useCase.userNameText.data, equals('Second'));
       expectVehiclesLoaded();
       expect(repo.listCalls, equals(1));
     });
 
-    testWidgets('Add button opens the form', (WidgetTester tester) async {
+    testWidgets('open the form, navigate back', (WidgetTester tester) async {
+      final useCase = GarageUC(tester);
       final repo = await setUpTestHarness(tester);
       repo.listCompleter.complete(stub.vehicles);
       await tester.pumpAndSettle();
-      await tester.tap(find.byKey(GarageScreen.addButtonKey));
-      await tester.pumpAndSettle();
+      await useCase.tapAddNewVehicleButton(settle: true);
 
-      expect(find.byType(VehicleFormScreen), findsOne);
+      expect(findVehicleFormScreen, findsOne);
 
       await tester.pageBack();
       await tester.pumpAndSettle();
 
-      expect(find.byType(VehicleFormScreen), findsNothing);
-      expect(find.byType(GarageScreen), findsOne);
+      expect(findVehicleFormScreen, findsNothing);
+      expect(findGarageScreen, findsOne);
       expectVehiclesLoaded();
+    });
+
+    testWidgets('open the form, add vehicle', (WidgetTester tester) async {
+      final repo = FakeVehicleRepo();
+      repo.listCompleter.complete(stub.vehicles);
+      repo.createCompleter.complete();
+      final clock = ClockMock();
+      when(() => clock.now()).thenReturn(DateTime(2009, 10, 15));
+      await tester.pumpWidget(
+        MaterialApp(
+          home: GarageScreen(onLogout: () async {}, userName: 'Begelme', repo: repo, clock: clock),
+        ),
+      );
+      expect(repo.listCalls, equals(1));
+
+      final uc = VehicleFormUC(tester);
+      await uc.tapAddNewVehicleButton(settle: true);
+      await uc.enterName('New Car');
+      await uc.selectDistanceUnit('km');
+      await uc.selectDayAndConfirm('2');
+      await uc.saveForm(settle: true);
+
+      expect(findGarageScreen, findsOne);
+      expect(findVehicleFormScreen, findsNothing);
+      expect(repo.listCalls, equals(2));
     });
   });
 }
@@ -112,7 +141,7 @@ Future<FakeVehicleRepo> setUpTestHarness(WidgetTester tester) async {
 }
 
 void expectUserNameIsShown(WidgetTester tester) =>
-    expect(tester.widget<Text>(find.byKey(GarageScreen.userNameTextKey)).data, equals('Begelme'));
+    expect(UseCase(tester).userNameText.data, equals('Begelme'));
 
 void expectVehiclesLoaded() {
   expect(find.byType(CircularProgressIndicator), findsNothing);
@@ -120,3 +149,5 @@ void expectVehiclesLoaded() {
   expect(find.text(stub.vehicle1.name), findsOne);
   expect(find.text(stub.vehicle2.name), findsOne);
 }
+
+class ClockMock extends Mock implements Clock;
