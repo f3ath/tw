@@ -3,17 +3,17 @@ import 'package:json_api/document.dart';
 import 'package:json_api/routing.dart';
 import 'package:json_api/server.dart';
 import 'package:server/src/auth/request_ext.dart';
-import 'package:server/src/json_api/base_controller.dart';
 import 'package:server/src/db/invalid_record.dart';
+import 'package:server/src/json_api/base_controller.dart';
 import 'package:server/src/schedules/schedule_resource.dart';
 import 'package:server/src/schedules/schedules_dao.dart';
 import 'package:server/src/services/service_resource.dart';
 import 'package:server/src/services/services_dao.dart';
+import 'package:server/src/validation/date.dart';
 import 'package:server/src/vehicles/vehicle_resource.dart';
 import 'package:server/src/vehicles/vehicles_dao.dart';
-import 'package:shared/time.dart';
-import 'package:server/src/validation/date.dart';
 import 'package:shared/api.dart' show DistanceUnit;
+import 'package:shared/time.dart';
 import 'package:uuid/uuid.dart';
 
 class VehiclesController(
@@ -37,7 +37,12 @@ class VehiclesController(
     final attributes = resource.attributes;
     final name = _parseName(attributes['name']);
     final manufactureDate = parseDate(attributes['manufacture_date'], clock: _clock);
-    if (name == null || manufactureDate == null) return badRequest();
+    if (name == null) {
+      return badRequest(OutboundErrorDocument([ErrorObject(title: 'Empty name')]));
+    }
+    if (manufactureDate == null) {
+      return badRequest(OutboundErrorDocument([ErrorObject(title: 'Invalid date')]));
+    }
     final distanceUnit = resource.attributes.containsKey('distance_unit')
         ? resource.attributes['distance_unit']
         : DistanceUnit.mi.name;

@@ -80,7 +80,6 @@ class SessionsController(
 
   Future<SessionRecord?> _fetchAccessibleSession(Request request, String id) async {
     final token = request.sessionToken;
-    print(token);
     if (id == 'current') {
       if (token == null) return null;
       return await _sessionsDAO.fetchByTokenHash(tokenHash(token));

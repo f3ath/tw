@@ -1,6 +1,6 @@
 import 'package:shared/time.dart';
 
-DateTime? parseDate(Object? value, {Clock clock = systemClock, int maxDaysInFuture = 0}) {
+DateTime? parseDate(Object? value, {Clock clock = systemClock, int maxDaysInFuture = 30}) {
   final date = tryParseDate(value);
   if (date == null) return null;
   final now = clock();
