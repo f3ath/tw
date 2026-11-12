@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared/model.dart';
 import 'package:tw_app/ui/garage/garage_screen.dart';
@@ -59,11 +59,15 @@ class VehicleFormUC(super.tester) extends GarageUC {
 
   FilledButton get saveButton => tester.widget<FilledButton>(findSaveButton);
 
-  String get selectedDate => tester.widget<TextFormField>(findDateField).controller!.text;
+  DateTime? get selectedDate => dateField.value;
 
-  String? get nameError => tester.state<FormFieldState<String>>(findNameField).errorText;
+  FormFieldState<String> get nameField => tester.state<FormFieldState<String>>(findNameField);
 
-  String? get dateError => tester.state<FormFieldState<String>>(findDateField).errorText;
+  FormFieldState<DateTime> get dateField => tester.state<FormFieldState<DateTime>>(findDateField);
+
+  String? get nameError => nameField.errorText;
+
+  String? get dateError => dateField.errorText;
 
   Future<void> saveForm({bool pump = true, bool settle = false}) async {
     await tester.tap(findSaveButton);

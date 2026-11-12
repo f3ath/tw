@@ -1,12 +1,14 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:shared/model.dart';
 import 'package:tw_app/app/vehicle_repo.dart';
 import 'package:tw_app/time/clock.dart';
+import 'package:tw_app/ui/form/date_form_field.dart';
 
 class const VehicleFormScreen({
   super.key,
   required final VehicleRepo repo,
   final Clock clock = const Clock(),
+  final Vehicle? vehicle,
 }) extends StatefulWidget {
   @override
   State<VehicleFormScreen> createState() => _VehicleFormScreenState();
@@ -18,16 +20,20 @@ class const VehicleFormScreen({
 
 class _VehicleFormScreenState extends State<VehicleFormScreen> {
   late final nameController = TextEditingController();
-  late final dateController = TextEditingController();
   DistanceUnit distanceUnit = .mi;
-  DateTime? manufactureDate;
+  DateTime? _manufactureDate;
   final formKey = GlobalKey<FormState>();
   var _isSaving = false;
 
   @override
+  void initState() {
+    super.initState();
+    _manufactureDate = widget.vehicle?.manufactureDate;
+  }
+
+  @override
   void dispose() {
     nameController.dispose();
-    dateController.dispose();
     super.dispose();
   }
 
@@ -62,31 +68,49 @@ class _VehicleFormScreenState extends State<VehicleFormScreen> {
                 distanceUnit = it ?? .mi;
               }),
             ),
-            TextFormField(
+            // TextFormField(
+            //   key: VehicleFormScreen.dateFieldKey,
+            //   controller: dateController,
+            //   readOnly: true,
+            //   onTap: () async {
+            //     final selected = await showDatePicker(
+            //       context: context,
+            //       initialDate: _manufactureDate ?? widget.clock.now(),
+            //       firstDate: DateTime(1900),
+            //       lastDate: DateTime(2100),
+            //     );
+            //     if (!mounted || selected == null) return;
+            //     setState(() {
+            //       _setManufactureDate(selected);
+            //     });
+            //   },
+            //   decoration: InputDecoration(labelText: 'Manufacture Date'),
+            //   validator: (val) {
+            //     if (val == null || val.trim().isEmpty) {
+            //       return 'The date is needed to calculate services due';
+            //     }
+            //     return null;
+            //   },
+            // ),
+            DateFormField(
               key: VehicleFormScreen.dateFieldKey,
-              controller: dateController,
-              readOnly: true,
-              onTap: () async {
-                final selected = await showDatePicker(
-                  context: context,
-                  initialDate: manufactureDate ?? widget.clock.now(),
-                  firstDate: DateTime(1900),
-                  lastDate: DateTime(2100),
-                );
-                if (!mounted || selected == null) return;
-                setState(() {
-                  manufactureDate = selected;
-                  dateController.text = day(selected);
-                });
-              },
+              format: day,
+              firstDate: DateTime(1900),
+              lastDate: DateTime(2100),
+              initialValue: widget.vehicle?.manufactureDate,
               decoration: InputDecoration(labelText: 'Manufacture Date'),
               validator: (val) {
-                if (val == null || val.trim().isEmpty) {
+                if (val == null) {
                   return 'The date is needed to calculate services due';
                 }
                 return null;
               },
+              clock: widget.clock,
+              onSaved: (val) {
+                _manufactureDate = val;
+              },
             ),
+
             FilledButton(
               key: VehicleFormScreen.saveButtonKey,
               onPressed: _isSaving ? null : _saveForm,
@@ -99,15 +123,16 @@ class _VehicleFormScreenState extends State<VehicleFormScreen> {
   );
 
   Future<void> _saveForm() async {
-    final valid = formKey.currentState!.validate();
-    if (!valid) return;
+    final form = formKey.currentState!;
+    if (!form.validate()) return;
+    form.save();
     setState(() {
       _isSaving = true;
     });
     try {
       final vehicle = await widget.repo.createVehicle(
         name: nameController.text.trim(),
-        manufactureDate: manufactureDate!,
+        manufactureDate: _manufactureDate!,
         distanceUnit: distanceUnit,
       );
       if (!mounted) return;

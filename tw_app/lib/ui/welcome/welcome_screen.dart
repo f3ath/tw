@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:tw_app/app/auth/auth_exceptions.dart';
 
 class const WelcomeScreen({super.key, required final Future<void> Function() onLogin})

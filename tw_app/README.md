@@ -29,6 +29,7 @@ Offline mode, synchronization, and advanced network behavior such as atomicity a
 
 ## Architecture decisions
 
+- Flutter 3.50 / Dart 3.14 toolchain. Import Material widgets from `package:material_ui/material_ui.dart` (standalone `material_ui` dependency), not the deprecated `package:flutter/material.dart`.
 - Use ports/adapters. Application logic and its tests depend on semantic ports, not HTTP messages or TwApiClient.
 - Skip unit tests for trivial API adapters while TwApiClient evolves; retain application behavior tests.
 - Null-to-empty mapping for user name/email is deliberate. Exceptions cross ports unchanged for now.
@@ -36,23 +37,23 @@ Offline mode, synchronization, and advanced network behavior such as atomicity a
 - User-facing feedback belongs in presentation. Cancellation is handled silently; other login exceptions currently show a generic snackbar.
 - Select login-window adapters through conditional exports. Web reserves a popup synchronously before awaiting requests. Native launches an external browser, cannot observe closure, and cannot close it.
 
-## Current state — 2026-11-08
+## Current state — 2026-11-11
 
 - Auth service orchestrates session creation, navigation, polling, timeout/cancellation, and window cleanup through ports.
 - `app_proto/` is the renamed reference prototype (Dart package `app_proto`); `tw_app/` remains the active learning application.
-- main selects real authentication/vehicles (`fake = false`) and shares one TwApiClient between their adapters. Models now come from `shared/model.dart`; duplicated tw_app domain models and its local ApiClient were removed.
+- main selects real authentication/vehicles by default and shares one TwApiClient between their adapters. Use `--dart-define=USE_FAKE_BACKEND=true` for development stubs. Models come from `shared/model.dart`.
 - TwApp retains the authenticated User and switches between welcome and garage. The name appears beside logout.
 - Welcome handles pending, failure/retry, and cancellation states.
 - Domain Vehicle includes id, name, manufactureDate, and distanceUnit.
 - GarageScreen owns GarageViewModel in State, creates/loads it in initState, and disposes it on unmount. ListenableBuilder renders loading, error/retry, empty, and keyed vehicle rows. TwApp receives VehicleRepo; BackendVehicleRepo delegates listing and creation to TwApiClient.
-- Latest full verification: `flutter test` — **21 passed**. Real browser/native authentication has not been verified by these tests.
+- Latest full verification on Flutter 3.50: `flutter test` — **22 passed**; static analysis, release web build, and macOS debug build pass. Prototype analysis/web/macOS debug builds also pass, with 31 server-independent tests passing; its live-API test needs the server at localhost:8080. Real browser/native authentication has not been verified by these tests.
 - Tests cover auth orchestration, welcome failure/retry/cancellation, app login/logout and name wiring, and garage empty/populated rendering.
 
 ## Next exercise
 
-User accepts creation/save error handling as sufficient and wants to move on; do not block on additional retry assertions. Latest full suite: 21 passed; targeted form analysis clean.
+Vehicle editing groundwork underway: optional vehicle and prefilled-value test exist. Reusable `lib/ui/form/date_form_field.dart` extends FormField<DateTime>, owns its display controller, synchronizes init/didChange/reset, and forwards validator/onSaved. It is integrated into VehicleFormScreen with initialValue, injected clock, and FormState.save(). Existing form tests pass; dedicated reset/typed-field tests remain optional follow-up.
 
-Next vehicle editing: reuse VehicleFormScreen with optional initialVehicle. First test prefilled name/date/unit and edit title; initialize controllers/selection once in initState. Then add semantic update operation and test editing invokes update for original ID rather than create. Only expose row navigation after update is wired; await successful form return and refresh garage using existing pattern. Preserve creation behavior. Then vehicle deletion. Trivial adapter tests remain skipped.
+Next continue edit update semantics and row navigation; existing save still calls createVehicle. User accepts creation coverage and does not require extra retry/refreshed-list assertions. Keep trivial adapter tests skipped.
 
 Reference prototype is app_proto; active app is tw_app. Session restoration remains planned, not completed.
 

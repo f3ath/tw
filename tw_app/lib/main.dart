@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:http/http.dart' as http;
 import 'package:http_interop_http/http_interop_http.dart';
 import 'package:json_api/routing.dart';
@@ -11,7 +11,7 @@ import 'package:tw_app/data/backend_vehicle_repo.dart';
 import 'package:tw_app/testing/stub.dart' as stub;
 
 void main() {
-  final fake = false;
+  const fake = bool.fromEnvironment('USE_FAKE_BACKEND');
   final uriDesign = StandardUriDesign(Uri.parse('http://localhost:8080/api/v0'));
   final handler = http.Client().sendInterop;
   final twApiClient = TwApiClient(uriDesign, handler);
