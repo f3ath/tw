@@ -4,7 +4,7 @@ Flutter Material 3 car-maintenance app backed by the TorqueWrench API. Read [ARC
 
 ## Launch
 
-From this Flutter package directory, with Flutter/Dart supporting Dart 3.13.5 or later:
+From this Flutter package directory, using Flutter 3.50 / Dart 3.14:
 
 ```sh
 flutter pub get

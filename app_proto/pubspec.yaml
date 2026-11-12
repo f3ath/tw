@@ -21,6 +21,7 @@ dependencies:
   shared_preferences: ^2.5.3
   # Xcode 16 compatibility: 2.6.0 generated Swift requires a newer compiler.
   shared_preferences_foundation: 2.5.7
+  material_ui: ^1.11.0
 dev_dependencies:
   flutter_test:
     sdk: flutter
