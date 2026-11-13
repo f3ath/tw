@@ -1,5 +1,4 @@
 import 'package:material_ui/material_ui.dart';
-import 'package:shared/model.dart';
 import 'package:tw_app/app/vehicle_repo.dart';
 import 'package:tw_app/time/clock.dart';
 import 'package:tw_app/ui/garage/garage_view_model.dart';
@@ -41,11 +40,7 @@ class _GarageScreenState extends State<GarageScreen> {
   Widget build(BuildContext context) => Scaffold(
     appBar: AppBar(
       title: Row(
-        children: [
-          Icon(Icons.garage_outlined, size: 30),
-          SizedBox(width: 10),
-          Text('Garage'),
-        ],
+        children: [Icon(Icons.garage_outlined, size: 30), SizedBox(width: 10), Text('Garage')],
       ),
       actions: [
         Text(
@@ -143,7 +138,7 @@ class _GarageScreenState extends State<GarageScreen> {
                       onSelected: (action) async {
                         debugPrint('${v.id}: $action');
                         if (action == .edit) {
-                          final updated = await Navigator.of(context).push<Vehicle>(
+                          final updated = await Navigator.of(context).push<bool>(
                             MaterialPageRoute(
                               builder: (_) => VehicleFormScreen(
                                 repo: widget.repo,
@@ -152,7 +147,7 @@ class _GarageScreenState extends State<GarageScreen> {
                               ),
                             ),
                           );
-                          if (updated != null && mounted) {
+                          if (updated == true && mounted) {
                             await model.load();
                           }
                         }
@@ -175,12 +170,12 @@ class _GarageScreenState extends State<GarageScreen> {
       tooltip: 'Add new vehicle',
       child: const Icon(Icons.add),
       onPressed: () async {
-        final newVehicle = await Navigator.of(context).push<Vehicle>(
+        final added = await Navigator.of(context).push<bool>(
           MaterialPageRoute(
             builder: (_) => VehicleFormScreen(repo: widget.repo, clock: widget.clock),
           ),
         );
-        if (newVehicle != null && mounted) {
+        if (added == true && mounted) {
           await model.load();
         }
       },

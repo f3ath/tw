@@ -102,22 +102,22 @@ class _VehicleFormScreenState extends State<VehicleFormScreen> {
       _isSaving = true;
     });
     try {
-      var vehicle = widget.vehicle;
+      final vehicle = widget.vehicle;
       if (vehicle != null) {
-        vehicle = await widget.repo.updateVehicle(vehicle.id,
+        await widget.repo.updateVehicle(
+          vehicle.id,
           name: _name,
           manufactureDate: _manufactureDate!,
-          distanceUnit: _distanceUnit,
         );
       } else {
-        vehicle = await widget.repo.createVehicle(
+        await widget.repo.createVehicle(
           name: _name,
           manufactureDate: _manufactureDate!,
           distanceUnit: _distanceUnit,
         );
       }
       if (!mounted) return;
-      Navigator.of(context).pop(vehicle);
+      Navigator.of(context).pop(true);
     } on Exception {
       if (mounted) {
         ScaffoldMessenger.of(context)

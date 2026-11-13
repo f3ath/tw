@@ -52,7 +52,7 @@ class InMemoryVehicleRepo() implements VehicleRepo {
   }
 
   @override
-  Future<Vehicle> createVehicle({
+  Future<void> createVehicle({
     required String name,
     required DateTime manufactureDate,
     required DistanceUnit distanceUnit,
@@ -65,7 +65,6 @@ class InMemoryVehicleRepo() implements VehicleRepo {
       distanceUnit: distanceUnit,
     );
     vehicles[v.id] = v;
-    return v;
   }
 
   @override
@@ -76,14 +75,20 @@ class InMemoryVehicleRepo() implements VehicleRepo {
   }
 
   @override
-  Future<Vehicle> updateVehicle(
+  Future<void> updateVehicle(
     String id, {
     required String name,
     required DateTime manufactureDate,
-    required DistanceUnit distanceUnit,
   }) async {
-    final v = Vehicle(id, name: name, manufactureDate: manufactureDate, distanceUnit: distanceUnit);
-    vehicles[v.id] = v;
-    return v;
+    final v = vehicles[id];
+    if (v == null) {
+      throw StateError('Vehicle not found');
+    }
+    vehicles[id] = Vehicle(
+      id,
+      name: name,
+      manufactureDate: manufactureDate,
+      distanceUnit: v.distanceUnit,
+    );
   }
 }

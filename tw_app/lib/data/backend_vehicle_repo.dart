@@ -6,24 +6,24 @@ class BackendVehicleRepo(final TwApiClient _client) implements VehicleRepo {
   Future<List<Vehicle>> listVehicles() => _client.listVehicles();
 
   @override
-  Future<Vehicle> createVehicle({
+  Future<void> createVehicle({
     required String name,
     required DateTime manufactureDate,
     required DistanceUnit distanceUnit,
-  }) => _client.createVehicle(
-    name: name,
-    manufactureDate: manufactureDate,
-    distanceUnit: distanceUnit,
-  );
+  }) async {
+    await _client.createVehicle(
+      name: name,
+      manufactureDate: manufactureDate,
+      distanceUnit: distanceUnit,
+    );
+  }
 
   @override
-  Future<Vehicle> updateVehicle(
+  Future<void> updateVehicle(
     String id, {
     required String name,
     required DateTime manufactureDate,
-    required DistanceUnit distanceUnit,
-  }) {
-    // TODO: implement updateVehicle
-    throw UnimplementedError();
+  }) async {
+    await _client.updateVehicle(id, name: name, manufactureDate: manufactureDate);
   }
 }
