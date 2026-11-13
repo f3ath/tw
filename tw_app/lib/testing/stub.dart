@@ -1,17 +1,19 @@
+import 'dart:async';
+
+import 'package:shared/model.dart';
 import 'package:tw_app/app/auth_service.dart';
 import 'package:tw_app/app/vehicle_repo.dart';
-import 'package:shared/model.dart';
 
-const user1 = User('user-1', name: 'Begelme Ashambe', email: 'begelme@example.com');
+const user1 = User('user-0', name: 'Begelme Ashambe', email: 'begelme@example.com');
 
 final vehicle1 = Vehicle(
-  'vehicle-1',
+  'vehicle-0',
   name: 'Santa Fe',
   manufactureDate: DateTime(2013),
   distanceUnit: .mi,
 );
 final vehicle2 = Vehicle(
-  'vehicle-2',
+  'vehicle-1',
   name: '4Runner',
   manufactureDate: DateTime(2022),
   distanceUnit: .mi,
@@ -19,22 +21,34 @@ final vehicle2 = Vehicle(
 
 final vehicles = [vehicle1, vehicle2];
 
-class AuthServiceStub implements AuthService {
+class InMemoryAuthService({final User _user = user1}) implements AuthService {
   @override
   Future<User> login({
     Duration pollInterval = const Duration(seconds: 1),
     Duration pollTimeout = const Duration(seconds: 10),
-  }) async => user1;
+  }) async => _user;
 
   @override
   Future<void> logout() async {}
 }
 
-class VehicleRepoStub implements VehicleRepo {
-  @override
-  Future<List<Vehicle>> listVehicles() async {
-    await Future<void>.delayed(Duration(seconds: 1));
-    return vehicles;
+class InMemoryVehicleRepo() implements VehicleRepo {
+  final vehicles = <String, Vehicle>{vehicle1.id: vehicle1, vehicle2.id: vehicle2};
+  var listCalls = 0;
+
+  Future<void> _listFuture = Future.value();
+  Future<void> _createFuture = Future.value();
+
+  Completer<void> lockList() {
+    final c = Completer<void>();
+    _listFuture = c.future;
+    return c;
+  }
+
+  Completer<void> lockCreate() {
+    final c = Completer<void>();
+    _createFuture = c.future;
+    return c;
   }
 
   @override
@@ -43,11 +57,33 @@ class VehicleRepoStub implements VehicleRepo {
     required DateTime manufactureDate,
     required DistanceUnit distanceUnit,
   }) async {
-    return Vehicle(
-      'new-id',
+    await _createFuture;
+    final v = Vehicle(
+      'vehicle-${vehicles.length}',
       name: name,
       manufactureDate: manufactureDate,
       distanceUnit: distanceUnit,
     );
+    vehicles[v.id] = v;
+    return v;
+  }
+
+  @override
+  Future<List<Vehicle>> listVehicles() async {
+    listCalls++;
+    await _listFuture;
+    return vehicles.values.toList();
+  }
+
+  @override
+  Future<Vehicle> updateVehicle(
+    String id, {
+    required String name,
+    required DateTime manufactureDate,
+    required DistanceUnit distanceUnit,
+  }) async {
+    final v = Vehicle(id, name: name, manufactureDate: manufactureDate, distanceUnit: distanceUnit);
+    vehicles[v.id] = v;
+    return v;
   }
 }

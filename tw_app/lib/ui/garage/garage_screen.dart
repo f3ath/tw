@@ -40,7 +40,13 @@ class _GarageScreenState extends State<GarageScreen> {
   @override
   Widget build(BuildContext context) => Scaffold(
     appBar: AppBar(
-      title: Text('Garage'),
+      title: Row(
+        children: [
+          Icon(Icons.garage_outlined, size: 30),
+          SizedBox(width: 10),
+          Text('Garage'),
+        ],
+      ),
       actions: [
         Text(
           widget.userName,
@@ -77,14 +83,90 @@ class _GarageScreenState extends State<GarageScreen> {
           );
         }
         if (model.vehicles.isEmpty) {
-          return Center(child: Text('Nothing yet LMAO 2'));
+          return Center(child: Text('Nothing yet'));
         }
         return ListView.builder(
           itemCount: model.vehicles.length,
-          itemBuilder: (BuildContext context, int index) => ListTile(
-            key: ValueKey(model.vehicles[index].id),
-            title: Text(model.vehicles[index].name),
-          ),
+          itemBuilder: (BuildContext context, int index) {
+            final v = model.vehicles[index];
+            final age = v.ageAsOf(widget.clock.now());
+            return Card(
+              key: ValueKey('vehicle-${v.id}'),
+              child: Column(
+                mainAxisSize: .min,
+                children: [
+                  ListTile(
+                    title: Text(v.name),
+                    subtitle: Text(
+                      '${age.years > 0 ? '${age.years} yr ' : ''}${age.months} mon old',
+                    ),
+                    trailing: PopupMenuButton<VehicleAction>(
+                      key: ValueKey('menu-${v.id}'),
+                      tooltip: 'Manage ${v.name}',
+                      icon: const Icon(Icons.more_vert),
+                      itemBuilder: (_) => [
+                        const PopupMenuItem(
+                          key: ValueKey('edit'),
+                          value: VehicleAction.edit,
+                          child: Row(
+                            children: [
+                              Icon(Icons.edit_outlined, size: 20),
+                              SizedBox(width: 12),
+                              Expanded(child: Text('Edit vehicle')),
+                            ],
+                          ),
+                        ),
+                        const PopupMenuItem(
+                          key: ValueKey('schedules'),
+                          value: VehicleAction.schedules,
+                          child: Row(
+                            children: [
+                              Icon(Icons.event_repeat, size: 20),
+                              SizedBox(width: 12),
+                              Expanded(child: Text('Manage schedules')),
+                            ],
+                          ),
+                        ),
+                        const PopupMenuDivider(),
+                        const PopupMenuItem(
+                          key: ValueKey('delete'),
+                          value: VehicleAction.delete,
+                          child: Row(
+                            children: [
+                              Icon(Icons.delete_outline, size: 20),
+                              SizedBox(width: 12),
+                              Expanded(child: Text('Delete vehicle')),
+                            ],
+                          ),
+                        ),
+                      ],
+                      onSelected: (action) async {
+                        debugPrint('${v.id}: $action');
+                        if (action == .edit) {
+                          final updated = await Navigator.of(context).push<Vehicle>(
+                            MaterialPageRoute(
+                              builder: (_) => VehicleFormScreen(
+                                repo: widget.repo,
+                                clock: widget.clock,
+                                vehicle: v,
+                              ),
+                            ),
+                          );
+                          if (updated != null && mounted) {
+                            await model.load();
+                          }
+                        }
+                      },
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Text('Services due will go here'),
+                  ),
+                ],
+              ),
+            );
+          },
         );
       },
     ),
@@ -105,3 +187,5 @@ class _GarageScreenState extends State<GarageScreen> {
     ),
   );
 }
+
+enum VehicleAction { edit, schedules, delete }

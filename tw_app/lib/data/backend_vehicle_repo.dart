@@ -15,4 +15,15 @@ class BackendVehicleRepo(final TwApiClient _client) implements VehicleRepo {
     manufactureDate: manufactureDate,
     distanceUnit: distanceUnit,
   );
+
+  @override
+  Future<Vehicle> updateVehicle(
+    String id, {
+    required String name,
+    required DateTime manufactureDate,
+    required DistanceUnit distanceUnit,
+  }) {
+    // TODO: implement updateVehicle
+    throw UnimplementedError();
+  }
 }

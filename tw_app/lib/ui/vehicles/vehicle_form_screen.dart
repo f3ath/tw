@@ -19,79 +19,51 @@ class const VehicleFormScreen({
 }
 
 class _VehicleFormScreenState extends State<VehicleFormScreen> {
-  late final nameController = TextEditingController();
-  DistanceUnit distanceUnit = .mi;
+  final _formKey = GlobalKey<FormState>();
+  DistanceUnit _distanceUnit = .mi;
   DateTime? _manufactureDate;
-  final formKey = GlobalKey<FormState>();
+  String _name = '';
   var _isSaving = false;
 
   @override
-  void initState() {
-    super.initState();
-    _manufactureDate = widget.vehicle?.manufactureDate;
-  }
-
-  @override
-  void dispose() {
-    nameController.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: Text('Add Vehicle')),
+    appBar: AppBar(title: Text(widget.vehicle == null ? 'Add Vehicle' : 'Edit Vehicle')),
     body: Padding(
       padding: .all(10),
       child: Form(
-        key: formKey,
+        key: _formKey,
         child: Column(
           children: [
             TextFormField(
               decoration: InputDecoration(labelText: 'Name'),
               key: VehicleFormScreen.nameFieldKey,
-              controller: nameController,
+              initialValue: widget.vehicle?.name,
               validator: (val) {
                 if (val == null || val.trim().isEmpty) {
                   return 'Please name your vehicle';
                 }
                 return null;
               },
+              onSaved: (val) {
+                if (val != null) {
+                  _name = val.trim();
+                }
+              },
             ),
             DropdownButtonFormField<DistanceUnit>(
               key: VehicleFormScreen.distanceUnitFieldKey,
               decoration: InputDecoration(labelText: 'Distance Unit'),
-              initialValue: distanceUnit,
+              initialValue: widget.vehicle?.distanceUnit ?? .mi,
               items: DistanceUnit.values
                   .map((it) => DropdownMenuItem<DistanceUnit>(value: it, child: Text(it.name)))
                   .toList(),
-              onChanged: (it) => setState(() {
-                distanceUnit = it ?? .mi;
-              }),
+              onSaved: (val) {
+                if (val != null) {
+                  _distanceUnit = val;
+                }
+              },
+              onChanged: widget.vehicle == null ? (_) {} : null, // enabled the control
             ),
-            // TextFormField(
-            //   key: VehicleFormScreen.dateFieldKey,
-            //   controller: dateController,
-            //   readOnly: true,
-            //   onTap: () async {
-            //     final selected = await showDatePicker(
-            //       context: context,
-            //       initialDate: _manufactureDate ?? widget.clock.now(),
-            //       firstDate: DateTime(1900),
-            //       lastDate: DateTime(2100),
-            //     );
-            //     if (!mounted || selected == null) return;
-            //     setState(() {
-            //       _setManufactureDate(selected);
-            //     });
-            //   },
-            //   decoration: InputDecoration(labelText: 'Manufacture Date'),
-            //   validator: (val) {
-            //     if (val == null || val.trim().isEmpty) {
-            //       return 'The date is needed to calculate services due';
-            //     }
-            //     return null;
-            //   },
-            // ),
             DateFormField(
               key: VehicleFormScreen.dateFieldKey,
               format: day,
@@ -123,18 +95,27 @@ class _VehicleFormScreenState extends State<VehicleFormScreen> {
   );
 
   Future<void> _saveForm() async {
-    final form = formKey.currentState!;
+    final form = _formKey.currentState!;
     if (!form.validate()) return;
     form.save();
     setState(() {
       _isSaving = true;
     });
     try {
-      final vehicle = await widget.repo.createVehicle(
-        name: nameController.text.trim(),
-        manufactureDate: _manufactureDate!,
-        distanceUnit: distanceUnit,
-      );
+      var vehicle = widget.vehicle;
+      if (vehicle != null) {
+        vehicle = await widget.repo.updateVehicle(vehicle.id,
+          name: _name,
+          manufactureDate: _manufactureDate!,
+          distanceUnit: _distanceUnit,
+        );
+      } else {
+        vehicle = await widget.repo.createVehicle(
+          name: _name,
+          manufactureDate: _manufactureDate!,
+          distanceUnit: _distanceUnit,
+        );
+      }
       if (!mounted) return;
       Navigator.of(context).pop(vehicle);
     } on Exception {

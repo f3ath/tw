@@ -1,7 +1,7 @@
-import 'package:material_ui/material_ui.dart';
 import 'package:http/http.dart' as http;
 import 'package:http_interop_http/http_interop_http.dart';
 import 'package:json_api/routing.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:shared/api.dart';
 import 'package:tw_app/app/tw_app.dart';
 import 'package:tw_app/data/auth/api_client_adapter.dart';
@@ -11,7 +11,7 @@ import 'package:tw_app/data/backend_vehicle_repo.dart';
 import 'package:tw_app/testing/stub.dart' as stub;
 
 void main() {
-  const fake = bool.fromEnvironment('USE_FAKE_BACKEND');
+  const fake = bool.fromEnvironment('FAKE');
   final uriDesign = StandardUriDesign(Uri.parse('http://localhost:8080/api/v0'));
   final handler = http.Client().sendInterop;
   final twApiClient = TwApiClient(uriDesign, handler);
@@ -19,9 +19,12 @@ void main() {
   runApp(
     TwApp(
       authService: fake
-          ? stub.AuthServiceStub()
+          ? stub.InMemoryAuthService()
           : BackendAuthService(authApi: ApiClientAdapter(twApiClient), newWindow: openLoginWindow),
-      vehicleRepo: fake ? stub.VehicleRepoStub() : BackendVehicleRepo(twApiClient),
+      vehicleRepo: fake
+          ? (stub.InMemoryVehicleRepo()
+              ..vehicles.addAll(Map.fromEntries(stub.vehicles.map((it) => MapEntry(it.id, it)))))
+          : BackendVehicleRepo(twApiClient),
     ),
   );
 }

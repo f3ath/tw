@@ -4,7 +4,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared/model.dart';
 import 'package:tw_app/app/auth_service.dart';
 import 'package:tw_app/app/tw_app.dart';
-import 'package:tw_app/testing/fake.dart' as fake;
 import 'package:tw_app/testing/stub.dart';
 
 import '../use_case.dart';
@@ -18,9 +17,7 @@ void main() {
       final authService = AuthServiceMock();
       authService.loginResult = authResult.future;
 
-      final repo = fake.FakeVehicleRepo();
-      repo.listCompleter.complete(vehicles);
-      await tester.pumpWidget(TwApp(authService: authService, vehicleRepo: repo));
+      await tester.pumpWidget(TwApp(authService: authService, vehicleRepo: InMemoryVehicleRepo()));
 
       expect(findWelcomeScreen, findsOneWidget);
       expect(findGarageScreen, findsNothing);
@@ -39,7 +36,7 @@ void main() {
       expect(findGarageScreen, findsOneWidget);
       expect(useCase.userNameText.data, equals('User Name'));
 
-      await useCase.tapLogoutButton(settle:true);
+      await useCase.tapLogoutButton(settle: true);
 
       expect(findWelcomeScreen, findsOneWidget);
       expect(findGarageScreen, findsNothing);

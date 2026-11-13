@@ -1,17 +1,16 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared/model.dart';
-import 'package:tw_app/testing/fake.dart';
 import 'package:tw_app/testing/stub.dart' as stub;
 import 'package:tw_app/ui/garage/garage_view_model.dart';
 
 void main() {
   group('GarageViewModel', () {
-    late FakeVehicleRepo repo;
+    late stub.InMemoryVehicleRepo repo;
     late GarageViewModel garageVM;
     ({bool loading, bool error, List<Vehicle> vehicles})? observed;
 
     setUp(() {
-      repo = FakeVehicleRepo();
+      repo = stub.InMemoryVehicleRepo();
       garageVM = GarageViewModel(vehicleRepository: repo);
       observed = null;
       garageVM.addListener(() {
@@ -30,27 +29,28 @@ void main() {
       expect(garageVM.isLoading, isFalse);
       expect(garageVM.vehicles, isEmpty);
 
+      var completer = repo.lockList();
       final result = garageVM.load();
       expect(observed?.loading, isTrue);
       expect(observed?.error, isFalse);
       expect(observed?.vehicles, isEmpty);
 
       final error = Exception('Network error');
-      repo.listCompleter.completeError(error);
+      completer.completeError(error);
       await result;
 
       expect(observed?.loading, isFalse);
       expect(observed?.error, isTrue);
       expect(observed?.vehicles, isEmpty);
 
-      repo.reset();
+      completer = repo.lockList();
 
       final result2 = garageVM.load();
       expect(observed?.loading, isTrue);
       expect(observed?.error, isFalse);
       expect(observed?.vehicles, isEmpty);
 
-      repo.listCompleter.complete(stub.vehicles);
+      completer.complete();
       await result2;
 
       expect(observed?.loading, isFalse);
@@ -59,19 +59,22 @@ void main() {
     });
 
     test('stops notifying after disposal', () async {
+      repo.vehicles.clear();
+      final completer = repo.lockList();
       final res = garageVM.load();
       observed = null;
       garageVM.dispose();
-      repo.listCompleter.complete([]);
+      completer.complete();
       await res;
       expect(observed, isNull);
     });
 
     test('handles failed loading after error', () async {
+      final completer = repo.lockList();
       final res = garageVM.load();
       observed = null;
       garageVM.dispose();
-      repo.listCompleter.completeError(Exception('Network error'));
+      completer.completeError(Exception('Network error'));
       await res;
       expect(observed, isNull);
     });

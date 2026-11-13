@@ -51,11 +51,11 @@ Offline mode, synchronization, and advanced network behavior such as atomicity a
 
 ## Next exercise
 
-Vehicle editing groundwork underway: optional vehicle and prefilled-value test exist. Reusable `lib/ui/form/date_form_field.dart` extends FormField<DateTime>, owns its display controller, synchronizes init/didChange/reset, and forwards validator/onSaved. It is integrated into VehicleFormScreen with initialValue, injected clock, and FormState.save(). Existing form tests pass; dedicated reset/typed-field tests remain optional follow-up.
+Vehicle cards now use Card → Column → ListTile/menu + padded due-services placeholder. Menu Edit opens prefilled form; schedules/delete only log. Form uses unified onSaved collection and instance Form key; edit title/prefill/unit lock implemented, but Save still calls createVehicle. Targeted garage tests: 6 passed; analyzer warns unused updated result.
 
-Next continue edit update semantics and row navigation; existing save still calls createVehicle. User accepts creation coverage and does not require extra retry/refreshed-list assertions. Keep trivial adapter tests skipped.
+Next implement/test semantic update operation (original vehicle ID, no creation) before treating menu editing as functional. Consume non-null edit result to reload garage with mounted check. Keep only Card keyed by vehicle ID (nested ListTile repeats same key, making find.byKey ambiguous). Add menu test selecting correct vehicle. Disable/hide unimplemented schedule/delete commands until wired. Preserve current accepted creation/refresh coverage; no extra refreshed-list-content assertion required.
 
-Reference prototype is app_proto; active app is tw_app. Session restoration remains planned, not completed.
+Reusable typed DateFormField is integrated. Flutter 3.50 uses material_ui; latest full verification before cards: 22 tests passed. Reference prototype is app_proto; active app is tw_app. Session restoration remains planned, not completed.
 
 ## Next iteration — deferred work
 

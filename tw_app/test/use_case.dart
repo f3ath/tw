@@ -1,5 +1,5 @@
-import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:shared/model.dart';
 import 'package:tw_app/ui/garage/garage_screen.dart';
 import 'package:tw_app/ui/vehicles/vehicle_form_screen.dart';
@@ -44,6 +44,21 @@ class GarageUC(super.tester) extends UseCase {
   Future<void> tapAddNewVehicleButton({bool pump = true, bool settle = false}) async {
     await tester.tap(findAddNewVehicleButton);
     await pumpAndSettle(pump: pump, settle: settle);
+  }
+
+  Finder findVehicleCard(String id) => find.byKey(ValueKey('vehicle-$id'));
+
+  Finder findVehicleMenu(String id) => find.byKey(ValueKey('menu-$id'));
+
+  Future<void> tapVehicleMenu(String id) async {
+    await tester.tap(findVehicleMenu(id));
+    await tester.pumpAndSettle();
+  }
+
+  Future<void> tapVehicleMenuEdit(String id) async {
+    await tapVehicleMenu(id);
+    await tester.tap(find.byKey(const ValueKey('edit')).hitTestable());
+    await tester.pumpAndSettle();
   }
 }
 
