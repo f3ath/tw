@@ -237,6 +237,69 @@ void main() {
       }
     });
 
+    group('New Service shortcut', () {
+      for (final vehicle in samples.sampleVehicles) {
+        testWidgets('opens the ${vehicle.name} form and Back preserves the garage', (tester) async {
+          final harness = Harness();
+          final garage = GarageRobot(tester);
+          final form = ServiceFormRobot(tester);
+          await harness.pumpLoadedScreen(tester);
+
+          await garage.tapVehicleNewService(vehicle.id);
+
+          expect(findServiceFormScreen, findsOneWidget);
+          expect(findGarageScreen, findsNothing);
+          expect(findServiceScreen, findsNothing);
+          expect(find.text(vehicle.name), findsOneWidget);
+          expect(form.distanceUnitLabel, equals(vehicle.distanceUnit.name));
+          expect(form.selectedDate, equals(harness.clock.now()));
+          expect(form.odometer, isEmpty);
+          await form.enterOdometer('12345');
+
+          await tester.pageBack();
+          await tester.pumpAndSettle();
+
+          expect(findServiceFormScreen, findsNothing);
+          expect(findGarageScreen, findsOneWidget);
+          expectVehiclesVisible(samples.sampleVehicles);
+          expect(harness.repo.listCalls, equals(1));
+          expect(harness.serviceRepo.services, isEmpty);
+          expect(harness.serviceRepo.listCalls, equals(0));
+        });
+
+        testWidgets('saves a new service for ${vehicle.name} and returns to the garage', (
+          tester,
+        ) async {
+          final harness = Harness();
+          final garage = GarageRobot(tester);
+          final form = ServiceFormRobot(tester);
+          final services = ServiceRobot(tester);
+          await harness.pumpLoadedScreen(tester);
+          await garage.tapVehicleNewService(vehicle.id);
+          await form.enterOdometer('12345');
+          await form.enterDetails('  Shortcut service  ');
+
+          await form.saveForm(pump: .settle);
+
+          expect(findServiceFormScreen, findsNothing);
+          expect(findGarageScreen, findsOneWidget);
+          expectVehiclesVisible(samples.sampleVehicles);
+          expect(harness.repo.listCalls, equals(1));
+          final created = harness.serviceRepo.services.values.single;
+          expect(created.vehicleId, equals(vehicle.id));
+          expect(created.date, equals(harness.clock.now()));
+          expect(created.odometer, equals(12345));
+          expect(created.details, equals('Shortcut service'));
+
+          await garage.tapVehicleMenuServices(vehicle.id);
+
+          expect(findServiceScreen, findsOneWidget);
+          expect(services.findServiceCard(created.id), findsOneWidget);
+          expect(find.text('Shortcut service'), findsOneWidget);
+        });
+      }
+    });
+
     group('Delete a Vehicle', () {
       testWidgets('cancelling deletion preserves the vehicle', (WidgetTester tester) async {
         final garage = GarageRobot(tester);

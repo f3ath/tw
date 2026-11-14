@@ -8,6 +8,8 @@ class const VehicleCard({
   required final ValueChanged<VehicleAction> onAction,
 }) extends StatelessWidget {
   static ValueKey<String> menuKey(String vehicleId) => ValueKey('menu-$vehicleId');
+  static ValueKey<String> newServiceButtonKey(String vehicleId) =>
+      ValueKey('vehicle-new-service-$vehicleId');
 
   @override
   Widget build(BuildContext context) {
@@ -74,10 +76,22 @@ class const VehicleCard({
             ),
           ),
           Padding(padding: const EdgeInsets.all(16), child: Text('Services due will go here')),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+            child: Align(
+              alignment: Alignment.centerRight,
+              child: TextButton.icon(
+                key: VehicleCard.newServiceButtonKey(vehicle.id),
+                onPressed: () => onAction(VehicleAction.newService),
+                icon: const Icon(Icons.add),
+                label: const Text('New Service'),
+              ),
+            ),
+          ),
         ],
       ),
     );
   }
 }
 
-enum VehicleAction { edit, schedules, services, delete }
+enum VehicleAction { edit, schedules, services, newService, delete }

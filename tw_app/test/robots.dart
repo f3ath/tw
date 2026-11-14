@@ -80,6 +80,15 @@ class GarageRobot(super.tester) extends TestRobot {
 
   Finder findVehicleMenu(String id) => find.byKey(VehicleCard.menuKey(id));
 
+  Finder findVehicleNewServiceButton(String id) => find.byKey(VehicleCard.newServiceButtonKey(id));
+
+  Future<void> tapVehicleNewService(String id, {PumpMode pump = .settle}) async {
+    final button = findVehicleNewServiceButton(id);
+    await tester.ensureVisible(button);
+    await tester.tap(button);
+    await pumpAfterAction(pump);
+  }
+
   Future<void> tapVehicleMenu(String id) async {
     await tester.tap(findVehicleMenu(id));
     await tester.pumpAndSettle();

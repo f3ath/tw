@@ -9,6 +9,7 @@ import 'package:tw_app/ui/garage/garage_view_model.dart';
 import 'package:tw_app/ui/garage/vehicle_card.dart';
 import 'package:tw_app/ui/schedules/schedule_screen.dart';
 import 'package:tw_app/ui/services/service_screen.dart';
+import 'package:tw_app/ui/services/service_form_screen.dart';
 import 'package:tw_app/ui/garage/vehicle_form_screen.dart';
 
 class const GarageScreen({
@@ -124,10 +125,10 @@ class _GarageScreenState extends State<GarageScreen> {
     key: GarageScreen.vehicleCardKey(vehicle.id),
     vehicle: vehicle,
     now: widget.clock.now(),
-    onAction: (action) => _handleMenuAction(action, vehicle),
+    onAction: (action) => _handleVehicleAction(action, vehicle),
   );
 
-  Future<void> _handleMenuAction(VehicleAction action, Vehicle v) async {
+  Future<void> _handleVehicleAction(VehicleAction action, Vehicle v) async {
     switch (action) {
       case .edit:
         await _openVehicleForm(vehicle: v);
@@ -138,6 +139,9 @@ class _GarageScreenState extends State<GarageScreen> {
         return;
       case .services:
         await _openServices(v);
+        return;
+      case .newService:
+        await _openServiceForm(v);
         return;
       case .schedules:
         await _openSchedules(v);
@@ -156,6 +160,15 @@ class _GarageScreenState extends State<GarageScreen> {
       builder: (_) => ServiceScreen(vehicle: vehicle, repo: widget.serviceRepo),
     ),
   );
+
+  Future<void> _openServiceForm(Vehicle vehicle) async {
+    await Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+        builder: (_) =>
+            ServiceFormScreen(vehicle: vehicle, repo: widget.serviceRepo, clock: widget.clock),
+      ),
+    );
+  }
 
   Future<bool?> _deleteVehicle(Vehicle v) async {
     final confirmed = await showDialog<bool>(
