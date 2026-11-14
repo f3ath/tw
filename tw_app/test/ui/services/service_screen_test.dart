@@ -130,6 +130,135 @@ void main() {
       expect(services.findServiceCard(samples.fourRunnerTireService.id), findsNothing);
     });
 
+    group('Editing', () {
+      final inspection = Service(
+        'inspection',
+        vehicleId: samples.santaFe.id,
+        date: DateTime(2026, 11, 3),
+        odometer: 121000,
+        details: 'Check brakes and tires',
+      );
+
+      testWidgets('Edit opens the selected service prefilled and Back preserves history', (
+        tester,
+      ) async {
+        final harness = Harness(
+          vehicle: samples.santaFe,
+          initialServices: [...samples.sampleServices, inspection],
+        );
+        final services = ServiceRobot(tester);
+        final form = ServiceFormRobot(tester);
+        await harness.pumpLoadedScreen(tester);
+
+        await services.tapServiceMenuEdit(inspection.id);
+
+        expect(findServiceFormScreen, findsOneWidget);
+        expect(findServiceScreen, findsNothing);
+        expect(find.text('Edit Service'), findsOneWidget);
+        expect(form.selectedDate, equals(inspection.date));
+        expect(form.odometer, equals(inspection.odometer.toString()));
+        expect(form.details, equals(inspection.details));
+        expect(form.distanceUnitLabel, equals(samples.santaFe.distanceUnit.name));
+        await form.enterDetails('Unsaved edit');
+
+        await tester.pageBack();
+        await tester.pumpAndSettle();
+
+        expect(findServiceFormScreen, findsNothing);
+        expect(findServiceScreen, findsOneWidget);
+        expectServicesVisible(tester, [samples.santaFeOilService, inspection]);
+        expect(harness.repo.listCalls, equals(1));
+        expect(harness.repo.updateCalls, equals(0));
+        expect(harness.repo.services[inspection.id], same(inspection));
+      });
+
+      testWidgets('saving edits reloads history and changes only the selected service', (
+        tester,
+      ) async {
+        final harness = Harness(
+          vehicle: samples.santaFe,
+          initialServices: [...samples.sampleServices, inspection],
+        );
+        final services = ServiceRobot(tester);
+        final form = ServiceFormRobot(tester);
+        await harness.pumpLoadedScreen(tester);
+        await services.tapServiceMenuEdit(inspection.id);
+        await form.selectDayAndConfirm('13');
+        await form.enterOdometer('123456');
+        await form.enterDetails('Updated inspection');
+        final refresh = harness.repo.pauseNextList();
+
+        await form.saveForm();
+        await tester.pump(const Duration(seconds: 1));
+
+        expect(findServiceFormScreen, findsNothing);
+        expect(find.byKey(ServiceScreen.loadingIndicatorKey), findsOneWidget);
+        expect(harness.repo.listCalls, equals(2));
+        refresh.complete();
+        await tester.pumpAndSettle();
+
+        final updated = harness.repo.services[inspection.id]!;
+        expect(harness.repo.updateCalls, equals(1));
+        expect(harness.repo.services, hasLength(3));
+        expect(updated.vehicleId, equals(inspection.vehicleId));
+        expect(updated.date, equals(DateTime(2026, 11, 13)));
+        expect(updated.odometer, equals(123456));
+        expect(updated.details, equals('Updated inspection'));
+        expectServicesVisible(tester, [samples.santaFeOilService, updated]);
+        final updatedCard = services.findServiceCard(inspection.id);
+        expect(find.descendant(of: updatedCard, matching: find.text('123,456 km')), findsOneWidget);
+        expect(
+          find.descendant(of: updatedCard, matching: find.text(inspection.details)),
+          findsNothing,
+        );
+        expect(
+          harness.repo.services[samples.santaFeOilService.id],
+          same(samples.santaFeOilService),
+        );
+        expect(
+          harness.repo.services[samples.fourRunnerTireService.id],
+          same(samples.fourRunnerTireService),
+        );
+        expect(services.findServiceCard(samples.fourRunnerTireService.id), findsNothing);
+      });
+
+      testWidgets('failed edits keep the form open and refresh history only after retry succeeds', (
+        tester,
+      ) async {
+        final service = samples.fourRunnerTireService;
+        final harness = Harness(
+          vehicle: samples.fourRunner,
+          initialServices: samples.sampleServices,
+        );
+        final services = ServiceRobot(tester);
+        final form = ServiceFormRobot(tester);
+        await harness.pumpLoadedScreen(tester);
+        await services.tapServiceMenuEdit(service.id);
+        await form.enterDetails('Updated tire service');
+        final pending = harness.repo.pauseNextUpdate();
+
+        await form.saveForm();
+        pending.completeError(Exception('Network error'));
+        await tester.pumpAndSettle();
+
+        expect(findServiceFormScreen, findsOneWidget);
+        expect(form.findSaveError, findsOneWidget);
+        expect(form.details, equals('Updated tire service'));
+        expect(harness.repo.listCalls, equals(1));
+        expect(harness.repo.services[service.id], same(service));
+
+        await form.saveForm(pump: .settle);
+
+        expect(findServiceFormScreen, findsNothing);
+        expect(findServiceScreen, findsOneWidget);
+        expect(harness.repo.listCalls, equals(2));
+        expect(harness.repo.updateCalls, equals(2));
+        expectServicesVisible(tester, [harness.repo.services[service.id]!]);
+        expect(find.text('45,000 mi'), findsOneWidget);
+        expect(find.text('Updated tire service'), findsOneWidget);
+      });
+    });
+
     for (final fails in [false, true]) {
       testWidgets('can leave while a request later ${fails ? 'fails' : 'succeeds'}', (
         tester,

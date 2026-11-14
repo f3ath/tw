@@ -10,6 +10,7 @@ import 'package:tw_app/ui/garage/vehicle_form_screen.dart';
 import 'package:tw_app/ui/welcome/welcome_screen.dart';
 import 'package:tw_app/ui/services/service_screen.dart';
 import 'package:tw_app/ui/services/service_form_screen.dart';
+import 'package:tw_app/ui/services/service_card.dart';
 
 final findWelcomeScreen = find.byType(WelcomeScreen);
 final findGarageScreen = find.byType(GarageScreen);
@@ -277,6 +278,28 @@ class ServiceRobot(super.tester) extends TestRobot {
   }
 
   Finder findServiceCard(String id) => find.byKey(ServiceScreen.serviceKey(id));
+
+  Finder findServiceMenu(String id) => find.byKey(ServiceCard.menuKey(id));
+
+  Future<void> tapServiceMenu(String id) async {
+    await tester.tap(findServiceMenu(id));
+    await tester.pumpAndSettle();
+  }
+
+  Future<void> tapServiceMenuEdit(String id) => _tapServiceMenuAction(id, .edit);
+
+  Future<void> _tapServiceMenuAction(String id, ServiceAction action) async {
+    await tapServiceMenu(id);
+    await tester.tap(
+      find
+          .byWidgetPredicate(
+            (widget) => widget is PopupMenuItem<ServiceAction> && widget.value == action,
+            description: 'service menu item for ${action.name}',
+          )
+          .hitTestable(),
+    );
+    await tester.pumpAndSettle();
+  }
 
   Future<void> tapRetry({PumpMode pump = .frame}) async {
     await tester.tap(find.byKey(ServiceScreen.retryButtonKey));

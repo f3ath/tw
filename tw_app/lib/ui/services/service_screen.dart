@@ -92,12 +92,22 @@ class _ServiceScreenState extends State<ServiceScreen> {
     key: ServiceScreen.serviceKey(service.id),
     service: service,
     distanceUnit: widget.vehicle.distanceUnit,
+    onAction: (action) => _handleServiceAction(action, service),
   );
 
-  Future<void> _openServiceForm() async {
+  Future<void> _handleServiceAction(ServiceAction action, Service service) async {
+    switch (action) {
+      case .edit:
+        await _openServiceForm(service: service);
+        return;
+    }
+  }
+
+  Future<void> _openServiceForm({Service? service}) async {
     final refresh = await Navigator.of(context).push<bool>(
       MaterialPageRoute(
-        builder: (_) => ServiceFormScreen(vehicle: widget.vehicle, repo: widget.repo),
+        builder: (_) =>
+            ServiceFormScreen(vehicle: widget.vehicle, repo: widget.repo, service: service),
       ),
     );
     if (refresh == true && mounted) await _model.load();
