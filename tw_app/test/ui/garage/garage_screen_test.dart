@@ -201,6 +201,43 @@ void main() {
       });
     });
 
+    group('Manage services', () {
+      for (final service in samples.sampleServices) {
+        testWidgets('opens ${service.vehicleId} services and returns without reloading', (
+          tester,
+        ) async {
+          final harness = Harness();
+          final garage = GarageRobot(tester);
+          final services = ServiceRobot(tester);
+          final vehicle = harness.repo.vehicles[service.vehicleId]!;
+          harness.serviceRepo.services.addAll({
+            for (final sample in samples.sampleServices) sample.id: sample,
+          });
+          await harness.pumpLoadedScreen(tester);
+
+          await garage.tapVehicleMenuServices(vehicle.id);
+
+          expect(findServiceScreen, findsOneWidget);
+          expect(findGarageScreen, findsNothing);
+          expect(find.text(vehicle.name), findsOneWidget);
+          expect(find.byIcon(Icons.build_outlined), findsOneWidget);
+          expect(services.findServiceCard(service.id), findsOneWidget);
+          for (final other in samples.sampleServices.where((s) => s.vehicleId != vehicle.id)) {
+            expect(services.findServiceCard(other.id), findsNothing);
+          }
+          expect(harness.serviceRepo.listCalls, equals(1));
+
+          await tester.pageBack();
+          await tester.pumpAndSettle();
+
+          expect(findServiceScreen, findsNothing);
+          expect(findGarageScreen, findsOneWidget);
+          expectVehiclesVisible([samples.santaFe, samples.fourRunner]);
+          expect(harness.repo.listCalls, equals(1));
+        });
+      }
+    });
+
     group('Delete a Vehicle', () {
       testWidgets('cancelling deletion preserves the vehicle', (WidgetTester tester) async {
         final garage = GarageRobot(tester);
@@ -277,6 +314,7 @@ class Harness({Iterable<Vehicle>? initialVehicles}) {
     initialVehicles: initialVehicles ?? [samples.santaFe, samples.fourRunner],
   );
   final scheduleRepo = stub.InMemoryScheduleRepo();
+  final serviceRepo = stub.InMemoryServiceRepo();
   final clock = ClockMock();
 
   this {
@@ -296,6 +334,7 @@ class Harness({Iterable<Vehicle>? initialVehicles}) {
           userName: userName,
           repo: repo,
           scheduleRepo: scheduleRepo,
+          serviceRepo: serviceRepo,
           clock: clock,
         ),
       ),

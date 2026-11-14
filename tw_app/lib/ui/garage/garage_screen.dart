@@ -3,10 +3,12 @@ import 'package:shared/model.dart';
 import 'package:tw_app/ui/garage/vehicle_delete_dialog.dart';
 import 'package:tw_app/app/vehicle_repo.dart';
 import 'package:tw_app/app/schedule_repo.dart';
+import 'package:tw_app/app/service_repo.dart';
 import 'package:tw_app/time/clock.dart';
 import 'package:tw_app/ui/garage/garage_view_model.dart';
 import 'package:tw_app/ui/garage/vehicle_card.dart';
 import 'package:tw_app/ui/schedules/schedule_screen.dart';
+import 'package:tw_app/ui/services/service_screen.dart';
 import 'package:tw_app/ui/garage/vehicle_form_screen.dart';
 
 class const GarageScreen({
@@ -15,6 +17,7 @@ class const GarageScreen({
   required final String userName,
   required final VehicleRepo repo,
   required final ScheduleRepo scheduleRepo,
+  required final ServiceRepo serviceRepo,
   final Clock clock = const Clock(),
 }) extends StatefulWidget {
   static ValueKey<String> vehicleCardKey(String vehicleId) => ValueKey('vehicle-$vehicleId');
@@ -133,6 +136,9 @@ class _GarageScreenState extends State<GarageScreen> {
         final refresh = await _deleteVehicle(v);
         if (refresh == true && mounted) await _model.load();
         return;
+      case .services:
+        await _openServices(v);
+        return;
       case .schedules:
         await _openSchedules(v);
         return;
@@ -142,6 +148,12 @@ class _GarageScreenState extends State<GarageScreen> {
   Future<void> _openSchedules(Vehicle vehicle) => Navigator.of(context).push<void>(
     MaterialPageRoute(
       builder: (_) => ScheduleScreen(vehicle: vehicle, repo: widget.scheduleRepo),
+    ),
+  );
+
+  Future<void> _openServices(Vehicle vehicle) => Navigator.of(context).push<void>(
+    MaterialPageRoute(
+      builder: (_) => ServiceScreen(vehicle: vehicle, repo: widget.serviceRepo),
     ),
   );
 

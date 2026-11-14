@@ -37,3 +37,21 @@ final tireRotation = Schedule(
 );
 
 final sampleSchedules = List<Schedule>.unmodifiable([oilChange, tireRotation]);
+
+final santaFeOilService = Service(
+  'service-0',
+  vehicleId: santaFe.id,
+  date: DateTime(2026, 11, 1),
+  odometer: 120000,
+  details: 'Changed engine oil and filter',
+);
+
+final fourRunnerTireService = Service(
+  'service-1',
+  vehicleId: fourRunner.id,
+  date: DateTime(2026, 10, 15),
+  odometer: 45000,
+  details: '',
+);
+
+final sampleServices = List<Service>.unmodifiable([santaFeOilService, fourRunnerTireService]);

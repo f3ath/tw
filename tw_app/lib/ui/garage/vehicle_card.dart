@@ -46,6 +46,17 @@ class const VehicleCard({
                     ],
                   ),
                 ),
+                PopupMenuItem(
+                  key: ValueKey('services'),
+                  value: VehicleAction.services,
+                  child: Row(
+                    children: [
+                      Icon(Icons.build_outlined, size: 20),
+                      SizedBox(width: 12),
+                      Expanded(child: Text('Services')),
+                    ],
+                  ),
+                ),
                 PopupMenuDivider(),
                 PopupMenuItem(
                   key: ValueKey('delete'),
@@ -69,4 +80,4 @@ class const VehicleCard({
   }
 }
 
-enum VehicleAction { edit, schedules, delete }
+enum VehicleAction { edit, schedules, services, delete }

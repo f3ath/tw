@@ -9,6 +9,7 @@ import 'package:tw_app/data/auth/backend_auth_service.dart';
 import 'package:tw_app/data/auth/login_window/open_login_window.dart';
 import 'package:tw_app/data/backend_vehicle_repo.dart';
 import 'package:tw_app/data/backend_schedule_repo.dart';
+import 'package:tw_app/data/backend_service_repo.dart';
 import 'package:tw_app/testing/stub.dart' as stub;
 import 'package:tw_app/testing/samples.dart' as samples;
 
@@ -26,6 +27,9 @@ void main() {
       scheduleRepo: fake
           ? stub.InMemoryScheduleRepo(initialSchedules: samples.sampleSchedules)
           : BackendScheduleRepo(twApiClient),
+      serviceRepo: fake
+          ? stub.InMemoryServiceRepo(initialServices: samples.sampleServices)
+          : BackendServiceRepo(twApiClient),
       vehicleRepo: fake
           ? stub.InMemoryVehicleRepo(initialVehicles: samples.sampleVehicles)
           : BackendVehicleRepo(twApiClient),

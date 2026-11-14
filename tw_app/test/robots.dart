@@ -8,12 +8,14 @@ import 'package:tw_app/ui/schedules/schedule_card.dart';
 import 'package:tw_app/ui/schedules/schedule_form_screen.dart';
 import 'package:tw_app/ui/garage/vehicle_form_screen.dart';
 import 'package:tw_app/ui/welcome/welcome_screen.dart';
+import 'package:tw_app/ui/services/service_screen.dart';
 
 final findWelcomeScreen = find.byType(WelcomeScreen);
 final findGarageScreen = find.byType(GarageScreen);
 final findVehicleFormScreen = find.byType(VehicleFormScreen);
 final findScheduleScreen = find.byType(ScheduleScreen);
 final findScheduleFormScreen = find.byType(ScheduleFormScreen);
+final findServiceScreen = find.byType(ServiceScreen);
 
 enum PumpMode { none, frame, settle }
 
@@ -82,6 +84,8 @@ class GarageRobot(super.tester) extends TestRobot {
   Future<void> tapVehicleMenuEdit(String id) => _tapVehicleMenuAction(id, .edit);
 
   Future<void> tapVehicleMenuSchedules(String id) => _tapVehicleMenuAction(id, .schedules);
+
+  Future<void> tapVehicleMenuServices(String id) => _tapVehicleMenuAction(id, .services);
 
   Future<void> tapVehicleMenuDelete(String id) => _tapVehicleMenuAction(id, .delete);
 
@@ -260,4 +264,13 @@ class ScheduleFormRobot(super.tester) extends TestRobot {
   String? get details => _value(ScheduleFormScreen.detailsFieldKey);
 
   String? _value(Key key) => tester.state<FormFieldState<String>>(find.byKey(key)).value;
+}
+
+class ServiceRobot(super.tester) extends TestRobot {
+  Finder findServiceCard(String id) => find.byKey(ServiceScreen.serviceKey(id));
+
+  Future<void> tapRetry({PumpMode pump = .frame}) async {
+    await tester.tap(find.byKey(ServiceScreen.retryButtonKey));
+    await pumpAfterAction(pump);
+  }
 }

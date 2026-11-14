@@ -23,6 +23,7 @@ void main() {
           authService: authService,
           vehicleRepo: InMemoryVehicleRepo(),
           scheduleRepo: InMemoryScheduleRepo(),
+          serviceRepo: InMemoryServiceRepo(),
         ),
       );
 
