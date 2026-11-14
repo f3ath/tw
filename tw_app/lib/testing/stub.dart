@@ -4,6 +4,7 @@ import 'package:shared/model.dart';
 import 'package:tw_app/app/auth_service.dart';
 import 'package:tw_app/app/vehicle_repo.dart';
 import 'package:tw_app/app/schedule_repo.dart';
+import 'package:tw_app/app/service_repo.dart';
 
 class InMemoryAuthService({required final User _user}) implements AuthService {
   @override
@@ -202,5 +203,26 @@ class InMemoryScheduleRepo({Iterable<Schedule> initialSchedules = const []})
     _nextDelete = null;
     await pending;
     if (schedules.remove(scheduleId) == null) throw StateError('Schedule not found');
+  }
+}
+
+class InMemoryServiceRepo({Iterable<Service> initialServices = const []}) implements ServiceRepo {
+  final services = <String, Service>{for (final service in initialServices) service.id: service};
+  var listCalls = 0;
+  Future<void>? _nextList;
+
+  Completer<void> pauseNextList() {
+    final completer = Completer<void>();
+    _nextList = completer.future;
+    return completer;
+  }
+
+  @override
+  Future<List<Service>> list(String vehicleId) async {
+    listCalls++;
+    final pending = _nextList;
+    _nextList = null;
+    await pending;
+    return services.values.where((service) => service.vehicleId == vehicleId).toList();
   }
 }

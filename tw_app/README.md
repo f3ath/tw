@@ -60,7 +60,9 @@ Schedule creation is wired end to end. ScheduleFormScreen validates a nonblank n
 
 Schedule deletion and its widget coverage are complete for this iteration. Tests cover Cancel and dismissal without refresh, targeted deletion preserving other schedules, deleting the final schedule, and error feedback/reconciliation for both retained and already-deleted outcomes. VehicleDeleteDialog and ScheduleDeleteDialog own confirmation presentation and their static dialog/button keys. Screens invoke showDialog and retain repository deletion, error feedback, and refresh responsibilities. Key values are preserved. Stable keys identify state messages, confirmation dialogs, and buttons; dialog wording is not asserted.
 
-Recommended next: the service-list flow for a selected vehicle, before service mutations. Use the existing shared API and the same ports/adapters and loading/error/empty-state conventions.
+ServiceRepo.list(vehicleId) is implemented by BackendServiceRepo (delegating to TwApiClient.listServices) and InMemoryServiceRepo. The fake defaults to empty, accepts initialServices, filters by vehicle ID, counts list calls, and supports a one-request pauseNextList gate. UI and composition wiring are not implemented yet.
+
+Recommended next: build ServiceScreen for the selected vehicle, using the same loading/error/empty-state and card conventions, then wire its repository and navigation. Service mutations remain planned.
 
 Vehicle form tests now live in test/ui/garage/vehicle_form_screen_test.dart with a direct route harness that captures results. They cover isolated validation, creation values, pending-field disabling, creation failure/retry, edit identity/unit preservation, and edit failure/retry. Garage tests retain navigation and list refresh. InMemoryVehicleRepo supports pauseNextUpdate for application behavior tests. A remaining vehicle-test gap is deletion that succeeds server-side before the response fails. Both in-memory repositories use incrementing ID counters and skip existing IDs.
 
