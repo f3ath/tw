@@ -160,3 +160,12 @@ class VehicleFormRobot(super.tester) extends TestRobot {
     await tester.pumpAndSettle();
   }
 }
+
+class ScheduleRobot(super.tester) extends TestRobot {
+  Finder findSchedule(String id) => find.byKey(ScheduleScreen.scheduleKey(id));
+
+  Future<void> tapRetry({PumpMode pump = .frame}) async {
+    await tester.tap(find.byKey(ScheduleScreen.retryButtonKey));
+    await pumpAfterAction(pump);
+  }
+}

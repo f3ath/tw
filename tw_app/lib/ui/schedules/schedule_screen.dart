@@ -4,6 +4,7 @@ import 'package:shared/model.dart';
 import 'package:tw_app/app/schedules_repo.dart';
 import 'package:tw_app/testing/stub.dart';
 import 'package:tw_app/ui/schedules/schedule_view_model.dart';
+import 'package:tw_app/ui/schedules/schedule_card.dart';
 import 'package:tw_app/testing/samples.dart' as samples;
 
 class const ScheduleScreen({
@@ -73,10 +74,10 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
           itemCount: _model.schedules.length,
           itemBuilder: (_, index) {
             final schedule = _model.schedules[index];
-            return ListTile(
+            return ScheduleCard(
               key: ScheduleScreen.scheduleKey(schedule.id),
-              title: Text(schedule.name),
-              subtitle: schedule.details.isEmpty ? null : Text(schedule.details),
+              schedule: schedule,
+              distanceUnit: widget.vehicle.distanceUnit,
             );
           },
         );
