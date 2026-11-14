@@ -114,6 +114,7 @@ void main() {
 
         expect(findVehicleFormScreen, findsNothing);
         expect(findGarageScreen, findsOne);
+        expect(harness.repo.listCalls, equals(1));
         expect(find.byKey(GarageScreen.loadingIndicatorKey), findsNothing);
         expect(find.byKey(GarageScreen.emptyTextKey), findsNothing);
         expectVehiclesVisible([samples.santaFe, samples.fourRunner]);
@@ -166,6 +167,7 @@ void main() {
         expect(findVehicleFormScreen, findsNothing);
         expect(find.text(vehicle.name), findsNothing);
         expect(find.text('New Name'), findsOne);
+        expect(harness.repo.listCalls, equals(2));
       });
     });
 

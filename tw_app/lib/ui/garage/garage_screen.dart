@@ -106,21 +106,18 @@ class _GarageScreenState extends State<GarageScreen> {
       key: GarageScreen.addButtonKey,
       icon: const Icon(Icons.add),
       label: const Text('New Vehicle'),
-      onPressed: () async {
-        final refresh = await _openVehicleForm();
-        if (refresh == true && mounted) {
-          await _model.load();
-        }
-      },
+      onPressed: () => _openVehicleForm(),
     ),
   );
 
-  /// Returns true if Vehicles list needs to be reloaded
-  Future<bool?> _openVehicleForm({Vehicle? vehicle}) => Navigator.of(context).push<bool>(
-    MaterialPageRoute(
-      builder: (_) => VehicleFormScreen(repo: widget.repo, clock: widget.clock, vehicle: vehicle),
-    ),
-  );
+  Future<void> _openVehicleForm({Vehicle? vehicle}) async {
+    final refresh = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+        builder: (_) => VehicleFormScreen(repo: widget.repo, clock: widget.clock, vehicle: vehicle),
+      ),
+    );
+    if (refresh == true && mounted) await _model.load();
+  }
 
   VehicleCard _buildVehicleCard(Vehicle vehicle) => VehicleCard(
     key: GarageScreen.vehicleCardKey(vehicle.id),
@@ -130,17 +127,21 @@ class _GarageScreenState extends State<GarageScreen> {
   );
 
   Future<void> _handleMenuAction(VehicleAction action, Vehicle v) async {
-    final refresh = await switch (action) {
-      .edit => _openVehicleForm(vehicle: v),
-      .delete => _deleteVehicle(v),
-      .schedules => _openSchedules(v),
-    };
-    if (refresh == true && mounted) {
-      await _model.load();
+    switch (action) {
+      case .edit:
+        await _openVehicleForm(vehicle: v);
+        return;
+      case .delete:
+        final refresh = await _deleteVehicle(v);
+        if (refresh == true && mounted) await _model.load();
+        return;
+      case .schedules:
+        await _openSchedules(v);
+        return;
     }
   }
 
-  Future<bool?> _openSchedules(Vehicle vehicle) => Navigator.of(context).push<bool>(
+  Future<void> _openSchedules(Vehicle vehicle) => Navigator.of(context).push<void>(
     MaterialPageRoute(
       builder: (_) => ScheduleScreen(vehicle: vehicle, repo: widget.schedulesRepo),
     ),
