@@ -52,18 +52,17 @@ Offline mode, synchronization, and advanced network behavior such as atomicity a
 - SchedulesRepo.list(vehicleId) is wired through main → TwApp → GarageScreen → ScheduleScreen. BackendSchedulesRepo delegates to TwApiClient; ScheduleViewModel owns loading/error/list state and is disposed with the screen. Rows show schedule names and optional details, with loading, error/retry, and empty states.
 - InMemorySchedulesRepo defaults to empty, accepts initialSchedules, filters by vehicle ID, counts list calls, and supports one-request pauseNextList and pauseNextCreate gates. SchedulesRepo.create(vehicleId, ...) is implemented by both adapters, returning Future<void>; the backend delegates to TwApiClient.createSchedule. The fake generates unique IDs without overwriting seeds. Sample schedules seed the fake backend and tests. Widget tests cover vehicle filtering, loading, empty results, retry, rebuild behavior, pending-request disposal, and garage navigation.
 - InMemoryVehicleRepo defaults to empty and accepts initialVehicles. pauseNextList/Create/Delete gates affect one request each. Sample users/vehicles live in lib/testing/samples.dart; the test harness and fake-backend setup seed explicitly.
-- Latest verification: all **45 tw_app tests pass**; static analysis is clean. Builds and real authentication were not reverified during this refactor. Previously verified builds are not evidence of current real-backend behavior.
+- Latest verification: all **17 schedule-form tests pass** after splitting validation into focused cases; static analysis is clean. Other test suites were not rerun for this test-only split. Builds and real authentication were not reverified during this refactor. Previously verified builds are not evidence of current real-backend behavior.
 
 ## Next exercise
 
-Schedule creation is wired end to end. ScheduleFormScreen validates a nonblank name, positive whole-number intervals, and at least one interval, matching server rules. Optional blank intervals become null; name/details are trimmed. Save and fields are disabled while pending, exceptions show a keyed snackbar and retain inputs for retry, and success returns true so ScheduleScreen reloads. Back/cancellation does not reload. Edit opens prefilled fields but Save remains disabled; Delete is also disabled.
+Schedule creation is wired end to end. ScheduleFormScreen validates a nonblank name, positive whole-number intervals, and at least one interval, matching server rules. Optional blank intervals become null; name/details are trimmed. Save and fields are disabled while pending, exceptions show a keyed snackbar and retain inputs for retry, and success returns true so ScheduleScreen reloads. Back/cancellation does not reload. Edit opens prefilled fields and saves through SchedulesRepo.update(scheduleId, ...), sharing validation and submission feedback with creation. BackendSchedulesRepo delegates to TwApiClient.updateSchedule; the in-memory implementation preserves ID, vehicle association, and archive state, and supports pauseNextUpdate(). Cleared intervals are sent as null, and cleared details as an empty string. Form widget tests in schedule_form_screen_test.dart cover submission results, validation, clearing either interval, and failure/retry without creating another schedule. Schedule-screen tests retain list/navigation behavior and a successful creation/list-refresh flow. Delete remains disabled.
 
-Recommended next: implement schedule updates through the existing edit form.
+Recommended next: implement confirmed schedule deletion.
 
-- Add SchedulesRepo.update with backend/in-memory implementations; preserve schedule ID and vehicle association.
-- Submit existing schedules through update rather than create, sharing validation and error handling.
-- Cover successful update/list refresh and failure/retry in widget behavior tests. Do not add dedicated InMemory repository tests.
-- Observable checkpoint: editing updates the existing card without adding a schedule.
+- Add a semantic delete operation and backend/in-memory implementations, following the vehicle flow.
+- Enable the existing menu item, confirm before deletion, and reconcile the list after successful or uncertain outcomes.
+- Cover cancellation, deletion/list refresh, and failure feedback with stable keys in widget behavior tests. Do not add dedicated InMemory repository tests.
 
 Remaining vehicle-test gaps include edit failure/retry and deletion that succeeds server-side before the response fails. Both in-memory repositories use incrementing ID counters and skip existing IDs.
 

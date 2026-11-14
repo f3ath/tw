@@ -10,4 +10,12 @@ abstract interface class SchedulesRepo {
     int? intervalMonths,
     String details = '',
   });
+
+  Future<void> update(
+    String scheduleId, {
+    required String name,
+    required int? intervalDistance,
+    required int? intervalMonths,
+    required String details,
+  });
 }

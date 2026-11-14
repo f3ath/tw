@@ -197,6 +197,18 @@ class ScheduleRobot(super.tester) extends TestRobot {
 }
 
 class ScheduleFormRobot(super.tester) extends TestRobot {
+  Future<void> fill({
+    required String name,
+    required String distance,
+    required String months,
+    required String details,
+  }) async {
+    await enterName(name);
+    await enterDistance(distance);
+    await enterMonths(months);
+    await enterDetails(details);
+  }
+
   FilledButton get saveButton =>
       tester.widget<FilledButton>(find.byKey(ScheduleFormScreen.saveButtonKey));
 

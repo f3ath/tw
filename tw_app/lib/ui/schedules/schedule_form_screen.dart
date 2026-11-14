@@ -97,7 +97,7 @@ class _ScheduleFormScreenState extends State<ScheduleFormScreen> {
             const SizedBox(height: 16),
             FilledButton(
               key: ScheduleFormScreen.saveButtonKey,
-              onPressed: _isSaving || widget.schedule != null ? null : _saveForm,
+              onPressed: _isSaving ? null : _saveForm,
               child: Text(_isSaving ? 'Saving...' : 'Save'),
             ),
           ],
@@ -117,19 +117,13 @@ class _ScheduleFormScreenState extends State<ScheduleFormScreen> {
   }
 
   Future<void> _saveForm() async {
-    if (_isSaving || widget.schedule != null) return;
+    if (_isSaving) return;
     final form = _formKey.currentState!;
     if (!form.validate()) return;
     form.save();
     setState(() => _isSaving = true);
     try {
-      await widget.repo.create(
-        widget.vehicle.id,
-        name: _name,
-        intervalDistance: int.tryParse(_distanceController.text.trim()),
-        intervalMonths: int.tryParse(_monthsController.text.trim()),
-        details: _details,
-      );
+      await _persistSchedule();
       if (!mounted) return;
       Navigator.of(context).pop(true);
     } on Exception {
@@ -145,6 +139,29 @@ class _ScheduleFormScreenState extends State<ScheduleFormScreen> {
       }
     } finally {
       if (mounted) setState(() => _isSaving = false);
+    }
+  }
+
+  Future<void> _persistSchedule() async {
+    final schedule = widget.schedule;
+    final distance = int.tryParse(_distanceController.text.trim());
+    final months = int.tryParse(_monthsController.text.trim());
+    if (schedule == null) {
+      await widget.repo.create(
+        widget.vehicle.id,
+        name: _name,
+        intervalDistance: distance,
+        intervalMonths: months,
+        details: _details,
+      );
+    } else {
+      await widget.repo.update(
+        schedule.id,
+        name: _name,
+        intervalDistance: distance,
+        intervalMonths: months,
+        details: _details,
+      );
     }
   }
 }

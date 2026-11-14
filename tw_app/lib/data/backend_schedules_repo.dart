@@ -21,4 +21,21 @@ class BackendSchedulesRepo(final TwApiClient _client) implements SchedulesRepo {
       details: details,
     );
   }
+
+  @override
+  Future<void> update(
+    String scheduleId, {
+    required String name,
+    required int? intervalDistance,
+    required int? intervalMonths,
+    required String details,
+  }) async {
+    await _client.updateSchedule(
+      scheduleId,
+      name: name,
+      intervalDistance: intervalDistance,
+      intervalMonths: intervalMonths,
+      details: details,
+    );
+  }
 }
