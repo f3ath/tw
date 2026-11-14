@@ -1,9 +1,11 @@
 import 'package:material_ui/material_ui.dart';
 import 'package:shared/model.dart';
 import 'package:tw_app/app/vehicle_repo.dart';
+import 'package:tw_app/app/schedules_repo.dart';
 import 'package:tw_app/time/clock.dart';
 import 'package:tw_app/ui/garage/garage_view_model.dart';
 import 'package:tw_app/ui/garage/vehicle_card.dart';
+import 'package:tw_app/ui/schedules/schedule_screen.dart';
 import 'package:tw_app/ui/vehicles/vehicle_form_screen.dart';
 
 class const GarageScreen({
@@ -11,6 +13,7 @@ class const GarageScreen({
   required final Future<void> Function() onLogout,
   required final String userName,
   required final VehicleRepo repo,
+  required final SchedulesRepo schedulesRepo,
   final Clock clock = const Clock(),
 }) extends StatefulWidget {
   static ValueKey<String> vehicleCardKey(String vehicleId) => ValueKey('vehicle-$vehicleId');
@@ -124,14 +127,18 @@ class _GarageScreenState extends State<GarageScreen> {
     final refresh = await switch (action) {
       .edit => _openVehicleForm(vehicle: v),
       .delete => _deleteVehicle(v),
-      .schedules => _editSchedules(v),
+      .schedules => _openSchedules(v),
     };
     if (refresh == true && mounted) {
       await _model.load();
     }
   }
 
-  Future<bool?> _editSchedules(Vehicle v) async => false;
+  Future<bool?> _openSchedules(Vehicle vehicle) => Navigator.of(context).push<bool>(
+    MaterialPageRoute(
+      builder: (_) => ScheduleScreen(vehicle: vehicle, repo: widget.schedulesRepo),
+    ),
+  );
 
   Future<bool?> _deleteVehicle(Vehicle v) async {
     final confirmed = await showDialog<bool>(

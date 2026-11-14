@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:shared/model.dart';
 import 'package:tw_app/app/auth_service.dart';
 import 'package:tw_app/app/vehicle_repo.dart';
+import 'package:tw_app/app/schedules_repo.dart';
 
 class InMemoryAuthService({required final User _user}) implements AuthService {
   @override
@@ -92,5 +93,29 @@ class InMemoryVehicleRepo({Iterable<Vehicle> initialVehicles = const []}) implem
     _nextDelete = null;
     await pending;
     if (vehicles.remove(id) == null) throw StateError('Invalid id');
+  }
+}
+
+class InMemorySchedulesRepo({Iterable<Schedule> initialSchedules = const []})
+    implements SchedulesRepo {
+  final schedules = <String, Schedule>{
+    for (final schedule in initialSchedules) schedule.id: schedule,
+  };
+  var listCalls = 0;
+  Future<void>? _nextList;
+
+  Completer<void> pauseNextList() {
+    final completer = Completer<void>();
+    _nextList = completer.future;
+    return completer;
+  }
+
+  @override
+  Future<List<Schedule>> list(String vehicleId) async {
+    listCalls++;
+    final pending = _nextList;
+    _nextList = null;
+    await pending;
+    return schedules.values.where((schedule) => schedule.vehicleId == vehicleId).toList();
   }
 }

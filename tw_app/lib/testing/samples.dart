@@ -17,3 +17,23 @@ final fourRunner = Vehicle(
 );
 
 final sampleVehicles = List<Vehicle>.unmodifiable([santaFe, fourRunner]);
+
+final oilChange = Schedule(
+  id: 'schedule-0',
+  vehicleId: santaFe.id,
+  name: 'Oil change',
+  intervalDistance: 10000,
+  intervalMonths: 12,
+  details: 'Replace engine oil and filter',
+);
+
+final tireRotation = Schedule(
+  id: 'schedule-1',
+  vehicleId: fourRunner.id,
+  name: 'Tire rotation',
+  intervalDistance: 5000,
+  intervalMonths: 6,
+  details: '',
+);
+
+final sampleSchedules = List<Schedule>.unmodifiable([oilChange, tireRotation]);

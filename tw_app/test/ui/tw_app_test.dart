@@ -18,7 +18,13 @@ void main() {
       final authService = AuthServiceMock();
       authService.loginResult = authResult.future;
 
-      await tester.pumpWidget(TwApp(authService: authService, vehicleRepo: InMemoryVehicleRepo()));
+      await tester.pumpWidget(
+        TwApp(
+          authService: authService,
+          vehicleRepo: InMemoryVehicleRepo(),
+          schedulesRepo: InMemorySchedulesRepo(),
+        ),
+      );
 
       expect(findWelcomeScreen, findsOneWidget);
       expect(findGarageScreen, findsNothing);

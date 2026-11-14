@@ -167,6 +167,38 @@ void main() {
       });
     });
 
+    group('Manage schedules', () {
+      testWidgets('opens schedules for the selected vehicle and returns without reloading', (
+        WidgetTester tester,
+      ) async {
+        final harness = Harness();
+        final garage = GarageRobot(tester);
+        final vehicle = harness.repo.vehicles.values.last;
+        harness.schedulesRepo.schedules.addAll({
+          for (final schedule in samples.sampleSchedules) schedule.id: schedule,
+        });
+        await harness.pumpLoadedScreen(tester);
+
+        await garage.tapVehicleMenuSchedules(vehicle.id);
+
+        expect(findScheduleScreen, findsOneWidget);
+        expect(findGarageScreen, findsNothing);
+        expect(find.text(vehicle.name), findsOneWidget);
+        expect(find.byIcon(Icons.event_repeat), findsOneWidget);
+        expect(find.byType(ListView), findsOneWidget);
+        expect(find.text(samples.tireRotation.name), findsOneWidget);
+        expect(find.text(samples.oilChange.name), findsNothing);
+
+        await tester.pageBack();
+        await tester.pumpAndSettle();
+
+        expect(findScheduleScreen, findsNothing);
+        expect(findGarageScreen, findsOneWidget);
+        expectVehiclesVisible([samples.santaFe, samples.fourRunner]);
+        expect(harness.repo.listCalls, equals(1));
+      });
+    });
+
     group('Delete a Vehicle', () {
       testWidgets('cancelling deletion preserves the vehicle', (WidgetTester tester) async {
         final garage = GarageRobot(tester);
@@ -242,6 +274,7 @@ class Harness({Iterable<Vehicle>? initialVehicles}) {
   final repo = stub.InMemoryVehicleRepo(
     initialVehicles: initialVehicles ?? [samples.santaFe, samples.fourRunner],
   );
+  final schedulesRepo = stub.InMemorySchedulesRepo();
   final clock = ClockMock();
 
   this {
@@ -256,7 +289,13 @@ class Harness({Iterable<Vehicle>? initialVehicles}) {
   Future<void> pumpScreen(WidgetTester tester, {String userName = 'John Doe'}) async {
     await tester.pumpWidget(
       MaterialApp(
-        home: GarageScreen(onLogout: () async {}, userName: userName, repo: repo, clock: clock),
+        home: GarageScreen(
+          onLogout: () async {},
+          userName: userName,
+          repo: repo,
+          schedulesRepo: schedulesRepo,
+          clock: clock,
+        ),
       ),
     );
   }

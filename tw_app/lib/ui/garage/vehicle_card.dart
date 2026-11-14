@@ -29,7 +29,7 @@ class const VehicleCard({
                     children: [
                       Icon(Icons.edit_outlined, size: 20),
                       SizedBox(width: 12),
-                      Expanded(child: Text('Edit vehicle')),
+                      Expanded(child: Text('Edit')),
                     ],
                   ),
                 ),
@@ -40,7 +40,7 @@ class const VehicleCard({
                     children: [
                       Icon(Icons.event_repeat, size: 20),
                       SizedBox(width: 12),
-                      Expanded(child: Text('Manage schedules')),
+                      Expanded(child: Text('Schedules')),
                     ],
                   ),
                 ),
@@ -52,7 +52,7 @@ class const VehicleCard({
                     children: [
                       Icon(Icons.delete_outline, size: 20),
                       SizedBox(width: 12),
-                      Expanded(child: Text('Delete vehicle')),
+                      Expanded(child: Text('Delete')),
                     ],
                   ),
                 ),

@@ -1,6 +1,7 @@
 import 'package:material_ui/material_ui.dart';
 import 'package:tw_app/app/auth_service.dart';
 import 'package:tw_app/app/vehicle_repo.dart';
+import 'package:tw_app/app/schedules_repo.dart';
 import 'package:shared/model.dart';
 import 'package:tw_app/ui/garage/garage_screen.dart';
 import 'package:tw_app/ui/welcome/welcome_screen.dart';
@@ -9,6 +10,7 @@ class const TwApp({
   super.key,
   required final AuthService authService,
   required final VehicleRepo vehicleRepo,
+  required final SchedulesRepo schedulesRepo,
 }) extends StatefulWidget {
   @override
   State<TwApp> createState() => _TwAppState();
@@ -24,7 +26,12 @@ class _TwAppState() extends State<TwApp> {
       title: 'Torque Wrench',
       theme: ThemeData(colorScheme: .fromSeed(seedColor: Colors.deepPurple)),
       home: user != null
-          ? GarageScreen(onLogout: logout, userName: user.name, repo: widget.vehicleRepo)
+          ? GarageScreen(
+              onLogout: logout,
+              userName: user.name,
+              repo: widget.vehicleRepo,
+              schedulesRepo: widget.schedulesRepo,
+            )
           : WelcomeScreen(onLogin: login),
     );
   }

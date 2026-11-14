@@ -3,12 +3,14 @@ import 'package:material_ui/material_ui.dart';
 import 'package:shared/model.dart';
 import 'package:tw_app/ui/garage/garage_screen.dart';
 import 'package:tw_app/ui/garage/vehicle_card.dart';
+import 'package:tw_app/ui/schedules/schedule_screen.dart';
 import 'package:tw_app/ui/vehicles/vehicle_form_screen.dart';
 import 'package:tw_app/ui/welcome/welcome_screen.dart';
 
 final findWelcomeScreen = find.byType(WelcomeScreen);
 final findGarageScreen = find.byType(GarageScreen);
 final findVehicleFormScreen = find.byType(VehicleFormScreen);
+final findScheduleScreen = find.byType(ScheduleScreen);
 
 enum PumpMode { none, frame, settle }
 
@@ -70,6 +72,8 @@ class GarageRobot(super.tester) extends TestRobot {
   }
 
   Future<void> tapVehicleMenuEdit(String id) => _tapVehicleMenuAction(id, .edit);
+
+  Future<void> tapVehicleMenuSchedules(String id) => _tapVehicleMenuAction(id, .schedules);
 
   Future<void> tapVehicleMenuDelete(String id) => _tapVehicleMenuAction(id, .delete);
 

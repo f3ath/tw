@@ -44,20 +44,22 @@ Offline mode, synchronization, and advanced network behavior such as atomicity a
 - main shares one TwApiClient between real authentication and vehicle adapters. Use `--dart-define=FAKE=true` for the development fakes. Models come from `shared/model.dart`.
 - Vehicle listing, creation, editing, and confirmed deletion are wired to the backend. Edit preserves the vehicle ID and locks distance units. Successful form submission returns a boolean refresh signal.
 - GarageScreen owns/disposes GarageViewModel. VehicleCard owns card/menu rendering and emits actions; navigation, deletion feedback, and refresh remain in the screen. GarageScreen.vehicleCardKey supplies list-item identity.
-- Deletion refreshes after both success and exceptions because a lost response can leave the outcome uncertain. Exceptions show “Could not confirm deletion. Refreshing...”. Cancellation skips deletion and refresh. Manage schedules is still a no-op; due-services content is a placeholder.
+- Deletion refreshes after both success and exceptions because a lost response can leave the outcome uncertain. Exceptions show “Could not confirm deletion. Refreshing...”. Cancellation skips deletion and refresh. Manage schedules opens ScheduleScreen for the selected vehicle; Back returns without reloading the garage. Its title shows the schedules icon and vehicle name. Due-services content is a placeholder.
 - VehicleFormScreen shares create/edit validation and submission/error handling, with persistence extracted into a private method. DateFormField provides typed date selection.
 - TestRobot contains shared utilities; WelcomeRobot, GarageRobot, and VehicleFormRobot own screen-specific interactions. PumpMode selects none/frame/settle. Menu and dropdown finders target typed, hit-testable entries.
+- SchedulesRepo.list(vehicleId) is wired through main → TwApp → GarageScreen → ScheduleScreen. BackendSchedulesRepo delegates to TwApiClient; ScheduleViewModel owns loading/error/list state and is disposed with the screen. Rows show schedule names and optional details, with loading, error/retry, and empty states.
+- InMemorySchedulesRepo defaults to empty, accepts initialSchedules, filters by vehicle ID, counts list calls, and supports a one-request pauseNextList gate. Sample schedules seed the preview and fake backend. Widget tests cover vehicle filtering, loading, empty results, retry, rebuild behavior, pending-request disposal, and garage navigation.
 - InMemoryVehicleRepo defaults to empty and accepts initialVehicles. pauseNextList/Create/Delete gates affect one request each. Sample users/vehicles live in lib/testing/samples.dart; the test harness and fake-backend setup seed explicitly.
-- Latest verification: all **29 tw_app tests pass**; static analysis is clean. Builds and real authentication were not reverified during this refactor. Previously verified builds are not evidence of current real-backend behavior.
+- Latest verification: all **34 tw_app tests pass**; static analysis is clean. Builds and real authentication were not reverified during this refactor. Previously verified builds are not evidence of current real-backend behavior.
 
 ## Next exercise
 
-Recommended next: implement the schedule-list flow for a selected vehicle, before adding schedule mutations.
+Recommended next: schedule creation for the selected vehicle.
 
-- Add a semantic ScheduleRepo listing port, a backend adapter using the existing TwApiClient.listSchedules(vehicleId), and an in-memory fake.
-- Wire Manage schedules to a screen showing the selected vehicle and its schedules, with loading, error/retry, and empty states.
-- Test selecting the correct vehicle and passing its ID, successful loading, empty results, and failure/retry using controlled futures.
-- Observable checkpoint: selecting Manage schedules on either vehicle shows that vehicle’s schedules; returning leaves the garage usable.
+- Extend SchedulesRepo with a semantic create operation, then add backend/in-memory implementations.
+- Build a form for name, distance/month intervals, and details; derive distance-unit labels from the vehicle.
+- Verify server validation requirements before choosing form rules. Cover pending submission, errors/retry, cancellation, and refreshing the list after success.
+- Observable checkpoint: a new schedule appears only under the vehicle for which it was created.
 
 Remaining vehicle-test gaps include edit failure/retry and deletion that succeeds server-side before the response fails. The in-memory repository still derives new IDs from map length, which can collide after deletion; address before relying on delete-then-create fake workflows.
 
