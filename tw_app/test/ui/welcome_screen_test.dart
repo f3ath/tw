@@ -37,7 +37,7 @@ void main() {
       attempt.completeError(Exception('Login rejected'));
       await tester.pumpAndSettle();
 
-      expect(find.byType(SnackBar), findsOneWidget);
+      expect(find.byKey(WelcomeScreen.errorSnackBarKey), findsOneWidget);
       expect(welcome.loginButton.enabled, isTrue);
 
       attempt = Completer<void>();
@@ -50,7 +50,7 @@ void main() {
       attempt.complete();
       await tester.pumpAndSettle();
 
-      expect(find.byType(SnackBar), findsNothing);
+      expect(find.byKey(WelcomeScreen.errorSnackBarKey), findsNothing);
       expect(welcome.loginButton.enabled, isTrue);
     });
 
@@ -77,7 +77,7 @@ void main() {
       attempt.completeError(UserCancelledException('User cancelled'));
       await tester.pumpAndSettle();
 
-      expect(find.byType(SnackBar), findsNothing);
+      expect(find.byKey(WelcomeScreen.errorSnackBarKey), findsNothing);
       expect(welcome.loginButton.enabled, isTrue);
 
       attempt = Completer<void>();

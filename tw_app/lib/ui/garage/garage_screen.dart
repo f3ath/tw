@@ -20,6 +20,10 @@ class const GarageScreen({
 
   static const userNameTextKey = ValueKey('user-name-text');
   static const logoutButtonKey = ValueKey('logout-button');
+  static const loadingIndicatorKey = ValueKey('garage-loading-indicator');
+  static const errorTextKey = ValueKey('garage-error-text');
+  static const emptyTextKey = ValueKey('garage-empty-text');
+  static const deleteErrorSnackBarKey = ValueKey('garage-delete-error-snackbar');
   static const retryButtonKey = ValueKey('retry-button');
   static const addButtonKey = ValueKey('add-button');
   static const deleteConfirmation = ValueKey('delete-confirmation');
@@ -71,13 +75,15 @@ class _GarageScreenState extends State<GarageScreen> {
       listenable: _model,
       builder: (_, _) {
         if (_model.isLoading) {
-          return const Center(child: CircularProgressIndicator());
+          return const Center(
+            child: CircularProgressIndicator(key: GarageScreen.loadingIndicatorKey),
+          );
         }
         if (_model.hasError) {
           return Center(
             child: Column(
               children: [
-                Text('Error loading vehicles :('),
+                Text('Error loading vehicles :(', key: GarageScreen.errorTextKey),
                 FilledButton(
                   key: GarageScreen.retryButtonKey,
                   onPressed: _model.load,
@@ -88,7 +94,7 @@ class _GarageScreenState extends State<GarageScreen> {
           );
         }
         if (_model.vehicles.isEmpty) {
-          return Center(child: Text('Nothing yet'));
+          return Center(child: Text('Nothing yet', key: GarageScreen.emptyTextKey));
         }
         return ListView.builder(
           itemCount: _model.vehicles.length,
@@ -96,10 +102,10 @@ class _GarageScreenState extends State<GarageScreen> {
         );
       },
     ),
-    floatingActionButton: FloatingActionButton(
+    floatingActionButton: FloatingActionButton.extended(
       key: GarageScreen.addButtonKey,
-      tooltip: 'Add new vehicle',
-      child: const Icon(Icons.add),
+      icon: const Icon(Icons.add),
+      label: const Text('New Vehicle'),
       onPressed: () async {
         final refresh = await _openVehicleForm();
         if (refresh == true && mounted) {
@@ -169,7 +175,10 @@ class _GarageScreenState extends State<GarageScreen> {
         ScaffoldMessenger.of(context)
           ..hideCurrentSnackBar()
           ..showSnackBar(
-            const SnackBar(content: Text('Could not confirm deletion. Refreshing...')),
+            const SnackBar(
+              key: GarageScreen.deleteErrorSnackBarKey,
+              content: Text('Could not confirm deletion. Refreshing...'),
+            ),
           );
       }
     }

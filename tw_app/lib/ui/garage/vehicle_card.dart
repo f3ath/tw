@@ -7,6 +7,8 @@ class const VehicleCard({
   required final DateTime now,
   required final ValueChanged<VehicleAction> onAction,
 }) extends StatelessWidget {
+  static ValueKey<String> menuKey(String vehicleId) => ValueKey('menu-$vehicleId');
+
   @override
   Widget build(BuildContext context) {
     final age = vehicle.ageAsOf(now);
@@ -18,7 +20,7 @@ class const VehicleCard({
             title: Text(vehicle.name),
             subtitle: Text('${age.years > 0 ? '${age.years} yr ' : ''}${age.months} mon old'),
             trailing: PopupMenuButton<VehicleAction>(
-              key: ValueKey('menu-${vehicle.id}'),
+              key: VehicleCard.menuKey(vehicle.id),
               tooltip: 'Manage ${vehicle.name}',
               icon: const Icon(Icons.more_vert),
               itemBuilder: (_) => const [

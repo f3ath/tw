@@ -6,6 +6,7 @@ class const WelcomeScreen({super.key, required final Future<void> Function() onL
   @override
   State<WelcomeScreen> createState() => _WelcomeScreenState();
 
+  static const errorSnackBarKey = ValueKey('welcome-error-snackbar');
   static const loginButtonKey = ValueKey('google-login-button');
 }
 
@@ -27,7 +28,12 @@ class _WelcomeScreenState() extends State<WelcomeScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context)
           ..hideCurrentSnackBar()
-          ..showSnackBar(const SnackBar(content: Text('Login failed. Please try again.')));
+          ..showSnackBar(
+            const SnackBar(
+              key: WelcomeScreen.errorSnackBarKey,
+              content: Text('Login failed. Please try again.'),
+            ),
+          );
       }
     } finally {
       if (mounted) {

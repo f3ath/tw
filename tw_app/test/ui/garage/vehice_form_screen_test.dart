@@ -87,7 +87,7 @@ void main() {
 
         completer.completeError(Exception('Network error'));
         await tester.pump();
-        expect(find.byType(SnackBar), findsOneWidget);
+        expect(find.byKey(VehicleFormScreen.errorSnackBarKey), findsOneWidget);
         expect(form.saveButton.enabled, isTrue);
       });
     });

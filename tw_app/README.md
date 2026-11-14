@@ -9,6 +9,7 @@ Session handover for `tw_app/`. Read this before continuing; inspect current sou
 - The user writes application code. Do not implement features or provide complete solutions unless asked. Documentation updates are authorized.
 - Tests are the source of truth for behavior. Add meaningful tests alongside features, using controlled futures/time for asynchronous behavior. Prefer TDD where it makes sense.
 - Use `../app_proto/` as a reference, not a template to copy. Introduce abstractions through concrete needs.
+- Do not add widget previews; the user prefers to omit them.
 
 ## Scope
 
@@ -48,16 +49,16 @@ Offline mode, synchronization, and advanced network behavior such as atomicity a
 - VehicleFormScreen shares create/edit validation and submission/error handling, with persistence extracted into a private method. DateFormField provides typed date selection.
 - TestRobot contains shared utilities; WelcomeRobot, GarageRobot, and VehicleFormRobot own screen-specific interactions. PumpMode selects none/frame/settle. Menu and dropdown finders target typed, hit-testable entries.
 - SchedulesRepo.list(vehicleId) is wired through main → TwApp → GarageScreen → ScheduleScreen. BackendSchedulesRepo delegates to TwApiClient; ScheduleViewModel owns loading/error/list state and is disposed with the screen. Rows show schedule names and optional details, with loading, error/retry, and empty states.
-- InMemorySchedulesRepo defaults to empty, accepts initialSchedules, filters by vehicle ID, counts list calls, and supports a one-request pauseNextList gate. Sample schedules seed the preview and fake backend. Widget tests cover vehicle filtering, loading, empty results, retry, rebuild behavior, pending-request disposal, and garage navigation.
+- InMemorySchedulesRepo defaults to empty, accepts initialSchedules, filters by vehicle ID, counts list calls, and supports a one-request pauseNextList gate. Sample schedules seed the fake backend and tests. Widget tests cover vehicle filtering, loading, empty results, retry, rebuild behavior, pending-request disposal, and garage navigation.
 - InMemoryVehicleRepo defaults to empty and accepts initialVehicles. pauseNextList/Create/Delete gates affect one request each. Sample users/vehicles live in lib/testing/samples.dart; the test harness and fake-backend setup seed explicitly.
-- Latest verification: all **35 tw_app tests pass**; static analysis is clean. Builds and real authentication were not reverified during this refactor. Previously verified builds are not evidence of current real-backend behavior.
+- Latest verification: all **40 tw_app tests pass**; static analysis is clean. Builds and real authentication were not reverified during this refactor. Previously verified builds are not evidence of current real-backend behavior.
 
 ## Next exercise
 
-Recommended next: schedule creation for the selected vehicle.
+Recommended next: wire schedule creation for the selected vehicle. ScheduleFormScreen now provides standalone name, distance/month intervals, and details fields. The New Schedule floating button opens the form for the selected vehicle. Back preserves the schedule list without reloading. ScheduleCard has an Edit/Delete menu: Edit opens the same form with prefilled fields and an Edit Schedule title; Delete is disabled. Save is disabled in both modes; validation and submission are not wired.
 
 - Extend SchedulesRepo with a semantic create operation, then add backend/in-memory implementations.
-- Build a form for name, distance/month intervals, and details; derive distance-unit labels from the vehicle.
+- Wire the existing ScheduleFormScreen; it already derives distance-unit labels from the vehicle.
 - Verify server validation requirements before choosing form rules. Cover pending submission, errors/retry, cancellation, and refreshing the list after success.
 - Observable checkpoint: a new schedule appears only under the vehicle for which it was created.
 

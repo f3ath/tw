@@ -12,6 +12,7 @@ class const VehicleFormScreen({
 }) extends StatefulWidget {
   @override
   State<VehicleFormScreen> createState() => _VehicleFormScreenState();
+  static const errorSnackBarKey = ValueKey('vehicle-save-error-snackbar');
   static const nameFieldKey = ValueKey('vehicle-name-field');
   static const distanceUnitFieldKey = ValueKey('vehicle-distance-unit-field');
   static const dateFieldKey = ValueKey('vehicle-date-field');
@@ -107,7 +108,12 @@ class _VehicleFormScreenState extends State<VehicleFormScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context)
           ..hideCurrentSnackBar()
-          ..showSnackBar(const SnackBar(content: Text('Save failed. Please try again.')));
+          ..showSnackBar(
+            const SnackBar(
+              key: VehicleFormScreen.errorSnackBarKey,
+              content: Text('Save failed. Please try again.'),
+            ),
+          );
       }
     } finally {
       if (mounted) {

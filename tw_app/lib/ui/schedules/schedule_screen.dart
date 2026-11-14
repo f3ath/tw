@@ -1,17 +1,19 @@
-import 'package:flutter/widget_previews.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:shared/model.dart';
 import 'package:tw_app/app/schedules_repo.dart';
-import 'package:tw_app/testing/stub.dart';
 import 'package:tw_app/ui/schedules/schedule_view_model.dart';
 import 'package:tw_app/ui/schedules/schedule_card.dart';
-import 'package:tw_app/testing/samples.dart' as samples;
+import 'package:tw_app/ui/schedules/schedule_form_screen.dart';
 
 class const ScheduleScreen({
   super.key,
   required final Vehicle vehicle,
   required final SchedulesRepo repo,
 }) extends StatefulWidget {
+  static const addButtonKey = ValueKey('schedules-add-button');
+  static const loadingIndicatorKey = ValueKey('schedules-loading-indicator');
+  static const errorTextKey = ValueKey('schedules-error-text');
+  static const emptyTextKey = ValueKey('schedules-empty-text');
   static const retryButtonKey = ValueKey('schedules-retry-button');
   static ValueKey<String> scheduleKey(String id) => ValueKey('schedule-$id');
 
@@ -50,14 +52,16 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
       listenable: _model,
       builder: (_, _) {
         if (_model.isLoading) {
-          return const Center(child: CircularProgressIndicator());
+          return const Center(
+            child: CircularProgressIndicator(key: ScheduleScreen.loadingIndicatorKey),
+          );
         }
         if (_model.hasError) {
           return Center(
             child: Column(
               mainAxisSize: .min,
               children: [
-                const Text('Error loading schedules'),
+                const Text('Error loading schedules', key: ScheduleScreen.errorTextKey),
                 FilledButton(
                   key: ScheduleScreen.retryButtonKey,
                   onPressed: _model.load,
@@ -68,7 +72,7 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
           );
         }
         if (_model.schedules.isEmpty) {
-          return const Center(child: Text('No schedules yet'));
+          return const Center(child: Text('No schedules yet', key: ScheduleScreen.emptyTextKey));
         }
         return ListView.builder(
           itemCount: _model.schedules.length,
@@ -78,18 +82,25 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
               key: ScheduleScreen.scheduleKey(schedule.id),
               schedule: schedule,
               distanceUnit: widget.vehicle.distanceUnit,
+              onAction: (action) {
+                if (action == .edit) _openScheduleForm(schedule: schedule);
+              },
             );
           },
         );
       },
     ),
+    floatingActionButton: FloatingActionButton.extended(
+      key: ScheduleScreen.addButtonKey,
+      icon: const Icon(Icons.add),
+      label: const Text('New Schedule'),
+      onPressed: () => _openScheduleForm(),
+    ),
+  );
+
+  Future<void> _openScheduleForm({Schedule? schedule}) => Navigator.of(context).push<void>(
+    MaterialPageRoute(
+      builder: (_) => ScheduleFormScreen(vehicle: widget.vehicle, schedule: schedule),
+    ),
   );
 }
-
-@Preview(name: 'Schedules', size: Size(390, 844))
-Widget scheduleScreenPreview() => MaterialApp(
-  home: ScheduleScreen(
-    vehicle: samples.santaFe,
-    repo: InMemorySchedulesRepo(initialSchedules: samples.sampleSchedules),
-  ),
-);

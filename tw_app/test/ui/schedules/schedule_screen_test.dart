@@ -4,6 +4,7 @@ import 'package:shared/model.dart';
 import 'package:tw_app/testing/samples.dart' as samples;
 import 'package:tw_app/testing/stub.dart';
 import 'package:tw_app/ui/schedules/schedule_screen.dart';
+import 'package:tw_app/ui/schedules/schedule_card.dart';
 
 import '../../robots.dart';
 
@@ -14,14 +15,14 @@ void main() {
       final pending = harness.repo.pauseNextList();
       await harness.pumpScreen(tester);
 
-      expect(find.byType(CircularProgressIndicator), findsOneWidget);
+      expect(find.byKey(ScheduleScreen.loadingIndicatorKey), findsOneWidget);
       expect(find.text(samples.santaFe.name), findsOneWidget);
       expect(find.text(samples.oilChange.name), findsNothing);
 
       pending.complete();
       await tester.pumpAndSettle();
 
-      expect(find.byType(CircularProgressIndicator), findsNothing);
+      expect(find.byKey(ScheduleScreen.loadingIndicatorKey), findsNothing);
       expectSchedulesVisible([samples.oilChange]);
       expect(find.text('Every 10,000 km / 12 mo'), findsOneWidget);
       expect(find.text(samples.tireRotation.name), findsNothing);
@@ -43,9 +44,9 @@ void main() {
       final harness = Harness(vehicle: samples.santaFe, initialSchedules: [samples.tireRotation]);
       await harness.pumpLoadedScreen(tester);
 
-      expect(find.text('No schedules yet'), findsOneWidget);
+      expect(find.byKey(ScheduleScreen.emptyTextKey), findsOneWidget);
       expect(find.byType(ListTile), findsNothing);
-      expect(find.byType(CircularProgressIndicator), findsNothing);
+      expect(find.byKey(ScheduleScreen.loadingIndicatorKey), findsNothing);
     });
 
     testWidgets('failed loading shows an error and can be retried', (tester) async {
@@ -60,18 +61,18 @@ void main() {
       pending.completeError(Exception('Network error'));
       await tester.pumpAndSettle();
 
-      expect(find.text('Error loading schedules'), findsOneWidget);
-      expect(find.byType(CircularProgressIndicator), findsNothing);
-      expect(find.text('No schedules yet'), findsNothing);
+      expect(find.byKey(ScheduleScreen.errorTextKey), findsOneWidget);
+      expect(find.byKey(ScheduleScreen.loadingIndicatorKey), findsNothing);
+      expect(find.byKey(ScheduleScreen.emptyTextKey), findsNothing);
 
       final retry = harness.repo.pauseNextList();
       await schedules.tapRetry();
-      expect(find.byType(CircularProgressIndicator), findsOneWidget);
+      expect(find.byKey(ScheduleScreen.loadingIndicatorKey), findsOneWidget);
 
       retry.complete();
       await tester.pumpAndSettle();
 
-      expect(find.text('Error loading schedules'), findsNothing);
+      expect(find.byKey(ScheduleScreen.errorTextKey), findsNothing);
       expectSchedulesVisible([samples.tireRotation]);
       expect(find.text(samples.oilChange.name), findsNothing);
       expect(harness.repo.listCalls, equals(2));
@@ -98,6 +99,82 @@ void main() {
         expect(find.descendant(of: card, matching: find.text(scenario.expected)), findsOneWidget);
       });
     }
+
+    testWidgets('New Schedule opens the form for the vehicle and Back preserves the list', (
+      tester,
+    ) async {
+      final harness = Harness(
+        vehicle: samples.fourRunner,
+        initialSchedules: samples.sampleSchedules,
+      );
+      final schedules = ScheduleRobot(tester);
+      await harness.pumpLoadedScreen(tester);
+
+      await schedules.tapNewSchedule();
+
+      expect(findScheduleFormScreen, findsOneWidget);
+      expect(findScheduleScreen, findsNothing);
+      expect(find.text(samples.fourRunner.name), findsOneWidget);
+      expect(find.text('mi'), findsOneWidget);
+
+      await tester.pageBack();
+      await tester.pumpAndSettle();
+
+      expect(findScheduleFormScreen, findsNothing);
+      expect(findScheduleScreen, findsOneWidget);
+      expectSchedulesVisible([samples.tireRotation]);
+      expect(harness.repo.listCalls, equals(1));
+    });
+
+    testWidgets('Edit opens the selected schedule prefilled and Back preserves the list', (
+      tester,
+    ) async {
+      final vehicle = samples.santaFe;
+      final inspection = Schedule(
+        id: 'inspection',
+        vehicleId: vehicle.id,
+        name: 'Inspection',
+        intervalDistance: 7500,
+        intervalMonths: 9,
+        details: 'Check brakes and tires',
+      );
+      final harness = Harness(vehicle: vehicle, initialSchedules: [samples.oilChange, inspection]);
+      final schedules = ScheduleRobot(tester);
+      final form = ScheduleFormRobot(tester);
+      await harness.pumpLoadedScreen(tester);
+
+      await schedules.tapScheduleMenuEdit(inspection.id);
+
+      expect(findScheduleFormScreen, findsOneWidget);
+      expect(findScheduleScreen, findsNothing);
+      expect(find.text('Edit Schedule'), findsOneWidget);
+      expect(form.name, equals(inspection.name));
+      expect(form.intervalDistance, equals('7500'));
+      expect(form.intervalMonths, equals('9'));
+      expect(form.details, equals(inspection.details));
+      expect(find.text('km'), findsOneWidget);
+
+      await tester.pageBack();
+      await tester.pumpAndSettle();
+
+      expect(findScheduleFormScreen, findsNothing);
+      expectSchedulesVisible([samples.oilChange, inspection]);
+      expect(harness.repo.listCalls, equals(1));
+    });
+
+    testWidgets('Delete is disabled until schedule deletion is implemented', (tester) async {
+      final harness = Harness(vehicle: samples.santaFe, initialSchedules: [samples.oilChange]);
+      final schedules = ScheduleRobot(tester);
+      await harness.pumpLoadedScreen(tester);
+
+      await schedules.tapScheduleMenu(samples.oilChange.id);
+
+      final delete = find.byWidgetPredicate(
+        (widget) => widget is PopupMenuItem<ScheduleAction> && widget.value == .delete,
+      );
+      expect(delete, findsOneWidget);
+      expect(tester.widget<PopupMenuItem<ScheduleAction>>(delete).enabled, isFalse);
+    });
 
     testWidgets('can leave while a request is pending', (tester) async {
       final harness = Harness(vehicle: samples.santaFe);

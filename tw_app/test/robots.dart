@@ -4,6 +4,8 @@ import 'package:shared/model.dart';
 import 'package:tw_app/ui/garage/garage_screen.dart';
 import 'package:tw_app/ui/garage/vehicle_card.dart';
 import 'package:tw_app/ui/schedules/schedule_screen.dart';
+import 'package:tw_app/ui/schedules/schedule_card.dart';
+import 'package:tw_app/ui/schedules/schedule_form_screen.dart';
 import 'package:tw_app/ui/vehicles/vehicle_form_screen.dart';
 import 'package:tw_app/ui/welcome/welcome_screen.dart';
 
@@ -11,6 +13,7 @@ final findWelcomeScreen = find.byType(WelcomeScreen);
 final findGarageScreen = find.byType(GarageScreen);
 final findVehicleFormScreen = find.byType(VehicleFormScreen);
 final findScheduleScreen = find.byType(ScheduleScreen);
+final findScheduleFormScreen = find.byType(ScheduleFormScreen);
 
 enum PumpMode { none, frame, settle }
 
@@ -64,7 +67,7 @@ class GarageRobot(super.tester) extends TestRobot {
 
   Finder findVehicleCard(String id) => find.byKey(GarageScreen.vehicleCardKey(id));
 
-  Finder findVehicleMenu(String id) => find.byKey(ValueKey('menu-$id'));
+  Finder findVehicleMenu(String id) => find.byKey(VehicleCard.menuKey(id));
 
   Future<void> tapVehicleMenu(String id) async {
     await tester.tap(findVehicleMenu(id));
@@ -162,10 +165,42 @@ class VehicleFormRobot(super.tester) extends TestRobot {
 }
 
 class ScheduleRobot(super.tester) extends TestRobot {
+  Future<void> tapScheduleMenu(String id) async {
+    await tester.tap(find.byKey(ScheduleCard.menuKey(id)));
+    await tester.pumpAndSettle();
+  }
+
+  Future<void> tapScheduleMenuEdit(String id) async {
+    await tapScheduleMenu(id);
+    await tester.tap(
+      find
+          .byWidgetPredicate(
+            (widget) => widget is PopupMenuItem<ScheduleAction> && widget.value == .edit,
+            description: 'schedule edit menu item',
+          )
+          .hitTestable(),
+    );
+    await tester.pumpAndSettle();
+  }
+
+  Future<void> tapNewSchedule({PumpMode pump = .settle}) async {
+    await tester.tap(find.byKey(ScheduleScreen.addButtonKey));
+    await pumpAfterAction(pump);
+  }
+
   Finder findSchedule(String id) => find.byKey(ScheduleScreen.scheduleKey(id));
 
   Future<void> tapRetry({PumpMode pump = .frame}) async {
     await tester.tap(find.byKey(ScheduleScreen.retryButtonKey));
     await pumpAfterAction(pump);
   }
+}
+
+class ScheduleFormRobot(super.tester) extends TestRobot {
+  String? get name => _value(ScheduleFormScreen.nameFieldKey);
+  String? get intervalDistance => _value(ScheduleFormScreen.distanceFieldKey);
+  String? get intervalMonths => _value(ScheduleFormScreen.monthsFieldKey);
+  String? get details => _value(ScheduleFormScreen.detailsFieldKey);
+
+  String? _value(Key key) => tester.state<FormFieldState<String>>(find.byKey(key)).value;
 }
