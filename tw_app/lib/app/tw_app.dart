@@ -33,7 +33,7 @@ class _TwAppState() extends State<TwApp> {
           ? GarageScreen(
               onLogout: logout,
               userName: user.name,
-              repo: widget.vehicleRepo,
+              vehicleRepo: widget.vehicleRepo,
               scheduleRepo: widget.scheduleRepo,
               serviceRepo: widget.serviceRepo,
               operationRepo: widget.operationRepo,

@@ -389,7 +389,7 @@ class Harness({Iterable<Vehicle>? initialVehicles}) {
         home: GarageScreen(
           onLogout: () async {},
           userName: userName,
-          repo: repo,
+          vehicleRepo: repo,
           scheduleRepo: scheduleRepo,
           serviceRepo: serviceRepo,
           operationRepo: operationRepo,

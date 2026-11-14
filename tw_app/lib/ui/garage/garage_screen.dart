@@ -17,7 +17,7 @@ class const GarageScreen({
   super.key,
   required final Future<void> Function() onLogout,
   required final String userName,
-  required final VehicleRepo repo,
+  required final VehicleRepo vehicleRepo,
   required final ScheduleRepo scheduleRepo,
   required final ServiceRepo serviceRepo,
   required final OperationRepo operationRepo,
@@ -44,7 +44,7 @@ class _GarageScreenState extends State<GarageScreen> {
   @override
   void initState() {
     super.initState();
-    _model = GarageViewModel(vehicleRepository: widget.repo);
+    _model = GarageViewModel(vehicleRepository: widget.vehicleRepo);
     _model.load();
   }
 
@@ -117,7 +117,7 @@ class _GarageScreenState extends State<GarageScreen> {
   Future<void> _openVehicleForm({Vehicle? vehicle}) async {
     final refresh = await Navigator.of(context).push<bool>(
       MaterialPageRoute(
-        builder: (_) => VehicleFormScreen(repo: widget.repo, clock: widget.clock, vehicle: vehicle),
+        builder: (_) => VehicleFormScreen(repo: widget.vehicleRepo, clock: widget.clock, vehicle: vehicle),
       ),
     );
     if (refresh == true && mounted) await _model.load();
@@ -183,7 +183,7 @@ class _GarageScreenState extends State<GarageScreen> {
     );
     if (confirmed != true || !mounted) return false;
     try {
-      await widget.repo.delete(v.id);
+      await widget.vehicleRepo.delete(v.id);
     } on Exception {
       if (mounted) {
         ScaffoldMessenger.of(context)

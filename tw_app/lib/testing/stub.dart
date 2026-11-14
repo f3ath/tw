@@ -242,13 +242,27 @@ class InMemoryOperationRepo({Iterable<Operation> initialOperations = const []})
   };
   var listCalls = 0;
   final _listGate = RequestGate();
+  final _createGate = RequestGate();
+  var _nextId = 0;
 
   Completer<void> pauseNextList() => _listGate.pause();
+
+  Completer<void> pauseNextCreate() => _createGate.pause();
 
   @override
   Future<List<Operation>> list(String serviceId) async {
     listCalls++;
     await _listGate.wait();
     return operations.values.where((operation) => operation.serviceId == serviceId).toList();
+  }
+
+  @override
+  Future<void> create(String serviceId, {required String name, String details = ''}) async {
+    await _createGate.wait();
+    String id;
+    do {
+      id = 'operation-${_nextId++}';
+    } while (operations.containsKey(id));
+    operations[id] = Operation(id, serviceId: serviceId, name: name, details: details);
   }
 }
