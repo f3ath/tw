@@ -11,13 +11,7 @@ class const ScheduleCard({
 
   @override
   Widget build(BuildContext context) {
-    final distance = schedule.intervalDistance;
-    final months = schedule.intervalMonths;
-    final intervals = [
-      if (distance != null)
-        '${MaterialLocalizations.of(context).formatDecimal(distance)} ${distanceUnit.name}',
-      if (months != null) '$months mo',
-    ];
+    final interval = _formatInterval(schedule, distanceUnit, MaterialLocalizations.of(context));
     return Card(
       child: ListTile(
         title: Text(schedule.name),
@@ -51,12 +45,12 @@ class const ScheduleCard({
             ),
           ],
         ),
-        subtitle: intervals.isEmpty && schedule.details.isEmpty
+        subtitle: interval.isEmpty && schedule.details.isEmpty
             ? null
             : Column(
                 crossAxisAlignment: .start,
                 children: [
-                  if (intervals.isNotEmpty) Text('Every ${intervals.join(' / ')}'),
+                  if (interval.isNotEmpty) Text(interval),
                   if (schedule.details.isNotEmpty) Text(schedule.details),
                 ],
               ),
@@ -66,3 +60,13 @@ class const ScheduleCard({
 }
 
 enum ScheduleAction { edit, delete }
+
+String _formatInterval(Schedule schedule, DistanceUnit unit, MaterialLocalizations localizations) {
+  final distance = schedule.intervalDistance;
+  final months = schedule.intervalMonths;
+  final intervals = [
+    if (distance != null) '${localizations.formatDecimal(distance)} ${unit.name}',
+    if (months != null) '$months mo',
+  ];
+  return intervals.isEmpty ? '' : 'Every ${intervals.join(' / ')}';
+}

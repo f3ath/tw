@@ -19,6 +19,7 @@ class InMemoryAuthService({required final User _user}) implements AuthService {
 class InMemoryVehicleRepo({Iterable<Vehicle> initialVehicles = const []}) implements VehicleRepo {
   final vehicles = <String, Vehicle>{for (final vehicle in initialVehicles) vehicle.id: vehicle};
   var listCalls = 0;
+  var _nextId = 0;
 
   Future<void>? _nextList;
   Future<void>? _nextCreate;
@@ -51,12 +52,11 @@ class InMemoryVehicleRepo({Iterable<Vehicle> initialVehicles = const []}) implem
     final pending = _nextCreate;
     _nextCreate = null;
     await pending;
-    final v = Vehicle(
-      'vehicle-${vehicles.length}',
-      name: name,
-      manufactureDate: manufactureDate,
-      distanceUnit: distanceUnit,
-    );
+    String id;
+    do {
+      id = 'vehicle-${_nextId++}';
+    } while (vehicles.containsKey(id));
+    final v = Vehicle(id, name: name, manufactureDate: manufactureDate, distanceUnit: distanceUnit);
     vehicles[v.id] = v;
   }
 
@@ -103,10 +103,18 @@ class InMemorySchedulesRepo({Iterable<Schedule> initialSchedules = const []})
   };
   var listCalls = 0;
   Future<void>? _nextList;
+  Future<void>? _nextCreate;
+  var _nextId = 0;
 
   Completer<void> pauseNextList() {
     final completer = Completer<void>();
     _nextList = completer.future;
+    return completer;
+  }
+
+  Completer<void> pauseNextCreate() {
+    final completer = Completer<void>();
+    _nextCreate = completer.future;
     return completer;
   }
 
@@ -117,5 +125,30 @@ class InMemorySchedulesRepo({Iterable<Schedule> initialSchedules = const []})
     _nextList = null;
     await pending;
     return schedules.values.where((schedule) => schedule.vehicleId == vehicleId).toList();
+  }
+
+  @override
+  Future<void> create(
+    String vehicleId, {
+    required String name,
+    int? intervalDistance,
+    int? intervalMonths,
+    String details = '',
+  }) async {
+    final pending = _nextCreate;
+    _nextCreate = null;
+    await pending;
+    String id;
+    do {
+      id = 'schedule-${_nextId++}';
+    } while (schedules.containsKey(id));
+    schedules[id] = Schedule(
+      id: id,
+      vehicleId: vehicleId,
+      name: name,
+      intervalDistance: intervalDistance,
+      intervalMonths: intervalMonths,
+      details: details,
+    );
   }
 }

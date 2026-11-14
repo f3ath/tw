@@ -76,17 +76,7 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
         }
         return ListView.builder(
           itemCount: _model.schedules.length,
-          itemBuilder: (_, index) {
-            final schedule = _model.schedules[index];
-            return ScheduleCard(
-              key: ScheduleScreen.scheduleKey(schedule.id),
-              schedule: schedule,
-              distanceUnit: widget.vehicle.distanceUnit,
-              onAction: (action) {
-                if (action == .edit) _openScheduleForm(schedule: schedule);
-              },
-            );
-          },
+          itemBuilder: (_, index) => _buildScheduleCard(_model.schedules[index]),
         );
       },
     ),
@@ -97,6 +87,19 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
       onPressed: () => _openScheduleForm(),
     ),
   );
+
+  ScheduleCard _buildScheduleCard(Schedule schedule) => ScheduleCard(
+    key: ScheduleScreen.scheduleKey(schedule.id),
+    schedule: schedule,
+    distanceUnit: widget.vehicle.distanceUnit,
+    onAction: (action) => _handleScheduleAction(action, schedule),
+  );
+
+  Future<void> _handleScheduleAction(ScheduleAction action, Schedule schedule) async {
+    if (action == .edit) {
+      await _openScheduleForm(schedule: schedule);
+    }
+  }
 
   Future<void> _openScheduleForm({Schedule? schedule}) => Navigator.of(context).push<void>(
     MaterialPageRoute(

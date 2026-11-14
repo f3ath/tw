@@ -2,7 +2,7 @@ import 'package:material_ui/material_ui.dart';
 import 'package:shared/model.dart';
 import 'package:tw_app/app/schedules_repo.dart';
 
-class ScheduleViewModel({required final SchedulesRepo repo, required final String vehicleId})
+class ScheduleViewModel({required final SchedulesRepo _repo, required final String _vehicleId})
     extends ChangeNotifier {
   var _isLoading = false;
   var _hasError = false;
@@ -18,7 +18,7 @@ class ScheduleViewModel({required final SchedulesRepo repo, required final Strin
     _hasError = false;
     notifyListeners();
     try {
-      _schedules = List.unmodifiable(await repo.list(vehicleId));
+      _schedules = List.unmodifiable(await _repo.list(_vehicleId));
     } on Exception {
       _hasError = true;
     } finally {
