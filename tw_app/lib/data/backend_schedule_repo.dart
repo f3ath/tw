@@ -38,4 +38,7 @@ class BackendScheduleRepo(final TwApiClient _client) implements ScheduleRepo {
       details: details,
     );
   }
+
+  @override
+  Future<void> delete(String scheduleId) => _client.deleteSchedule(scheduleId);
 }

@@ -111,6 +111,7 @@ class InMemoryScheduleRepo({Iterable<Schedule> initialSchedules = const []})
   Future<void>? _nextList;
   Future<void>? _nextCreate;
   Future<void>? _nextUpdate;
+  Future<void>? _nextDelete;
   var _nextId = 0;
 
   Completer<void> pauseNextList() {
@@ -128,6 +129,12 @@ class InMemoryScheduleRepo({Iterable<Schedule> initialSchedules = const []})
   Completer<void> pauseNextUpdate() {
     final completer = Completer<void>();
     _nextUpdate = completer.future;
+    return completer;
+  }
+
+  Completer<void> pauseNextDelete() {
+    final completer = Completer<void>();
+    _nextDelete = completer.future;
     return completer;
   }
 
@@ -187,5 +194,13 @@ class InMemoryScheduleRepo({Iterable<Schedule> initialSchedules = const []})
       details: details,
       isArchived: original.isArchived,
     );
+  }
+
+  @override
+  Future<void> delete(String scheduleId) async {
+    final pending = _nextDelete;
+    _nextDelete = null;
+    await pending;
+    if (schedules.remove(scheduleId) == null) throw StateError('Schedule not found');
   }
 }

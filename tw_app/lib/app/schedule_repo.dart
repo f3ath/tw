@@ -18,4 +18,6 @@ abstract interface class ScheduleRepo {
     required int? intervalMonths,
     required String details,
   });
+
+  Future<void> delete(String scheduleId);
 }

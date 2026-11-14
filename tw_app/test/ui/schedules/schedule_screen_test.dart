@@ -182,7 +182,7 @@ void main() {
       expect(find.text(samples.tireRotation.name), findsNothing);
     });
 
-    testWidgets('Delete is disabled until schedule deletion is implemented', (tester) async {
+    testWidgets('Delete is available in the schedule menu', (tester) async {
       final harness = Harness(vehicle: samples.santaFe, initialSchedules: [samples.oilChange]);
       final schedules = ScheduleRobot(tester);
       await harness.pumpLoadedScreen(tester);
@@ -193,7 +193,7 @@ void main() {
         (widget) => widget is PopupMenuItem<ScheduleAction> && widget.value == .delete,
       );
       expect(delete, findsOneWidget);
-      expect(tester.widget<PopupMenuItem<ScheduleAction>>(delete).enabled, isFalse);
+      expect(tester.widget<PopupMenuItem<ScheduleAction>>(delete).enabled, isTrue);
     });
 
     testWidgets('can leave while a request is pending', (tester) async {

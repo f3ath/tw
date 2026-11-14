@@ -34,7 +34,6 @@ class const ScheduleCard({
             PopupMenuDivider(),
             PopupMenuItem(
               value: ScheduleAction.delete,
-              enabled: false,
               child: Row(
                 children: [
                   Icon(Icons.delete_outline, size: 20),
