@@ -13,6 +13,7 @@ import 'package:tw_app/ui/services/service_form_screen.dart';
 import 'package:tw_app/ui/services/service_card.dart';
 import 'package:tw_app/ui/services/service_delete_dialog.dart';
 import 'package:tw_app/ui/operations/operation_screen.dart';
+import 'package:tw_app/ui/operations/operation_form_screen.dart';
 
 final findWelcomeScreen = find.byType(WelcomeScreen);
 final findGarageScreen = find.byType(GarageScreen);
@@ -22,6 +23,7 @@ final findScheduleFormScreen = find.byType(ScheduleFormScreen);
 final findServiceScreen = find.byType(ServiceScreen);
 final findServiceFormScreen = find.byType(ServiceFormScreen);
 final findOperationScreen = find.byType(OperationScreen);
+final findOperationFormScreen = find.byType(OperationFormScreen);
 
 enum PumpMode { none, frame, settle }
 
@@ -362,6 +364,24 @@ class OperationRobot(super.tester) extends TestRobot {
     await tester.tap(find.byKey(OperationScreen.retryButtonKey));
     await pumpAfterAction(pump);
   }
+}
+
+class OperationFormRobot(super.tester) extends TestRobot {
+  final findNameField = find.byKey(OperationFormScreen.nameFieldKey);
+  final findDetailsField = find.byKey(OperationFormScreen.detailsFieldKey);
+  final findSaveButton = find.byKey(OperationFormScreen.saveButtonKey);
+  final findSaveError = find.byKey(OperationFormScreen.errorSnackBarKey);
+
+  FilledButton get saveButton => tester.widget<FilledButton>(findSaveButton);
+  String? get name => tester.state<FormFieldState<String>>(findNameField).value;
+  String? get details => tester.state<FormFieldState<String>>(findDetailsField).value;
+  String? get nameError => tester.state<FormFieldState<String>>(findNameField).errorText;
+  bool get nameEnabled => tester.widget<TextFormField>(findNameField).enabled;
+  bool get detailsEnabled => tester.widget<TextFormField>(findDetailsField).enabled;
+
+  Future<void> enterName(String value) => _enterText(findNameField, value);
+  Future<void> enterDetails(String value) => _enterText(findDetailsField, value);
+  Future<void> saveForm({PumpMode pump = .frame}) => _tapSave(findSaveButton, pump: pump);
 }
 
 class ServiceFormRobot(super.tester) extends TestRobot {
