@@ -38,6 +38,7 @@ class InMemoryVehicleRepo() implements VehicleRepo {
 
   Future<void> _listFuture = Future.value();
   Future<void> _createFuture = Future.value();
+  Future<void> _deleteFuture = Future.value();
 
   Completer<void> lockList() {
     final c = Completer<void>();
@@ -48,6 +49,12 @@ class InMemoryVehicleRepo() implements VehicleRepo {
   Completer<void> lockCreate() {
     final c = Completer<void>();
     _createFuture = c.future;
+    return c;
+  }
+
+  Completer<void> lockDelete() {
+    final c = Completer<void>();
+    _deleteFuture = c.future;
     return c;
   }
 
@@ -90,5 +97,11 @@ class InMemoryVehicleRepo() implements VehicleRepo {
       manufactureDate: manufactureDate,
       distanceUnit: v.distanceUnit,
     );
+  }
+
+  @override
+  Future<void> deleteVehicle(String id) async {
+    await _deleteFuture;
+    if (vehicles.remove(id) == null) throw StateError('Invalid id');
   }
 }

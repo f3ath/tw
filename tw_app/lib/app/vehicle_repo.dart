@@ -9,9 +9,7 @@ abstract interface class VehicleRepo {
     required DistanceUnit distanceUnit,
   });
 
-  Future<void> updateVehicle(
-    String id, {
-    required String name,
-    required DateTime manufactureDate,
-  });
+  Future<void> updateVehicle(String id, {required String name, required DateTime manufactureDate});
+
+  Future<void> deleteVehicle(String id);
 }

@@ -144,12 +144,55 @@ void main() {
         await uc.selectDayAndConfirm('13');
         await uc.saveForm(settle: true);
 
-        expect(h.repo.vehicles[stub.vehicles.first.id]?.name, equals('New Name'));
-        expect(h.repo.vehicles[stub.vehicles.first.id]?.manufactureDate.day, equals(13));
+        expect(
+            h.repo.vehicles[stub.vehicles.first.id]?.name, equals('New Name'));
+        expect(h.repo.vehicles[stub.vehicles.first.id]?.manufactureDate.day,
+            equals(13));
         expect(findGarageScreen, findsOne);
         expect(findVehicleFormScreen, findsNothing);
         expect(find.text(stub.vehicle1.name), findsNothing);
         expect(find.text('New Name'), findsOne);
+      });
+    });
+
+    group('Delete a Vehicle', () {
+      testWidgets(
+          'show confirmation, cancel, delete', (WidgetTester tester) async {
+        final uc = GarageUC(tester);
+        final h = Harness();
+        final v = h.repo.vehicles.values.first;
+        await h.setup(tester);
+        await tester.pumpAndSettle();
+        await uc.tapVehicleMenuDelete(v.id);
+        await uc.tapAlertDialogButton('Cancel');
+        await tester.pumpAndSettle();
+
+        expect(h.repo.vehicles.containsKey(v.id), isTrue);
+
+        await uc.tapVehicleMenuDelete(v.id);
+        await uc.tapAlertDialogButton('Delete');
+        await tester.pumpAndSettle();
+
+        expect(h.repo.vehicles.containsKey(v.id), isFalse);
+      });
+
+      testWidgets('error handling', (WidgetTester tester) async {
+        final uc = GarageUC(tester);
+        final h = Harness();
+        final v = h.repo.vehicles.values.first;
+        final completer = h.repo.lockDelete();
+        await h.setup(tester);
+        await tester.pumpAndSettle();
+        await uc.tapVehicleMenuDelete(v.id);
+        await uc.tapAlertDialogButton('Delete');
+        completer.completeError(Exception('Network error'));
+        await tester.pump();
+
+        expect(find.byType(SnackBar), findsOneWidget);
+
+        await tester.pumpAndSettle();
+
+        expect(h.repo.vehicles.containsKey(v.id), isTrue);
       });
     });
   });
@@ -165,7 +208,7 @@ void expectVehiclesLoaded() {
   expect(find.text(stub.vehicle2.name), findsOne);
 }
 
-class ClockMock extends Mock implements Clock;
+class ClockMock extends Mock implements Clock ;
 
 class Harness {
   final repo = stub.InMemoryVehicleRepo();
@@ -178,7 +221,10 @@ class Harness {
   Future<void> setup(WidgetTester tester, {String userName = 'Begelme'}) async {
     await tester.pumpWidget(
       MaterialApp(
-        home: GarageScreen(onLogout: () async {}, userName: userName, repo: repo, clock: clock),
+        home: GarageScreen(onLogout: () async {},
+            userName: userName,
+            repo: repo,
+            clock: clock),
       ),
     );
   }

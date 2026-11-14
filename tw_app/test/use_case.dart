@@ -36,6 +36,10 @@ class UseCase(final WidgetTester tester) {
     }
     await tester.pump();
   }
+
+  Future<void> tapAlertDialogButton(String text) async {
+    await tester.tap(find.descendant(of: find.byType(AlertDialog), matching: find.text(text)));
+  }
 }
 
 class GarageUC(super.tester) extends UseCase {
@@ -58,6 +62,12 @@ class GarageUC(super.tester) extends UseCase {
   Future<void> tapVehicleMenuEdit(String id) async {
     await tapVehicleMenu(id);
     await tester.tap(find.byKey(const ValueKey('edit')).hitTestable());
+    await tester.pumpAndSettle();
+  }
+
+  Future<void> tapVehicleMenuDelete(String id) async {
+    await tapVehicleMenu(id);
+    await tester.tap(find.byKey(const ValueKey('delete')).hitTestable());
     await tester.pumpAndSettle();
   }
 }

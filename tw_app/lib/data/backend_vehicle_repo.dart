@@ -26,4 +26,7 @@ class BackendVehicleRepo(final TwApiClient _client) implements VehicleRepo {
   }) async {
     await _client.updateVehicle(id, name: name, manufactureDate: manufactureDate);
   }
+
+  @override
+  Future<void> deleteVehicle(String id) => _client.deleteVehicle(id);
 }
