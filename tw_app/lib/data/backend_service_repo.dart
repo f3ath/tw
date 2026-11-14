@@ -14,4 +14,14 @@ class BackendServiceRepo(final TwApiClient _client) implements ServiceRepo {
   }) async {
     await _client.createService(vehicleId, date: date, odometer: odometer, details: details);
   }
+
+  @override
+  Future<void> update(
+    String serviceId, {
+    required DateTime date,
+    required int odometer,
+    required String details,
+  }) async {
+    await _client.updateService(serviceId, date: date, odometer: odometer, details: details);
+  }
 }

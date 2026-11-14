@@ -1,10 +1,10 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:material_ui/material_ui.dart';
+import 'package:tw_app/testing/fixed_clock.dart';
 import 'package:tw_app/testing/samples.dart' as samples;
 import 'package:tw_app/testing/stub.dart';
 import 'package:tw_app/ui/services/service_form_screen.dart';
 
-import '../../../lib/testing/fixed_clock.dart';
 import '../../robots.dart';
 
 void main() {

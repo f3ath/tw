@@ -211,6 +211,7 @@ class InMemoryServiceRepo({Iterable<Service> initialServices = const []}) implem
   var listCalls = 0;
   Future<void>? _nextList;
   Future<void>? _nextCreate;
+  Future<void>? _nextUpdate;
   var _nextId = 0;
 
   Completer<void> pauseNextList() {
@@ -222,6 +223,12 @@ class InMemoryServiceRepo({Iterable<Service> initialServices = const []}) implem
   Completer<void> pauseNextCreate() {
     final completer = Completer<void>();
     _nextCreate = completer.future;
+    return completer;
+  }
+
+  Completer<void> pauseNextUpdate() {
+    final completer = Completer<void>();
+    _nextUpdate = completer.future;
     return completer;
   }
 
@@ -251,6 +258,27 @@ class InMemoryServiceRepo({Iterable<Service> initialServices = const []}) implem
     services[id] = Service(
       id,
       vehicleId: vehicleId,
+      date: date,
+      odometer: odometer,
+      details: details,
+    );
+  }
+
+  @override
+  Future<void> update(
+    String serviceId, {
+    required DateTime date,
+    required int odometer,
+    required String details,
+  }) async {
+    final pending = _nextUpdate;
+    _nextUpdate = null;
+    await pending;
+    final original = services[serviceId];
+    if (original == null) throw StateError('Service not found');
+    services[serviceId] = Service(
+      original.id,
+      vehicleId: original.vehicleId,
       date: date,
       odometer: odometer,
       details: details,

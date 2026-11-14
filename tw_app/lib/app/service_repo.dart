@@ -9,4 +9,11 @@ abstract interface class ServiceRepo {
     required int odometer,
     String details = '',
   });
+
+  Future<void> update(
+    String serviceId, {
+    required DateTime date,
+    required int odometer,
+    required String details,
+  });
 }
