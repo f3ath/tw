@@ -1,5 +1,6 @@
 import 'package:material_ui/material_ui.dart';
 import 'package:shared/model.dart';
+import 'package:tw_app/ui/schedules/schedule_delete_dialog.dart';
 import 'package:tw_app/app/schedule_repo.dart';
 import 'package:tw_app/ui/schedules/schedule_view_model.dart';
 import 'package:tw_app/ui/schedules/schedule_card.dart';
@@ -15,9 +16,6 @@ class const ScheduleScreen({
   static const errorTextKey = ValueKey('schedules-error-text');
   static const emptyTextKey = ValueKey('schedules-empty-text');
   static const deleteErrorSnackBarKey = ValueKey('schedule-delete-error-snackbar');
-  static const deleteConfirmation = ValueKey('schedule-delete-confirmation');
-  static const deleteButton = ValueKey('schedule-delete-confirmation-delete');
-  static const cancelButton = ValueKey('schedule-delete-confirmation-cancel');
   static const retryButtonKey = ValueKey('schedules-retry-button');
   static ValueKey<String> scheduleKey(String id) => ValueKey('schedule-$id');
 
@@ -133,23 +131,8 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
   Future<bool> _confirmScheduleDeletion(Schedule schedule) async =>
       await showDialog<bool>(
         context: context,
-        builder: (dialogContext) => AlertDialog(
-          key: ScheduleScreen.deleteConfirmation,
-          title: const Text('Delete schedule?'),
-          content: Text('Delete "${schedule.name}"? This cannot be undone.'),
-          actions: [
-            TextButton(
-              key: ScheduleScreen.cancelButton,
-              onPressed: () => Navigator.of(dialogContext).pop(false),
-              child: const Text('Cancel'),
-            ),
-            TextButton(
-              key: ScheduleScreen.deleteButton,
-              onPressed: () => Navigator.of(dialogContext).pop(true),
-              child: const Text('Delete'),
-            ),
-          ],
-        ),
+        builder: (_) =>
+            ScheduleDeleteDialog(key: ScheduleDeleteDialog.confirmationKey, schedule: schedule),
       ) ??
       false;
 

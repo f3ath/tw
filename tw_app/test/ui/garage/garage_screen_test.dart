@@ -6,6 +6,7 @@ import 'package:tw_app/testing/stub.dart' as stub;
 import 'package:tw_app/testing/samples.dart' as samples;
 import 'package:tw_app/time/clock.dart';
 import 'package:tw_app/ui/garage/garage_screen.dart';
+import 'package:tw_app/ui/garage/vehicle_delete_dialog.dart';
 
 import '../../robots.dart';
 
@@ -212,7 +213,7 @@ void main() {
 
         expect(harness.repo.vehicles.containsKey(vehicle.id), isTrue);
         expect(garage.findVehicleCard(vehicle.id), findsOneWidget);
-        expect(find.byKey(GarageScreen.deleteConfirmation), findsNothing);
+        expect(find.byKey(VehicleDeleteDialog.confirmationKey), findsNothing);
       });
 
       testWidgets('confirming deletion removes the vehicle and refreshes the list', (
@@ -231,7 +232,7 @@ void main() {
 
         expect(harness.repo.vehicles.containsKey(vehicle.id), isFalse);
         expect(garage.findVehicleCard(vehicle.id), findsNothing);
-        expect(find.byKey(GarageScreen.deleteConfirmation), findsNothing);
+        expect(find.byKey(VehicleDeleteDialog.confirmationKey), findsNothing);
       });
 
       testWidgets('failed deletion shows feedback and preserves the vehicle', (

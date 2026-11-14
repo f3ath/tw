@@ -4,6 +4,7 @@ import 'package:shared/model.dart';
 import 'package:tw_app/testing/samples.dart' as samples;
 import 'package:tw_app/testing/stub.dart';
 import 'package:tw_app/ui/schedules/schedule_screen.dart';
+import 'package:tw_app/ui/schedules/schedule_delete_dialog.dart';
 
 import '../../robots.dart';
 
@@ -199,11 +200,11 @@ void main() {
 
       await schedules.tapScheduleMenuDelete(inspection.id);
 
-      final dialog = find.byKey(ScheduleScreen.deleteConfirmation);
+      final dialog = find.byKey(ScheduleDeleteDialog.confirmationKey);
       expect(dialog, findsOneWidget);
       expect(harness.repo.schedules, hasLength(2));
 
-      await tester.tap(find.byKey(ScheduleScreen.cancelButton));
+      await tester.tap(find.byKey(ScheduleDeleteDialog.cancelButtonKey));
       await tester.pumpAndSettle();
 
       expect(dialog, findsNothing);
@@ -223,7 +224,7 @@ void main() {
       await tester.binding.handlePopRoute();
       await tester.pumpAndSettle();
 
-      expect(find.byKey(ScheduleScreen.deleteConfirmation), findsNothing);
+      expect(find.byKey(ScheduleDeleteDialog.confirmationKey), findsNothing);
       expectSchedulesVisible([samples.oilChange]);
       expect(harness.repo.schedules[samples.oilChange.id], same(samples.oilChange));
       expect(harness.repo.listCalls, equals(1));
@@ -246,7 +247,7 @@ void main() {
       final pending = harness.repo.pauseNextDelete();
       await harness.pumpLoadedScreen(tester);
       await schedules.tapScheduleMenuDelete(inspection.id);
-      await tester.tap(find.byKey(ScheduleScreen.deleteButton));
+      await tester.tap(find.byKey(ScheduleDeleteDialog.deleteButtonKey));
       await tester.pump();
 
       expect(harness.repo.schedules, hasLength(3));
@@ -269,10 +270,10 @@ void main() {
       await harness.pumpLoadedScreen(tester);
       await ScheduleRobot(tester).tapScheduleMenuDelete(samples.oilChange.id);
 
-      await tester.tap(find.byKey(ScheduleScreen.deleteButton));
+      await tester.tap(find.byKey(ScheduleDeleteDialog.deleteButtonKey));
       await tester.pumpAndSettle();
 
-      expect(find.byKey(ScheduleScreen.deleteConfirmation), findsNothing);
+      expect(find.byKey(ScheduleDeleteDialog.confirmationKey), findsNothing);
       expect(findScheduleScreen, findsOneWidget);
       expect(harness.repo.schedules, isEmpty);
       expect(find.byKey(ScheduleScreen.scheduleKey(samples.oilChange.id)), findsNothing);
@@ -292,7 +293,7 @@ void main() {
         final pending = harness.repo.pauseNextDelete();
         await harness.pumpLoadedScreen(tester);
         await schedules.tapScheduleMenuDelete(samples.oilChange.id);
-        await tester.tap(find.byKey(ScheduleScreen.deleteButton));
+        await tester.tap(find.byKey(ScheduleDeleteDialog.deleteButtonKey));
         await tester.pump();
         expect(harness.repo.listCalls, equals(1));
 

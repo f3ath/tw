@@ -1,5 +1,6 @@
 import 'package:material_ui/material_ui.dart';
 import 'package:shared/model.dart';
+import 'package:tw_app/ui/garage/vehicle_delete_dialog.dart';
 import 'package:tw_app/app/vehicle_repo.dart';
 import 'package:tw_app/app/schedule_repo.dart';
 import 'package:tw_app/time/clock.dart';
@@ -26,9 +27,6 @@ class const GarageScreen({
   static const deleteErrorSnackBarKey = ValueKey('garage-delete-error-snackbar');
   static const retryButtonKey = ValueKey('retry-button');
   static const addButtonKey = ValueKey('add-button');
-  static const deleteConfirmation = ValueKey('delete-confirmation');
-  static const deleteButton = ValueKey('delete-confirmation-delete');
-  static const cancelButton = ValueKey('delete-confirmation-cancel');
 
   @override
   State<GarageScreen> createState() => _GarageScreenState();
@@ -150,23 +148,7 @@ class _GarageScreenState extends State<GarageScreen> {
   Future<bool?> _deleteVehicle(Vehicle v) async {
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        key: GarageScreen.deleteConfirmation,
-        title: const Text('Delete vehicle?'),
-        content: Text('Delete "${v.name}"? This cannot be undone.'),
-        actions: [
-          TextButton(
-            key: GarageScreen.cancelButton,
-            onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            key: GarageScreen.deleteButton,
-            onPressed: () => Navigator.of(ctx).pop(true),
-            child: const Text('Delete'),
-          ),
-        ],
-      ),
+      builder: (_) => VehicleDeleteDialog(key: VehicleDeleteDialog.confirmationKey, vehicle: v),
     );
     if (confirmed != true || !mounted) return false;
     try {
