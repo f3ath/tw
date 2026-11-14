@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:material_ui/material_ui.dart';
+import 'package:shared/model.dart';
 import 'package:tw_app/testing/fixed_clock.dart';
 import 'package:tw_app/testing/samples.dart' as samples;
 import 'package:tw_app/testing/stub.dart';
@@ -203,10 +204,140 @@ void main() {
       });
     }
   });
+
+  group('ServiceFormScreen editing', () {
+    for (final (vehicle, service) in [
+      (samples.santaFe, samples.santaFeOilService),
+      (samples.fourRunner, samples.fourRunnerTireService),
+    ]) {
+      testWidgets('prefills ${vehicle.name} service values', (tester) async {
+        final harness = Harness(vehicle: vehicle, service: service);
+        final form = ServiceFormRobot(tester);
+        await harness.pumpForm(tester);
+
+        expect(find.text('Edit Service'), findsOneWidget);
+        expect(form.selectedDate, equals(service.date));
+        expect(form.odometer, equals(service.odometer.toString()));
+        expect(form.details, equals(service.details));
+        expect(form.distanceUnitLabel, equals(vehicle.distanceUnit.name));
+      });
+    }
+
+    testWidgets('updates the original service, clears details, and returns success', (
+      tester,
+    ) async {
+      final service = samples.santaFeOilService;
+      final harness = Harness(service: service, initialServices: samples.sampleServices);
+      final form = ServiceFormRobot(tester);
+      await harness.pumpForm(tester);
+      await form.selectDayAndConfirm('13');
+      await form.enterOdometer(' 123456 ');
+      await form.enterDetails('   ');
+      final pending = harness.repo.pauseNextUpdate();
+
+      await form.saveForm(pump: .none);
+      await form.saveForm(); // validated by updateCalls==1
+
+      expect(form.saveButton.enabled, isFalse);
+      expect(form.dateEnabled, isFalse);
+      expect(form.odometerEnabled, isFalse);
+      expect(form.detailsEnabled, isFalse);
+      expect(harness.repo.services[service.id], same(service));
+      expect(harness.repo.updateCalls, equals(1));
+      pending.complete();
+      await tester.pumpAndSettle();
+
+      expect(await harness.result, isTrue);
+      expect(findServiceFormScreen, findsNothing);
+      expect(harness.repo.services, hasLength(2));
+      final updated = harness.repo.services[service.id]!;
+      expect(updated.id, equals(service.id));
+      expect(updated.vehicleId, equals(service.vehicleId));
+      expect(updated.date, equals(DateTime(2026, 11, 13)));
+      expect(updated.odometer, equals(123456));
+      expect(updated.details, isEmpty);
+      expect(
+        harness.repo.services[samples.fourRunnerTireService.id],
+        same(samples.fourRunnerTireService),
+      );
+    });
+
+    testWidgets('failed update retains edits and permits retry without creating another service', (
+      tester,
+    ) async {
+      final service = samples.santaFeOilService;
+      final harness = Harness(service: service, initialServices: samples.sampleServices);
+      final form = ServiceFormRobot(tester);
+      await harness.pumpForm(tester);
+      await form.selectDayAndConfirm('14');
+      await form.enterOdometer(' 123456 ');
+      await form.enterDetails('  Inspection  ');
+      final pending = harness.repo.pauseNextUpdate();
+
+      await form.saveForm();
+      pending.completeError(Exception('Network error'));
+      await tester.pumpAndSettle();
+
+      expect(form.findSaveError, findsOneWidget);
+      expect(form.saveButton.enabled, isTrue);
+      expect(form.dateEnabled, isTrue);
+      expect(form.odometerEnabled, isTrue);
+      expect(form.detailsEnabled, isTrue);
+      expect(form.selectedDate, equals(DateTime(2026, 11, 14)));
+      expect(form.odometer, equals(' 123456 '));
+      expect(form.details, equals('  Inspection  '));
+      expect(harness.repo.services[service.id], same(service));
+      expect(harness.repo.services, hasLength(2));
+
+      await form.saveForm(pump: .settle);
+
+      expect(await harness.result, isTrue);
+      expect(harness.repo.services, hasLength(2));
+      final updated = harness.repo.services[service.id]!;
+      expect(updated.date, equals(DateTime(2026, 11, 14)));
+      expect(updated.odometer, equals(123456));
+      expect(updated.details, equals('Inspection'));
+    });
+
+    testWidgets('invalid edits do not update the service', (tester) async {
+      final service = samples.santaFeOilService;
+      final harness = Harness(service: service, initialServices: [service]);
+      final form = ServiceFormRobot(tester);
+      await harness.pumpForm(tester);
+      await form.enterOdometer('-1');
+      await form.setDateValue(null);
+
+      await form.saveForm();
+
+      expect(form.odometerError, isNotEmpty);
+      expect(form.dateError, isNotEmpty);
+      expect(findServiceFormScreen, findsOneWidget);
+      expect(harness.repo.services.values.single, same(service));
+    });
+
+    testWidgets('Back discards edits without updating the service', (tester) async {
+      final service = samples.santaFeOilService;
+      final harness = Harness(service: service, initialServices: [service]);
+      final form = ServiceFormRobot(tester);
+      await harness.pumpForm(tester);
+      await form.enterOdometer('999');
+      await form.enterDetails('Changed');
+
+      await tester.pageBack();
+      await tester.pumpAndSettle();
+
+      expect(await harness.result, isNull);
+      expect(harness.repo.services.values.single, same(service));
+    });
+  });
 }
 
-class Harness {
-  final repo = InMemoryServiceRepo();
+class Harness({
+  final Vehicle? vehicle,
+  final Service? service,
+  Iterable<Service> initialServices = const [],
+}) {
+  final repo = InMemoryServiceRepo(initialServices: initialServices);
   final _navigatorKey = GlobalKey<NavigatorState>();
   late Future<bool?> result;
 
@@ -215,8 +346,9 @@ class Harness {
     result = _navigatorKey.currentState!.push<bool>(
       MaterialPageRoute(
         builder: (_) => ServiceFormScreen(
-          vehicle: samples.santaFe,
+          vehicle: vehicle ?? samples.santaFe,
           repo: repo,
+          service: service,
           clock: FixedClock(DateTime(2026, 11, 28, 15, 30)),
         ),
       ),

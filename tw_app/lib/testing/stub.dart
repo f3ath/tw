@@ -209,6 +209,7 @@ class InMemoryScheduleRepo({Iterable<Schedule> initialSchedules = const []})
 class InMemoryServiceRepo({Iterable<Service> initialServices = const []}) implements ServiceRepo {
   final services = <String, Service>{for (final service in initialServices) service.id: service};
   var listCalls = 0;
+  var updateCalls = 0;
   Future<void>? _nextList;
   Future<void>? _nextCreate;
   Future<void>? _nextUpdate;
@@ -271,6 +272,7 @@ class InMemoryServiceRepo({Iterable<Service> initialServices = const []}) implem
     required int odometer,
     required String details,
   }) async {
+    updateCalls++;
     final pending = _nextUpdate;
     _nextUpdate = null;
     await pending;

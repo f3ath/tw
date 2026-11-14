@@ -8,6 +8,7 @@ class const ServiceFormScreen({
   super.key,
   required final Vehicle vehicle,
   required final ServiceRepo repo,
+  final Service? service,
   final Clock clock = const Clock(),
 }) extends StatefulWidget {
   static const dateFieldKey = ValueKey('service-date-field');
@@ -29,7 +30,7 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: const Text('New Service')),
+    appBar: AppBar(title: Text(widget.service == null ? 'New Service' : 'Edit Service')),
     body: SafeArea(
       child: Form(
         key: _formKey,
@@ -40,7 +41,7 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
             const SizedBox(height: 12),
             DateFormField(
               key: ServiceFormScreen.dateFieldKey,
-              initialValue: widget.clock.now(),
+              initialValue: widget.service?.date ?? widget.clock.now(),
               enabled: !_isSaving,
               validator: (value) => value == null ? 'Please select a date' : null,
               onSaved: (value) => _date = value!,
@@ -49,6 +50,7 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
             ),
             TextFormField(
               key: ServiceFormScreen.odometerFieldKey,
+              initialValue: widget.service?.odometer.toString(),
               enabled: !_isSaving,
               validator: (value) {
                 final odometer = int.tryParse(value?.trim() ?? '');
@@ -64,6 +66,7 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
             ),
             TextFormField(
               key: ServiceFormScreen.detailsFieldKey,
+              initialValue: widget.service?.details,
               enabled: !_isSaving,
               onSaved: (value) => _details = value?.trim() ?? '',
               decoration: const InputDecoration(labelText: 'Details (optional)'),
@@ -90,12 +93,7 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
     form.save();
     setState(() => _isSaving = true);
     try {
-      await widget.repo.create(
-        widget.vehicle.id,
-        date: _date,
-        odometer: _odometer,
-        details: _details,
-      );
+      await _persistService();
       if (!mounted) return;
       Navigator.of(context).pop(true);
     } on Exception {
@@ -111,6 +109,20 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
       }
     } finally {
       if (mounted) setState(() => _isSaving = false);
+    }
+  }
+
+  Future<void> _persistService() async {
+    final service = widget.service;
+    if (service == null) {
+      await widget.repo.create(
+        widget.vehicle.id,
+        date: _date,
+        odometer: _odometer,
+        details: _details,
+      );
+    } else {
+      await widget.repo.update(service.id, date: _date, odometer: _odometer, details: _details);
     }
   }
 }
