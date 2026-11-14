@@ -1,5 +1,6 @@
 import 'package:material_ui/material_ui.dart';
 import 'package:tw_app/app/repository_provider.dart';
+import 'package:tw_app/app/vehicle_service.dart';
 import 'package:shared/model.dart';
 import 'package:tw_app/app/operation_repo.dart';
 import 'package:tw_app/ui/operations/operation_card.dart';
@@ -7,11 +8,8 @@ import 'package:tw_app/ui/list_view_model.dart';
 import 'package:tw_app/ui/loading_view.dart';
 import 'package:tw_app/ui/error_retry_view.dart';
 
-class const OperationScreen({
-  super.key,
-  required final Vehicle vehicle,
-  required final Service service,
-}) extends StatefulWidget {
+class const OperationScreen({super.key, required final VehicleService vehicleService})
+    extends StatefulWidget {
   static const vehicleNameTextKey = ValueKey('operations-vehicle-name');
   static const serviceDateTextKey = ValueKey('operations-service-date');
   static const loadingIndicatorKey = ValueKey('operations-loading-indicator');
@@ -32,7 +30,7 @@ class _OperationScreenState extends State<OperationScreen> {
   void initState() {
     super.initState();
     _repo = RepositoryProvider.read(context).operationRepo;
-    _model = ListViewModel<Operation>(fetch: () => _repo.list(widget.service.id));
+    _model = ListViewModel<Operation>(fetch: () => _repo.list(widget.vehicleService.service.id));
     _model.load();
   }
 
@@ -55,13 +53,14 @@ class _OperationScreenState extends State<OperationScreen> {
               crossAxisAlignment: .start,
               children: [
                 Text(
-                  widget.vehicle.name,
+                  widget.vehicleService.vehicle.name,
                   key: OperationScreen.vehicleNameTextKey,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
                 Text(
-                  MaterialLocalizations.of(context).formatShortDate(widget.service.date),
+                  MaterialLocalizations.of(context)
+                      .formatShortDate(widget.vehicleService.service.date),
                   key: OperationScreen.serviceDateTextKey,
                   style: Theme.of(context).textTheme.bodyMedium,
                   maxLines: 1,

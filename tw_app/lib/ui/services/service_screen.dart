@@ -1,6 +1,7 @@
 import 'package:material_ui/material_ui.dart';
 import 'package:shared/model.dart';
 import 'package:tw_app/app/repository_provider.dart';
+import 'package:tw_app/app/vehicle_service.dart';
 import 'package:tw_app/app/service_repo.dart';
 import 'package:tw_app/ui/error_retry_view.dart';
 import 'package:tw_app/ui/list_view_model.dart';
@@ -107,7 +108,9 @@ class _ServiceScreenState extends State<ServiceScreen> {
 
   Future<void> _openOperations(Service service) => Navigator.of(context).push<void>(
     MaterialPageRoute(
-      builder: (_) => OperationScreen(vehicle: widget.vehicle, service: service),
+      builder: (_) => OperationScreen(
+        vehicleService: VehicleService(vehicle: widget.vehicle, service: service),
+      ),
     ),
   );
 
@@ -143,11 +146,11 @@ class _ServiceScreenState extends State<ServiceScreen> {
       false;
 
   Future<void> _openServiceForm({Service? service}) async {
-    final refresh = await Navigator.of(context).push<bool>(
+    final savedService = await Navigator.of(context).push<Service>(
       MaterialPageRoute(
         builder: (_) => ServiceFormScreen(vehicle: widget.vehicle, service: service),
       ),
     );
-    if (refresh == true && mounted) await _model.load();
+    if (savedService != null && mounted) await _model.load();
   }
 }

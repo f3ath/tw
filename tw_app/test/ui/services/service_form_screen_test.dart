@@ -35,7 +35,7 @@ void main() {
 
         await form.saveForm(pump: .settle);
 
-        expect(await harness.result, isTrue);
+        expect(await harness.result, same(harness.repo.services.values.single));
         expect(harness.repo.services.values.single.odometer, equals(int.parse(input.trim())));
       });
     }
@@ -64,7 +64,7 @@ void main() {
 
         await form.saveForm(pump: .settle);
 
-        expect(await harness.result, isTrue);
+        expect(await harness.result, same(harness.repo.services.values.single));
         expect(harness.repo.services.values.single.date, equals(date));
       });
     }
@@ -93,7 +93,7 @@ void main() {
 
         await form.saveForm(pump: .settle);
 
-        expect(await harness.result, isTrue);
+        expect(await harness.result, same(harness.repo.services.values.single));
         expect(harness.repo.services.values.single.details, equals(scenario.expected));
       });
     }
@@ -110,7 +110,7 @@ void main() {
 
       await form.saveForm(pump: .settle);
 
-      expect(await harness.result, isTrue);
+      expect(await harness.result, same(harness.repo.services.values.single));
       expect(findServiceFormScreen, findsNothing);
       final service = harness.repo.services.values.single;
       expect(service.vehicleId, equals(samples.santaFe.id));
@@ -161,7 +161,7 @@ void main() {
       retry.complete();
       await tester.pumpAndSettle();
 
-      expect(await harness.result, isTrue);
+      expect(await harness.result, same(harness.repo.services.values.single));
       final created = harness.repo.services.values.single;
       expect(created.odometer, equals(42));
       expect(created.date, equals(selectedDate));
@@ -248,7 +248,10 @@ void main() {
       pending.complete();
       await tester.pumpAndSettle();
 
-      expect(await harness.result, isTrue);
+      final result = await harness.result;
+      expect(result, isA<Service>());
+      expect(result!.id, equals(service.id));
+      expect(result.vehicleId, equals(service.vehicleId));
       expect(findServiceFormScreen, findsNothing);
       expect(harness.repo.services, hasLength(2));
       final updated = harness.repo.services[service.id]!;
@@ -257,6 +260,9 @@ void main() {
       expect(updated.date, equals(DateTime(2026, 11, 13)));
       expect(updated.odometer, equals(123456));
       expect(updated.details, isEmpty);
+      expect(result.date, equals(updated.date));
+      expect(result.odometer, equals(updated.odometer));
+      expect(result.details, equals(updated.details));
       expect(
         harness.repo.services[samples.fourRunnerTireService.id],
         same(samples.fourRunnerTireService),
@@ -292,12 +298,18 @@ void main() {
 
       await form.saveForm(pump: .settle);
 
-      expect(await harness.result, isTrue);
+      final result = await harness.result;
+      expect(result, isA<Service>());
+      expect(result!.id, equals(service.id));
+      expect(result.vehicleId, equals(service.vehicleId));
       expect(harness.repo.services, hasLength(2));
       final updated = harness.repo.services[service.id]!;
       expect(updated.date, equals(DateTime(2026, 11, 14)));
       expect(updated.odometer, equals(123456));
       expect(updated.details, equals('Inspection'));
+      expect(result.date, equals(updated.date));
+      expect(result.odometer, equals(updated.odometer));
+      expect(result.details, equals(updated.details));
     });
 
     testWidgets('invalid edits do not update the service', (tester) async {
@@ -340,7 +352,7 @@ class Harness({
 }) {
   final repo = InMemoryServiceRepo(initialServices: initialServices);
   final _navigatorKey = GlobalKey<NavigatorState>();
-  late Future<bool?> result;
+  late Future<Service?> result;
 
   Future<void> pumpForm(WidgetTester tester) async {
     await tester.pumpWidget(
@@ -352,7 +364,7 @@ class Harness({
         child: MaterialApp(navigatorKey: _navigatorKey, home: const Scaffold()),
       ),
     );
-    result = _navigatorKey.currentState!.push<bool>(
+    result = _navigatorKey.currentState!.push<Service>(
       MaterialPageRoute(
         builder: (_) => ServiceFormScreen(
           vehicle: vehicle ?? samples.santaFe,

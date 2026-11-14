@@ -194,7 +194,7 @@ class InMemoryServiceRepo({Iterable<Service> initialServices = const []}) implem
   }
 
   @override
-  Future<void> create(
+  Future<Service> create(
     String vehicleId, {
     required DateTime date,
     required int odometer,
@@ -205,13 +205,15 @@ class InMemoryServiceRepo({Iterable<Service> initialServices = const []}) implem
     do {
       id = 'service-${_nextId++}';
     } while (services.containsKey(id));
-    services[id] = Service(
+    final service = Service(
       id,
       vehicleId: vehicleId,
       date: date,
       odometer: odometer,
       details: details,
     );
+    services[id] = service;
+    return service;
   }
 
   @override

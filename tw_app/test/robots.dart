@@ -348,6 +348,8 @@ class ServiceRobot(super.tester) extends TestRobot {
 }
 
 class OperationRobot(super.tester) extends TestRobot {
+  Service get selectedService =>
+      tester.widget<OperationScreen>(findOperationScreen).vehicleService.service;
   final findVehicleNameText = find.byKey(OperationScreen.vehicleNameTextKey);
   final findServiceDateText = find.byKey(OperationScreen.serviceDateTextKey);
 

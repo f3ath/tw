@@ -6,14 +6,12 @@ class BackendServiceRepo(final TwApiClient _client) implements ServiceRepo {
   Future<List<Service>> list(String vehicleId) => _client.listServices(vehicleId);
 
   @override
-  Future<void> create(
+  Future<Service> create(
     String vehicleId, {
     required DateTime date,
     required int odometer,
     String details = '',
-  }) async {
-    await _client.createService(vehicleId, date: date, odometer: odometer, details: details);
-  }
+  }) => _client.createService(vehicleId, date: date, odometer: odometer, details: details);
 
   @override
   Future<void> update(

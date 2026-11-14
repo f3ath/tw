@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:tw_app/app/repository_provider.dart';
+import 'package:tw_app/app/vehicle_service.dart';
 import 'package:shared/model.dart';
 import 'package:tw_app/testing/samples.dart' as samples;
 import 'package:tw_app/testing/stub.dart';
@@ -182,7 +183,9 @@ class Harness({
       serviceRepo: InMemoryServiceRepo(),
       operationRepo: repo,
       child: MaterialApp(
-        home: OperationScreen(vehicle: vehicle, service: service),
+        home: OperationScreen(
+          vehicleService: VehicleService(vehicle: vehicle, service: service),
+        ),
       ),
     ),
   );

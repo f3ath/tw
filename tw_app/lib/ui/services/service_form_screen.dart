@@ -104,10 +104,13 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
     final form = _formKey.currentState!;
     if (!form.validate()) return;
     form.save();
-    final saved = await _submission.submit(_persistService);
+    late Service savedService;
+    final saved = await _submission.submit(() async {
+      savedService = await _persistService();
+    });
     if (!mounted) return;
     if (saved) {
-      Navigator.of(context).pop(true);
+      Navigator.of(context).pop(savedService);
     } else if (_submission.hasError) {
       ScaffoldMessenger.of(context)
         ..hideCurrentSnackBar()
@@ -120,12 +123,24 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
     }
   }
 
-  Future<void> _persistService() async {
+  Future<Service> _persistService() async {
     final service = widget.service;
     if (service == null) {
-      await _repo.create(widget.vehicle.id, date: _date, odometer: _odometer, details: _details);
+      return await _repo.create(
+        widget.vehicle.id,
+        date: _date,
+        odometer: _odometer,
+        details: _details,
+      );
     } else {
       await _repo.update(service.id, date: _date, odometer: _odometer, details: _details);
+      return Service(
+        service.id,
+        vehicleId: service.vehicleId,
+        date: _date,
+        odometer: _odometer,
+        details: _details,
+      );
     }
   }
 }

@@ -266,15 +266,17 @@ void main() {
           expect(harness.repo.listCalls, equals(1));
           expect(harness.serviceRepo.services, isEmpty);
           expect(harness.serviceRepo.listCalls, equals(0));
+          expect(harness.operationRepo.listCalls, equals(0));
         });
 
-        testWidgets('saves a new service for ${vehicle.name} and returns to the garage', (
+        testWidgets('saves a new service for ${vehicle.name} and opens its operations', (
           tester,
         ) async {
           final harness = Harness();
           final garage = GarageRobot(tester);
           final form = ServiceFormRobot(tester);
           final services = ServiceRobot(tester);
+          final operations = OperationRobot(tester);
           await harness.pumpLoadedScreen(tester);
           await garage.tapVehicleNewService(vehicle.id);
           await form.enterOdometer('12345');
@@ -283,14 +285,27 @@ void main() {
           await form.saveForm(pump: .settle);
 
           expect(findServiceFormScreen, findsNothing);
-          expect(findGarageScreen, findsOneWidget);
-          expectVehiclesVisible(samples.sampleVehicles);
+          expect(findGarageScreen, findsNothing);
+          expect(findOperationScreen, findsOneWidget);
           expect(harness.repo.listCalls, equals(1));
           final created = harness.serviceRepo.services.values.single;
           expect(created.vehicleId, equals(vehicle.id));
           expect(created.date, equals(harness.clock.now()));
           expect(created.odometer, equals(12345));
           expect(created.details, equals('Shortcut service'));
+          expect(operations.selectedService, same(created));
+          expect(operations.vehicleNameText.data, equals(vehicle.name));
+          expect(harness.operationRepo.listCalls, equals(1));
+          expect(harness.serviceRepo.listCalls, equals(0));
+
+          await tester.pageBack();
+          await tester.pumpAndSettle();
+
+          expect(findOperationScreen, findsNothing);
+          expect(findServiceFormScreen, findsNothing);
+          expect(findGarageScreen, findsOneWidget);
+          expectVehiclesVisible(samples.sampleVehicles);
+          expect(harness.repo.listCalls, equals(1));
 
           await garage.tapVehicleMenuServices(vehicle.id);
 
@@ -299,6 +314,40 @@ void main() {
           expect(find.text('Shortcut service'), findsOneWidget);
         });
       }
+
+      testWidgets('failed shortcut save stays on the form and retry opens operations', (
+        tester,
+      ) async {
+        final harness = Harness();
+        final garage = GarageRobot(tester);
+        final form = ServiceFormRobot(tester);
+        final operations = OperationRobot(tester);
+        await harness.pumpLoadedScreen(tester);
+        await garage.tapVehicleNewService(samples.fourRunner.id);
+        await form.enterOdometer('42');
+        final pending = harness.serviceRepo.pauseNextCreate();
+
+        await form.saveForm();
+
+        expect(findServiceFormScreen, findsOneWidget);
+        expect(findOperationScreen, findsNothing);
+        expect(harness.operationRepo.listCalls, equals(0));
+        pending.completeError(Exception('Network error'));
+        await tester.pumpAndSettle();
+
+        expect(form.findSaveError, findsOneWidget);
+        expect(findServiceFormScreen, findsOneWidget);
+        expect(findOperationScreen, findsNothing);
+        expect(harness.operationRepo.listCalls, equals(0));
+
+        await form.saveForm(pump: .settle);
+
+        expect(findServiceFormScreen, findsNothing);
+        expect(findOperationScreen, findsOneWidget);
+        expect(operations.selectedService, same(harness.serviceRepo.services.values.single));
+        expect(operations.vehicleNameText.data, equals(samples.fourRunner.name));
+        expect(harness.repo.listCalls, equals(1));
+      });
     });
 
     group('Delete a Vehicle', () {
