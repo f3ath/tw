@@ -1,4 +1,5 @@
 import 'package:material_ui/material_ui.dart';
+import 'package:tw_app/ui/form/form_submission_controller.dart';
 import 'package:tw_app/app/repository_provider.dart';
 import 'package:shared/model.dart';
 import 'package:tw_app/app/vehicle_repo.dart';
@@ -25,106 +26,106 @@ class _VehicleFormScreenState extends State<VehicleFormScreen> {
   DistanceUnit _distanceUnit = .mi;
   DateTime? _manufactureDate;
   String _name = '';
-  var _isSaving = false;
+  final _submission = FormSubmissionController();
 
   bool get _isEditing => widget.vehicle != null;
 
   @override
-  Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: Text(_isEditing ? 'Edit Vehicle' : 'New Vehicle')),
-    body: SafeArea(
-      child: Form(
-        key: _formKey,
-        child: ListView(
-          padding: const EdgeInsets.all(10),
-          children: [
-            TextFormField(
-              decoration: InputDecoration(labelText: 'Name'),
-              key: VehicleFormScreen.nameFieldKey,
-              initialValue: widget.vehicle?.name,
-              enabled: !_isSaving,
-              textCapitalization: TextCapitalization.sentences,
-              textInputAction: TextInputAction.next,
-              validator: (val) {
-                if (val == null || val.trim().isEmpty) {
-                  return 'Please name your vehicle';
-                }
-                return null;
-              },
-              onSaved: (val) {
-                _name = val!.trim();
-              },
-            ),
-            const SizedBox(height: 16),
-            DropdownButtonFormField<DistanceUnit>(
-              key: VehicleFormScreen.distanceUnitFieldKey,
-              decoration: InputDecoration(labelText: 'Distance Unit'),
-              initialValue: widget.vehicle?.distanceUnit ?? .mi,
-              items: DistanceUnit.values
-                  .map((it) => DropdownMenuItem<DistanceUnit>(value: it, child: Text(it.name)))
-                  .toList(),
-              onSaved: (val) {
-                _distanceUnit = val!;
-              },
-              onChanged: _isEditing || _isSaving ? null : (_) {}, // enables the control
-            ),
-            DateFormField(
-              key: VehicleFormScreen.dateFieldKey,
-              enabled: !_isSaving,
-              initialValue: widget.vehicle?.manufactureDate,
-              decoration: InputDecoration(labelText: 'Manufacture Date'),
-              validator: (val) {
-                if (val == null) {
-                  return 'The date is needed to calculate services due';
-                }
-                return null;
-              },
-              clock: widget.clock,
-              onSaved: (val) {
-                _manufactureDate = val;
-              },
-            ),
-            const SizedBox(height: 16),
-            FilledButton(
-              key: VehicleFormScreen.saveButtonKey,
-              onPressed: _isSaving ? null : _saveForm,
-              child: _isSaving ? Text('Saving...') : Text('Save'),
-            ),
-          ],
+  void dispose() {
+    _submission.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => ListenableBuilder(
+    listenable: _submission,
+    builder: (context, _) => Scaffold(
+      appBar: AppBar(title: Text(_isEditing ? 'Edit Vehicle' : 'New Vehicle')),
+      body: SafeArea(
+        child: Form(
+          key: _formKey,
+          child: ListView(
+            padding: const EdgeInsets.all(10),
+            children: [
+              TextFormField(
+                decoration: InputDecoration(labelText: 'Name'),
+                key: VehicleFormScreen.nameFieldKey,
+                initialValue: widget.vehicle?.name,
+                enabled: !_submission.isSubmitting,
+                textCapitalization: TextCapitalization.sentences,
+                textInputAction: TextInputAction.next,
+                validator: (val) {
+                  if (val == null || val.trim().isEmpty) {
+                    return 'Please name your vehicle';
+                  }
+                  return null;
+                },
+                onSaved: (val) {
+                  _name = val!.trim();
+                },
+              ),
+              const SizedBox(height: 16),
+              DropdownButtonFormField<DistanceUnit>(
+                key: VehicleFormScreen.distanceUnitFieldKey,
+                decoration: InputDecoration(labelText: 'Distance Unit'),
+                initialValue: widget.vehicle?.distanceUnit ?? .mi,
+                items: DistanceUnit.values
+                    .map((it) => DropdownMenuItem<DistanceUnit>(value: it, child: Text(it.name)))
+                    .toList(),
+                onSaved: (val) {
+                  _distanceUnit = val!;
+                },
+                onChanged: _isEditing || _submission.isSubmitting
+                    ? null
+                    : (_) {}, // enables the control
+              ),
+              DateFormField(
+                key: VehicleFormScreen.dateFieldKey,
+                enabled: !_submission.isSubmitting,
+                initialValue: widget.vehicle?.manufactureDate,
+                decoration: InputDecoration(labelText: 'Manufacture Date'),
+                validator: (val) {
+                  if (val == null) {
+                    return 'The date is needed to calculate services due';
+                  }
+                  return null;
+                },
+                clock: widget.clock,
+                onSaved: (val) {
+                  _manufactureDate = val;
+                },
+              ),
+              const SizedBox(height: 16),
+              FilledButton(
+                key: VehicleFormScreen.saveButtonKey,
+                onPressed: _submission.isSubmitting ? null : _saveForm,
+                child: _submission.isSubmitting ? Text('Saving...') : Text('Save'),
+              ),
+            ],
+          ),
         ),
       ),
     ),
   );
 
   Future<void> _saveForm() async {
-    if (_isSaving) return;
+    if (_submission.isSubmitting) return;
     final form = _formKey.currentState!;
     if (!form.validate()) return;
     form.save();
-    setState(() {
-      _isSaving = true;
-    });
-    try {
-      await _persistVehicle();
-      if (!mounted) return;
+    final saved = await _submission.submit(_persistVehicle);
+    if (!mounted) return;
+    if (saved) {
       Navigator.of(context).pop(true);
-    } on Exception {
-      if (mounted) {
-        ScaffoldMessenger.of(context)
-          ..hideCurrentSnackBar()
-          ..showSnackBar(
-            const SnackBar(
-              key: VehicleFormScreen.errorSnackBarKey,
-              content: Text('Save failed. Please try again.'),
-            ),
-          );
-      }
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isSaving = false;
-        });
-      }
+    } else if (_submission.hasError) {
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          const SnackBar(
+            key: VehicleFormScreen.errorSnackBarKey,
+            content: Text('Save failed. Please try again.'),
+          ),
+        );
     }
   }
 
