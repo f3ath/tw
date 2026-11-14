@@ -210,10 +210,18 @@ class InMemoryServiceRepo({Iterable<Service> initialServices = const []}) implem
   final services = <String, Service>{for (final service in initialServices) service.id: service};
   var listCalls = 0;
   Future<void>? _nextList;
+  Future<void>? _nextCreate;
+  var _nextId = 0;
 
   Completer<void> pauseNextList() {
     final completer = Completer<void>();
     _nextList = completer.future;
+    return completer;
+  }
+
+  Completer<void> pauseNextCreate() {
+    final completer = Completer<void>();
+    _nextCreate = completer.future;
     return completer;
   }
 
@@ -224,5 +232,28 @@ class InMemoryServiceRepo({Iterable<Service> initialServices = const []}) implem
     _nextList = null;
     await pending;
     return services.values.where((service) => service.vehicleId == vehicleId).toList();
+  }
+
+  @override
+  Future<void> create(
+    String vehicleId, {
+    required DateTime date,
+    required int odometer,
+    String details = '',
+  }) async {
+    final pending = _nextCreate;
+    _nextCreate = null;
+    await pending;
+    String id;
+    do {
+      id = 'service-${_nextId++}';
+    } while (services.containsKey(id));
+    services[id] = Service(
+      id,
+      vehicleId: vehicleId,
+      date: date,
+      odometer: odometer,
+      details: details,
+    );
   }
 }

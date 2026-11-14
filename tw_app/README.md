@@ -64,7 +64,9 @@ ServiceRepo.list(vehicleId) is implemented by BackendServiceRepo (delegating to 
 
 ServiceFormScreen is a standalone, unwired creation form with date (initially clock.now()), odometer in the vehicle’s distance unit, and optional details. It uses DateFormField, stable field/button keys, and the same SafeArea/ListView layout as the other forms. The New Service floating button opens the form for the selected vehicle, following ScheduleScreen navigation. Back preserves the existing list without reloading. Save remains disabled; validation, submission, and previews are not added.
 
-Recommended next: add ServiceRepo.create and form validation/submission. Service mutations and service operations remain planned.
+ServiceRepo.create(vehicleId, date:, odometer:, details:) now returns Future<void>. BackendServiceRepo delegates to TwApiClient.createService; InMemoryServiceRepo stores the supplied values with unique IDs that skip seeded entries and supports pauseNextCreate() for pending/failure scenarios. Static analysis is clean and all 8 service-screen tests pass after this change. Creation is not yet wired to the form.
+
+Recommended next: add service-form validation/submission. Service editing/deletion and service operations remain planned.
 
 Vehicle form tests now live in test/ui/garage/vehicle_form_screen_test.dart with a direct route harness that captures results. They cover isolated validation, creation values, pending-field disabling, creation failure/retry, edit identity/unit preservation, and edit failure/retry. Garage tests retain navigation and list refresh. InMemoryVehicleRepo supports pauseNextUpdate for application behavior tests. A remaining vehicle-test gap is deletion that succeeds server-side before the response fails. Both in-memory repositories use incrementing ID counters and skip existing IDs.
 
