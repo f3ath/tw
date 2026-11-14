@@ -163,9 +163,11 @@ class InMemoryServiceRepo({Iterable<Service> initialServices = const []}) implem
   final services = <String, Service>{for (final service in initialServices) service.id: service};
   var listCalls = 0;
   var updateCalls = 0;
+  var deleteCalls = 0;
   final _listGate = RequestGate();
   final _createGate = RequestGate();
   final _updateGate = RequestGate();
+  final _deleteGate = RequestGate();
   var _nextId = 0;
 
   Completer<void> pauseNextList() => _listGate.pause();
@@ -174,11 +176,20 @@ class InMemoryServiceRepo({Iterable<Service> initialServices = const []}) implem
 
   Completer<void> pauseNextUpdate() => _updateGate.pause();
 
+  Completer<void> pauseNextDelete() => _deleteGate.pause();
+
   @override
   Future<List<Service>> list(String vehicleId) async {
     listCalls++;
     await _listGate.wait();
     return services.values.where((service) => service.vehicleId == vehicleId).toList();
+  }
+
+  @override
+  Future<void> delete(String serviceId) async {
+    deleteCalls++;
+    await _deleteGate.wait();
+    if (services.remove(serviceId) == null) throw StateError('Service not found');
   }
 
   @override

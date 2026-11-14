@@ -31,6 +31,17 @@ class const ServiceCard({
                 ],
               ),
             ),
+            PopupMenuDivider(),
+            PopupMenuItem(
+              value: ServiceAction.delete,
+              child: Row(
+                children: [
+                  Icon(Icons.delete_outline, size: 20),
+                  SizedBox(width: 12),
+                  Expanded(child: Text('Delete')),
+                ],
+              ),
+            ),
           ],
         ),
         subtitle: Column(
@@ -45,4 +56,4 @@ class const ServiceCard({
   }
 }
 
-enum ServiceAction { edit }
+enum ServiceAction { edit, delete }

@@ -259,6 +259,167 @@ void main() {
       });
     });
 
+    group('Deletion', () {
+      for (final dismiss in [false, true]) {
+        testWidgets(
+          '${dismiss ? 'dismissing' : 'cancelling'} confirmation preserves history without a request',
+          (tester) async {
+            final vehicle = dismiss ? samples.santaFe : samples.fourRunner;
+            final service = dismiss ? samples.santaFeOilService : samples.fourRunnerTireService;
+            final harness = Harness(vehicle: vehicle, initialServices: samples.sampleServices);
+            final services = ServiceRobot(tester);
+            await harness.pumpLoadedScreen(tester);
+
+            await services.tapServiceMenuDelete(service.id);
+
+            expect(services.findDeleteConfirmation, findsOneWidget);
+            expect(services.deleteDialog.service, same(service));
+            expect(services.deleteDialog.distanceUnit, equals(vehicle.distanceUnit));
+            expect(harness.repo.deleteCalls, equals(0));
+            if (dismiss) {
+              await services.dismissServiceDeletion();
+            } else {
+              await services.cancelServiceDeletion();
+            }
+
+            expect(services.findDeleteConfirmation, findsNothing);
+            expectServicesVisible(tester, [service]);
+            expect(harness.repo.services, hasLength(2));
+            expect(harness.repo.services[service.id], same(service));
+            expect(harness.repo.deleteCalls, equals(0));
+            expect(harness.repo.listCalls, equals(1));
+          },
+        );
+      }
+
+      testWidgets('confirmed deletion removes only the selected service and reloads history', (
+        tester,
+      ) async {
+        final inspection = Service(
+          'inspection',
+          vehicleId: samples.santaFe.id,
+          date: DateTime(2026, 11, 3),
+          odometer: 121000,
+          details: 'Inspection',
+        );
+        final harness = Harness(
+          vehicle: samples.santaFe,
+          initialServices: [...samples.sampleServices, inspection],
+        );
+        final services = ServiceRobot(tester);
+        final pending = harness.repo.pauseNextDelete();
+        await harness.pumpLoadedScreen(tester);
+        await services.tapServiceMenuDelete(inspection.id);
+
+        await services.confirmServiceDeletion();
+
+        expect(harness.repo.deleteCalls, equals(1));
+        expect(harness.repo.services, hasLength(3));
+        expect(harness.repo.listCalls, equals(1));
+        final refresh = harness.repo.pauseNextList();
+        pending.complete();
+        await tester.pump();
+        await tester.pump(const Duration(seconds: 1));
+
+        expect(services.findDeleteConfirmation, findsNothing);
+        expect(harness.repo.listCalls, equals(2));
+        expect(find.byKey(ServiceScreen.loadingIndicatorKey), findsOneWidget);
+        refresh.complete();
+        await tester.pumpAndSettle();
+
+        expect(services.findServiceCard(inspection.id), findsNothing);
+        expectServicesVisible(tester, [samples.santaFeOilService]);
+        expect(harness.repo.services, hasLength(2));
+        expect(
+          harness.repo.services[samples.santaFeOilService.id],
+          same(samples.santaFeOilService),
+        );
+        expect(
+          harness.repo.services[samples.fourRunnerTireService.id],
+          same(samples.fourRunnerTireService),
+        );
+        expect(services.findServiceCard(samples.fourRunnerTireService.id), findsNothing);
+        expect(services.findDeleteError, findsNothing);
+      });
+
+      testWidgets('deleting the final service shows the empty state', (tester) async {
+        final service = samples.santaFeOilService;
+        final harness = Harness(vehicle: samples.santaFe, initialServices: [service]);
+        final services = ServiceRobot(tester);
+        await harness.pumpLoadedScreen(tester);
+        await services.tapServiceMenuDelete(service.id);
+
+        await services.confirmServiceDeletion(pump: .settle);
+
+        expect(services.findDeleteConfirmation, findsNothing);
+        expect(findServiceScreen, findsOneWidget);
+        expect(harness.repo.services, isEmpty);
+        expect(services.findServiceCard(service.id), findsNothing);
+        expect(find.byKey(ServiceScreen.emptyTextKey), findsOneWidget);
+        expect(harness.repo.deleteCalls, equals(1));
+        expect(harness.repo.listCalls, equals(2));
+      });
+
+      for (final deleted in [false, true]) {
+        testWidgets('deletion error reconciles a ${deleted ? 'deleted' : 'retained'} service', (
+          tester,
+        ) async {
+          final service = samples.santaFeOilService;
+          final harness = Harness(vehicle: samples.santaFe, initialServices: [service]);
+          final services = ServiceRobot(tester);
+          final pending = harness.repo.pauseNextDelete();
+          await harness.pumpLoadedScreen(tester);
+          await services.tapServiceMenuDelete(service.id);
+          await services.confirmServiceDeletion();
+          expect(harness.repo.listCalls, equals(1));
+
+          if (deleted) {
+            // Simulate a committed deletion whose response was lost.
+            harness.repo.services.remove(service.id);
+          }
+          pending.completeError(Exception('Network error'));
+          await tester.pumpAndSettle();
+
+          expect(services.findDeleteError, findsOneWidget);
+          expect(harness.repo.deleteCalls, equals(1));
+          expect(harness.repo.listCalls, equals(2));
+          if (deleted) {
+            expect(services.findServiceCard(service.id), findsNothing);
+            expect(find.byKey(ServiceScreen.emptyTextKey), findsOneWidget);
+          } else {
+            expectServicesVisible(tester, [service]);
+            expect(find.byKey(ServiceScreen.emptyTextKey), findsNothing);
+          }
+        });
+      }
+
+      for (final fails in [false, true]) {
+        testWidgets('can leave while deletion later ${fails ? 'fails' : 'succeeds'}', (
+          tester,
+        ) async {
+          final service = samples.santaFeOilService;
+          final harness = Harness(vehicle: samples.santaFe, initialServices: [service]);
+          final services = ServiceRobot(tester);
+          final pending = harness.repo.pauseNextDelete();
+          await harness.pumpLoadedScreen(tester);
+          await services.tapServiceMenuDelete(service.id);
+          await services.confirmServiceDeletion();
+
+          await tester.pumpWidget(const SizedBox());
+          if (fails) {
+            pending.completeError(Exception('Network error'));
+          } else {
+            pending.complete();
+          }
+          await tester.pumpAndSettle();
+
+          expect(tester.takeException(), isNull);
+          expect(harness.repo.deleteCalls, equals(1));
+          expect(harness.repo.listCalls, equals(1));
+        });
+      }
+    });
+
     for (final fails in [false, true]) {
       testWidgets('can leave while a request later ${fails ? 'fails' : 'succeeds'}', (
         tester,

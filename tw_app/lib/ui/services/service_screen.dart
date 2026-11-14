@@ -4,6 +4,7 @@ import 'package:tw_app/app/service_repo.dart';
 import 'package:tw_app/ui/services/service_card.dart';
 import 'package:tw_app/ui/services/service_view_model.dart';
 import 'package:tw_app/ui/services/service_form_screen.dart';
+import 'package:tw_app/ui/services/service_delete_dialog.dart';
 
 class const ServiceScreen({
   super.key,
@@ -15,6 +16,7 @@ class const ServiceScreen({
   static const errorTextKey = ValueKey('services-error-text');
   static const emptyTextKey = ValueKey('services-empty-text');
   static const retryButtonKey = ValueKey('services-retry-button');
+  static const deleteErrorSnackBarKey = ValueKey('service-delete-error-snackbar');
   static ValueKey<String> serviceKey(String id) => ValueKey('service-$id');
 
   @override
@@ -100,8 +102,42 @@ class _ServiceScreenState extends State<ServiceScreen> {
       case .edit:
         await _openServiceForm(service: service);
         return;
+      case .delete:
+        await _deleteService(service);
+        return;
     }
   }
+
+  Future<void> _deleteService(Service service) async {
+    final confirmed = await _confirmServiceDeletion(service);
+    if (!confirmed || !mounted) return;
+    try {
+      await widget.repo.delete(service.id);
+    } on Exception {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+          ..hideCurrentSnackBar()
+          ..showSnackBar(
+            const SnackBar(
+              key: ServiceScreen.deleteErrorSnackBarKey,
+              content: Text('Could not confirm deletion. Refreshing...'),
+            ),
+          );
+      }
+    }
+    if (mounted) await _model.load();
+  }
+
+  Future<bool> _confirmServiceDeletion(Service service) async =>
+      await showDialog<bool>(
+        context: context,
+        builder: (_) => ServiceDeleteDialog(
+          key: ServiceDeleteDialog.confirmationKey,
+          service: service,
+          distanceUnit: widget.vehicle.distanceUnit,
+        ),
+      ) ??
+      false;
 
   Future<void> _openServiceForm({Service? service}) async {
     final refresh = await Navigator.of(context).push<bool>(

@@ -16,4 +16,6 @@ abstract interface class ServiceRepo {
     required int odometer,
     required String details,
   });
+
+  Future<void> delete(String serviceId);
 }

@@ -11,6 +11,7 @@ import 'package:tw_app/ui/welcome/welcome_screen.dart';
 import 'package:tw_app/ui/services/service_screen.dart';
 import 'package:tw_app/ui/services/service_form_screen.dart';
 import 'package:tw_app/ui/services/service_card.dart';
+import 'package:tw_app/ui/services/service_delete_dialog.dart';
 
 final findWelcomeScreen = find.byType(WelcomeScreen);
 final findGarageScreen = find.byType(GarageScreen);
@@ -271,6 +272,11 @@ class ScheduleFormRobot(super.tester) extends TestRobot {
 
 class ServiceRobot(super.tester) extends TestRobot {
   final findNewServiceButton = find.byKey(ServiceScreen.addButtonKey);
+  final findDeleteConfirmation = find.byKey(ServiceDeleteDialog.confirmationKey);
+  final findDeleteError = find.byKey(ServiceScreen.deleteErrorSnackBarKey);
+
+  ServiceDeleteDialog get deleteDialog =>
+      tester.widget<ServiceDeleteDialog>(findDeleteConfirmation);
 
   Future<void> tapNewService({PumpMode pump = .settle}) async {
     await tester.tap(findNewServiceButton);
@@ -287,6 +293,23 @@ class ServiceRobot(super.tester) extends TestRobot {
   }
 
   Future<void> tapServiceMenuEdit(String id) => _tapServiceMenuAction(id, .edit);
+
+  Future<void> tapServiceMenuDelete(String id) => _tapServiceMenuAction(id, .delete);
+
+  Future<void> confirmServiceDeletion({PumpMode pump = .frame}) async {
+    await tester.tap(find.byKey(ServiceDeleteDialog.deleteButtonKey));
+    await pumpAfterAction(pump);
+  }
+
+  Future<void> cancelServiceDeletion() async {
+    await tester.tap(find.byKey(ServiceDeleteDialog.cancelButtonKey));
+    await tester.pumpAndSettle();
+  }
+
+  Future<void> dismissServiceDeletion() async {
+    await tester.binding.handlePopRoute();
+    await tester.pumpAndSettle();
+  }
 
   Future<void> _tapServiceMenuAction(String id, ServiceAction action) async {
     await tapServiceMenu(id);

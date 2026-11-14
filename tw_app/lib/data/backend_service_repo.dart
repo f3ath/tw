@@ -24,4 +24,7 @@ class BackendServiceRepo(final TwApiClient _client) implements ServiceRepo {
   }) async {
     await _client.updateService(serviceId, date: date, odometer: odometer, details: details);
   }
+
+  @override
+  Future<void> delete(String serviceId) => _client.deleteService(serviceId);
 }
