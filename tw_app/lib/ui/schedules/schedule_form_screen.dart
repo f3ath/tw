@@ -1,30 +1,62 @@
 import 'package:material_ui/material_ui.dart';
 import 'package:shared/model.dart';
+import 'package:tw_app/app/schedules_repo.dart';
 
 class const ScheduleFormScreen({
   super.key,
   required final Vehicle vehicle,
+  required final SchedulesRepo repo,
   final Schedule? schedule,
-}) extends StatelessWidget {
+}) extends StatefulWidget {
   static const nameFieldKey = ValueKey('schedule-name-field');
   static const distanceFieldKey = ValueKey('schedule-distance-field');
   static const monthsFieldKey = ValueKey('schedule-months-field');
   static const detailsFieldKey = ValueKey('schedule-details-field');
   static const saveButtonKey = ValueKey('schedule-save-button');
 
+  static const errorSnackBarKey = ValueKey('schedule-save-error-snackbar');
+
+  @override
+  State<ScheduleFormScreen> createState() => _ScheduleFormScreenState();
+}
+
+class _ScheduleFormScreenState extends State<ScheduleFormScreen> {
+  final _formKey = GlobalKey<FormState>();
+  late final _distanceController = TextEditingController(
+    text: widget.schedule?.intervalDistance?.toString(),
+  );
+  late final _monthsController = TextEditingController(
+    text: widget.schedule?.intervalMonths?.toString(),
+  );
+  var _name = '';
+  var _details = '';
+  var _isSaving = false;
+
+  @override
+  void dispose() {
+    _distanceController.dispose();
+    _monthsController.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: Text(schedule == null ? 'Add Schedule' : 'Edit Schedule')),
+    appBar: AppBar(title: Text(widget.schedule == null ? 'Add Schedule' : 'Edit Schedule')),
     body: SafeArea(
       child: Form(
+        key: _formKey,
         child: ListView(
           padding: const EdgeInsets.all(10),
           children: [
-            Text(vehicle.name, style: Theme.of(context).textTheme.titleMedium),
+            Text(widget.vehicle.name, style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: 12),
             TextFormField(
-              key: nameFieldKey,
-              initialValue: schedule?.name,
+              key: ScheduleFormScreen.nameFieldKey,
+              initialValue: widget.schedule?.name,
+              enabled: !_isSaving,
+              validator: (value) =>
+                  value == null || value.trim().isEmpty ? 'Please name the schedule' : null,
+              onSaved: (value) => _name = value!.trim(),
               decoration: const InputDecoration(labelText: 'Name'),
               textCapitalization: TextCapitalization.sentences,
               textInputAction: TextInputAction.next,
@@ -32,35 +64,87 @@ class const ScheduleFormScreen({
             const SizedBox(height: 16),
             const Text('Repeat by distance, time, or both.'),
             TextFormField(
-              key: distanceFieldKey,
-              initialValue: schedule?.intervalDistance?.toString(),
+              key: ScheduleFormScreen.distanceFieldKey,
+              controller: _distanceController,
+              enabled: !_isSaving,
+              validator: _validateInterval,
               decoration: InputDecoration(
                 labelText: 'Distance interval',
-                suffixText: vehicle.distanceUnit.name,
+                suffixText: widget.vehicle.distanceUnit.name,
               ),
               keyboardType: TextInputType.number,
               textInputAction: TextInputAction.next,
             ),
             TextFormField(
-              key: monthsFieldKey,
-              initialValue: schedule?.intervalMonths?.toString(),
+              key: ScheduleFormScreen.monthsFieldKey,
+              controller: _monthsController,
+              enabled: !_isSaving,
+              validator: _validateInterval,
               decoration: const InputDecoration(labelText: 'Time interval', suffixText: 'months'),
               keyboardType: TextInputType.number,
               textInputAction: TextInputAction.next,
             ),
             TextFormField(
-              key: detailsFieldKey,
-              initialValue: schedule?.details,
+              key: ScheduleFormScreen.detailsFieldKey,
+              initialValue: widget.schedule?.details,
+              enabled: !_isSaving,
+              onSaved: (value) => _details = value?.trim() ?? '',
               decoration: const InputDecoration(labelText: 'Details (optional)'),
               textCapitalization: TextCapitalization.sentences,
               minLines: 3,
               maxLines: 5,
             ),
             const SizedBox(height: 16),
-            const FilledButton(key: saveButtonKey, onPressed: null, child: Text('Save')),
+            FilledButton(
+              key: ScheduleFormScreen.saveButtonKey,
+              onPressed: _isSaving || widget.schedule != null ? null : _saveForm,
+              child: Text(_isSaving ? 'Saving...' : 'Save'),
+            ),
           ],
         ),
       ),
     ),
   );
+
+  String? _validateInterval(String? value) {
+    if (_distanceController.text.trim().isEmpty && _monthsController.text.trim().isEmpty) {
+      return 'Enter a distance or time interval';
+    }
+    final text = value?.trim() ?? '';
+    if (text.isEmpty) return null;
+    final interval = int.tryParse(text);
+    return interval == null || interval <= 0 ? 'Enter a positive whole number' : null;
+  }
+
+  Future<void> _saveForm() async {
+    if (_isSaving || widget.schedule != null) return;
+    final form = _formKey.currentState!;
+    if (!form.validate()) return;
+    form.save();
+    setState(() => _isSaving = true);
+    try {
+      await widget.repo.create(
+        widget.vehicle.id,
+        name: _name,
+        intervalDistance: int.tryParse(_distanceController.text.trim()),
+        intervalMonths: int.tryParse(_monthsController.text.trim()),
+        details: _details,
+      );
+      if (!mounted) return;
+      Navigator.of(context).pop(true);
+    } on Exception {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+          ..hideCurrentSnackBar()
+          ..showSnackBar(
+            const SnackBar(
+              key: ScheduleFormScreen.errorSnackBarKey,
+              content: Text('Save failed. Please try again.'),
+            ),
+          );
+      }
+    } finally {
+      if (mounted) setState(() => _isSaving = false);
+    }
+  }
 }

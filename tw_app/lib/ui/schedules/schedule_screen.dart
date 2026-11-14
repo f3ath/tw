@@ -101,9 +101,13 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
     }
   }
 
-  Future<void> _openScheduleForm({Schedule? schedule}) => Navigator.of(context).push<void>(
-    MaterialPageRoute(
-      builder: (_) => ScheduleFormScreen(vehicle: widget.vehicle, schedule: schedule),
-    ),
-  );
+  Future<void> _openScheduleForm({Schedule? schedule}) async {
+    final refresh = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+        builder: (_) =>
+            ScheduleFormScreen(vehicle: widget.vehicle, repo: widget.repo, schedule: schedule),
+      ),
+    );
+    if (refresh == true && mounted) await _model.load();
+  }
 }

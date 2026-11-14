@@ -5,6 +5,7 @@ import 'package:tw_app/testing/samples.dart' as samples;
 import 'package:tw_app/testing/stub.dart';
 import 'package:tw_app/ui/schedules/schedule_screen.dart';
 import 'package:tw_app/ui/schedules/schedule_card.dart';
+import 'package:tw_app/ui/schedules/schedule_form_screen.dart';
 
 import '../../robots.dart';
 
@@ -148,6 +149,7 @@ void main() {
       expect(findScheduleFormScreen, findsOneWidget);
       expect(findScheduleScreen, findsNothing);
       expect(find.text('Edit Schedule'), findsOneWidget);
+      expect(form.saveButton.enabled, isFalse);
       expect(form.name, equals(inspection.name));
       expect(form.intervalDistance, equals('7500'));
       expect(form.intervalMonths, equals('9'));
@@ -160,6 +162,121 @@ void main() {
       expect(findScheduleFormScreen, findsNothing);
       expectSchedulesVisible([samples.oilChange, inspection]);
       expect(harness.repo.listCalls, equals(1));
+    });
+
+    group('Creation', () {
+      for (final scenario in [
+        (distance: '7500', months: '6', expectedDistance: 7500, expectedMonths: 6),
+        (distance: '7500', months: '', expectedDistance: 7500, expectedMonths: null),
+        (distance: '', months: '6', expectedDistance: null, expectedMonths: 6),
+      ]) {
+        testWidgets(
+          'saves distance "${scenario.distance}" and months "${scenario.months}" and refreshes',
+          (tester) async {
+            final harness = Harness(
+              vehicle: samples.santaFe,
+              initialSchedules: samples.sampleSchedules,
+            );
+            final schedules = ScheduleRobot(tester);
+            final form = ScheduleFormRobot(tester);
+            await harness.pumpLoadedScreen(tester);
+            await schedules.tapNewSchedule();
+            await form.enterName('  Inspection  ');
+            await form.enterDistance(scenario.distance);
+            await form.enterMonths(scenario.months);
+            await form.enterDetails('  Check brakes  ');
+
+            final pending = harness.repo.pauseNextCreate();
+            await form.saveForm();
+            expect(form.saveButton.enabled, isFalse);
+            expect(findScheduleFormScreen, findsOneWidget);
+            expect(harness.repo.schedules.length, equals(2));
+
+            pending.complete();
+            await tester.pumpAndSettle();
+
+            expect(findScheduleFormScreen, findsNothing);
+            expect(findScheduleScreen, findsOneWidget);
+            expect(harness.repo.listCalls, equals(2));
+            final created = harness.repo.schedules.values.singleWhere(
+              (s) => s.name == 'Inspection',
+            );
+            expect(created.vehicleId, equals(samples.santaFe.id));
+            expect(created.intervalDistance, equals(scenario.expectedDistance));
+            expect(created.intervalMonths, equals(scenario.expectedMonths));
+            expect(created.details, equals('Check brakes'));
+            expectSchedulesVisible([samples.oilChange, created]);
+            expect(find.text(samples.tireRotation.name), findsNothing);
+          },
+        );
+      }
+
+      testWidgets(
+        'rejects blank names, missing intervals, and nonpositive or noninteger intervals',
+        (tester) async {
+          final harness = Harness(vehicle: samples.santaFe);
+          final form = ScheduleFormRobot(tester);
+          await harness.pumpLoadedScreen(tester);
+          await ScheduleRobot(tester).tapNewSchedule();
+          await form.enterName('  ');
+          await form.saveForm();
+
+          expect(form.nameError, isNotEmpty);
+          expect(form.distanceError, isNotEmpty);
+          expect(form.monthsError, isNotEmpty);
+          expect(harness.repo.schedules, isEmpty);
+
+          await form.enterName('Inspection');
+          for (final invalid in ['0', '-1', '1.5', 'abc']) {
+            await form.enterDistance(invalid);
+            await form.enterMonths('6');
+            await form.saveForm();
+            expect(form.distanceError, isNotEmpty);
+            expect(harness.repo.schedules, isEmpty);
+
+            await form.enterDistance('7500');
+            await form.enterMonths(invalid);
+            await form.saveForm();
+            expect(form.monthsError, isNotEmpty);
+            expect(harness.repo.schedules, isEmpty);
+          }
+        },
+      );
+
+      testWidgets('failed save preserves inputs and enables a successful retry', (tester) async {
+        final harness = Harness(vehicle: samples.santaFe);
+        final form = ScheduleFormRobot(tester);
+        await harness.pumpLoadedScreen(tester);
+        await ScheduleRobot(tester).tapNewSchedule();
+        await form.enterName('Inspection');
+        await form.enterDistance('7500');
+        await form.enterMonths('6');
+        await form.enterDetails('Check brakes');
+        final pending = harness.repo.pauseNextCreate();
+        await form.saveForm();
+        expect(form.saveButton.enabled, isFalse);
+        await form.saveForm(pump: .none);
+
+        pending.completeError(Exception('Network error'));
+        await tester.pumpAndSettle();
+
+        expect(find.byKey(ScheduleFormScreen.errorSnackBarKey), findsOneWidget);
+        expect(findScheduleFormScreen, findsOneWidget);
+        expect(form.saveButton.enabled, isTrue);
+        expect(form.name, equals('Inspection'));
+        expect(form.intervalDistance, equals('7500'));
+        expect(form.intervalMonths, equals('6'));
+        expect(form.details, equals('Check brakes'));
+        expect(harness.repo.schedules, isEmpty);
+        expect(harness.repo.listCalls, equals(1));
+
+        await form.saveForm(pump: .settle);
+
+        expect(findScheduleFormScreen, findsNothing);
+        expect(harness.repo.schedules, hasLength(1));
+        expect(harness.repo.listCalls, equals(2));
+        expectSchedulesVisible(harness.repo.schedules.values.toList());
+      });
     });
 
     testWidgets('Delete is disabled until schedule deletion is implemented', (tester) async {

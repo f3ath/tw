@@ -197,6 +197,34 @@ class ScheduleRobot(super.tester) extends TestRobot {
 }
 
 class ScheduleFormRobot(super.tester) extends TestRobot {
+  FilledButton get saveButton =>
+      tester.widget<FilledButton>(find.byKey(ScheduleFormScreen.saveButtonKey));
+
+  String? get nameError => _error(ScheduleFormScreen.nameFieldKey);
+  String? get distanceError => _error(ScheduleFormScreen.distanceFieldKey);
+  String? get monthsError => _error(ScheduleFormScreen.monthsFieldKey);
+
+  Future<void> enterName(String value) => _enter(ScheduleFormScreen.nameFieldKey, value);
+  Future<void> enterDistance(String value) => _enter(ScheduleFormScreen.distanceFieldKey, value);
+  Future<void> enterMonths(String value) => _enter(ScheduleFormScreen.monthsFieldKey, value);
+  Future<void> enterDetails(String value) => _enter(ScheduleFormScreen.detailsFieldKey, value);
+
+  Future<void> saveForm({PumpMode pump = .frame}) async {
+    final button = find.byKey(ScheduleFormScreen.saveButtonKey);
+    await tester.ensureVisible(button);
+    await tester.tap(button);
+    await pumpAfterAction(pump);
+  }
+
+  Future<void> _enter(Key key, String value) async {
+    final field = find.byKey(key);
+    await tester.ensureVisible(field);
+    await tester.enterText(field, value);
+    await tester.pump();
+  }
+
+  String? _error(Key key) => tester.state<FormFieldState<String>>(find.byKey(key)).errorText;
+
   String? get name => _value(ScheduleFormScreen.nameFieldKey);
   String? get intervalDistance => _value(ScheduleFormScreen.distanceFieldKey);
   String? get intervalMonths => _value(ScheduleFormScreen.monthsFieldKey);

@@ -52,16 +52,18 @@ Offline mode, synchronization, and advanced network behavior such as atomicity a
 - SchedulesRepo.list(vehicleId) is wired through main → TwApp → GarageScreen → ScheduleScreen. BackendSchedulesRepo delegates to TwApiClient; ScheduleViewModel owns loading/error/list state and is disposed with the screen. Rows show schedule names and optional details, with loading, error/retry, and empty states.
 - InMemorySchedulesRepo defaults to empty, accepts initialSchedules, filters by vehicle ID, counts list calls, and supports one-request pauseNextList and pauseNextCreate gates. SchedulesRepo.create(vehicleId, ...) is implemented by both adapters, returning Future<void>; the backend delegates to TwApiClient.createSchedule. The fake generates unique IDs without overwriting seeds. Sample schedules seed the fake backend and tests. Widget tests cover vehicle filtering, loading, empty results, retry, rebuild behavior, pending-request disposal, and garage navigation.
 - InMemoryVehicleRepo defaults to empty and accepts initialVehicles. pauseNextList/Create/Delete gates affect one request each. Sample users/vehicles live in lib/testing/samples.dart; the test harness and fake-backend setup seed explicitly.
-- Latest verification: the **40 retained tw_app tests passed**; static analysis is clean. Builds and real authentication were not reverified during this refactor. Previously verified builds are not evidence of current real-backend behavior.
+- Latest verification: all **45 tw_app tests pass**; static analysis is clean. Builds and real authentication were not reverified during this refactor. Previously verified builds are not evidence of current real-backend behavior.
 
 ## Next exercise
 
-Recommended next: wire schedule creation for the selected vehicle. ScheduleFormScreen now provides standalone name, distance/month intervals, and details fields. The New Schedule floating button opens the form for the selected vehicle. Back preserves the schedule list without reloading. ScheduleCard has an Edit/Delete menu: Edit opens the same form with prefilled fields and an Edit Schedule title; Delete is disabled. Save is disabled in both modes; validation and submission are not wired.
+Schedule creation is wired end to end. ScheduleFormScreen validates a nonblank name, positive whole-number intervals, and at least one interval, matching server rules. Optional blank intervals become null; name/details are trimmed. Save and fields are disabled while pending, exceptions show a keyed snackbar and retain inputs for retry, and success returns true so ScheduleScreen reloads. Back/cancellation does not reload. Edit opens prefilled fields but Save remains disabled; Delete is also disabled.
 
-- SchedulesRepo.create and its backend/in-memory implementations are ready; pass the repository to ScheduleFormScreen and wire creation submission. Schedule updates remain unimplemented.
-- Wire the existing ScheduleFormScreen; it already derives distance-unit labels from the vehicle.
-- Verify server validation requirements before choosing form rules. Cover pending submission, errors/retry, cancellation, and refreshing the list after success.
-- Observable checkpoint: a new schedule appears only under the vehicle for which it was created.
+Recommended next: implement schedule updates through the existing edit form.
+
+- Add SchedulesRepo.update with backend/in-memory implementations; preserve schedule ID and vehicle association.
+- Submit existing schedules through update rather than create, sharing validation and error handling.
+- Cover successful update/list refresh and failure/retry in widget behavior tests. Do not add dedicated InMemory repository tests.
+- Observable checkpoint: editing updates the existing card without adding a schedule.
 
 Remaining vehicle-test gaps include edit failure/retry and deletion that succeeds server-side before the response fails. Both in-memory repositories use incrementing ID counters and skip existing IDs.
 
