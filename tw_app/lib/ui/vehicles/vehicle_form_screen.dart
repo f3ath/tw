@@ -30,7 +30,7 @@ class _VehicleFormScreenState extends State<VehicleFormScreen> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: Text(_isEditing ? 'Edit Vehicle' : 'Add Vehicle')),
+    appBar: AppBar(title: Text(_isEditing ? 'Edit Vehicle' : 'New Vehicle')),
     body: Padding(
       padding: .all(10),
       child: Form(

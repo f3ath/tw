@@ -83,18 +83,18 @@ class _GarageScreenState extends State<GarageScreen> {
           return Center(
             child: Column(
               children: [
-                Text('Error loading vehicles :(', key: GarageScreen.errorTextKey),
+                Text('Error loading vehicles', key: GarageScreen.errorTextKey),
                 FilledButton(
                   key: GarageScreen.retryButtonKey,
                   onPressed: _model.load,
-                  child: Text('Retry.'),
+                  child: Text('Retry'),
                 ),
               ],
             ),
           );
         }
         if (_model.vehicles.isEmpty) {
-          return Center(child: Text('Nothing yet', key: GarageScreen.emptyTextKey));
+          return Center(child: Text('No vehicles yet', key: GarageScreen.emptyTextKey));
         }
         return ListView.builder(
           itemCount: _model.vehicles.length,

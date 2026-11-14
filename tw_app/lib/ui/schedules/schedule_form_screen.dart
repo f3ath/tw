@@ -28,9 +28,14 @@ class _ScheduleFormScreenState extends State<ScheduleFormScreen> {
   late final _monthsController = TextEditingController(
     text: widget.schedule?.intervalMonths?.toString(),
   );
+  int? _intervalDistance;
+  int? _intervalMonths;
   var _name = '';
   var _details = '';
   var _isSaving = false;
+
+  bool get _hasInterval =>
+      _distanceController.text.trim().isNotEmpty || _monthsController.text.trim().isNotEmpty;
 
   @override
   void dispose() {
@@ -41,7 +46,7 @@ class _ScheduleFormScreenState extends State<ScheduleFormScreen> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: Text(widget.schedule == null ? 'Add Schedule' : 'Edit Schedule')),
+    appBar: AppBar(title: Text(widget.schedule == null ? 'New Schedule' : 'Edit Schedule')),
     body: SafeArea(
       child: Form(
         key: _formKey,
@@ -66,6 +71,7 @@ class _ScheduleFormScreenState extends State<ScheduleFormScreen> {
             TextFormField(
               key: ScheduleFormScreen.distanceFieldKey,
               controller: _distanceController,
+              onSaved: (value) => _intervalDistance = int.tryParse(value?.trim() ?? ''),
               enabled: !_isSaving,
               validator: _validateInterval,
               decoration: InputDecoration(
@@ -78,6 +84,7 @@ class _ScheduleFormScreenState extends State<ScheduleFormScreen> {
             TextFormField(
               key: ScheduleFormScreen.monthsFieldKey,
               controller: _monthsController,
+              onSaved: (value) => _intervalMonths = int.tryParse(value?.trim() ?? ''),
               enabled: !_isSaving,
               validator: _validateInterval,
               decoration: const InputDecoration(labelText: 'Time interval', suffixText: 'months'),
@@ -106,15 +113,8 @@ class _ScheduleFormScreenState extends State<ScheduleFormScreen> {
     ),
   );
 
-  String? _validateInterval(String? value) {
-    if (_distanceController.text.trim().isEmpty && _monthsController.text.trim().isEmpty) {
-      return 'Enter a distance or time interval';
-    }
-    final text = value?.trim() ?? '';
-    if (text.isEmpty) return null;
-    final interval = int.tryParse(text);
-    return interval == null || interval <= 0 ? 'Enter a positive whole number' : null;
-  }
+  String? _validateInterval(String? value) =>
+      _hasInterval ? _validateOptionalInterval(value) : 'Enter a distance or time interval';
 
   Future<void> _saveForm() async {
     if (_isSaving) return;
@@ -144,24 +144,29 @@ class _ScheduleFormScreenState extends State<ScheduleFormScreen> {
 
   Future<void> _persistSchedule() async {
     final schedule = widget.schedule;
-    final distance = int.tryParse(_distanceController.text.trim());
-    final months = int.tryParse(_monthsController.text.trim());
     if (schedule == null) {
       await widget.repo.create(
         widget.vehicle.id,
         name: _name,
-        intervalDistance: distance,
-        intervalMonths: months,
+        intervalDistance: _intervalDistance,
+        intervalMonths: _intervalMonths,
         details: _details,
       );
     } else {
       await widget.repo.update(
         schedule.id,
         name: _name,
-        intervalDistance: distance,
-        intervalMonths: months,
+        intervalDistance: _intervalDistance,
+        intervalMonths: _intervalMonths,
         details: _details,
       );
     }
   }
+}
+
+String? _validateOptionalInterval(String? value) {
+  final text = value?.trim() ?? '';
+  if (text.isEmpty) return null;
+  final interval = int.tryParse(text);
+  return interval == null || interval <= 0 ? 'Enter a positive whole number' : null;
 }
