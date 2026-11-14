@@ -14,6 +14,9 @@ class const ScheduleScreen({
   static const loadingIndicatorKey = ValueKey('schedules-loading-indicator');
   static const errorTextKey = ValueKey('schedules-error-text');
   static const emptyTextKey = ValueKey('schedules-empty-text');
+  static const deleteConfirmation = ValueKey('schedule-delete-confirmation');
+  static const deleteButton = ValueKey('schedule-delete-confirmation-delete');
+  static const cancelButton = ValueKey('schedule-delete-confirmation-cancel');
   static const retryButtonKey = ValueKey('schedules-retry-button');
   static ValueKey<String> scheduleKey(String id) => ValueKey('schedule-$id');
 
@@ -96,10 +99,38 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
   );
 
   Future<void> _handleScheduleAction(ScheduleAction action, Schedule schedule) async {
-    if (action == .edit) {
-      await _openScheduleForm(schedule: schedule);
+    switch (action) {
+      case .edit:
+        await _openScheduleForm(schedule: schedule);
+        return;
+      case .delete:
+        await _confirmScheduleDeletion(schedule);
+        return;
     }
   }
+
+  Future<bool> _confirmScheduleDeletion(Schedule schedule) async =>
+      await showDialog<bool>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          key: ScheduleScreen.deleteConfirmation,
+          title: const Text('Delete schedule?'),
+          content: Text('Delete "${schedule.name}"? This cannot be undone.'),
+          actions: [
+            TextButton(
+              key: ScheduleScreen.cancelButton,
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              key: ScheduleScreen.deleteButton,
+              onPressed: () => Navigator.of(dialogContext).pop(true),
+              child: const Text('Delete'),
+            ),
+          ],
+        ),
+      ) ??
+      false;
 
   Future<void> _openScheduleForm({Schedule? schedule}) async {
     final refresh = await Navigator.of(context).push<bool>(

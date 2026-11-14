@@ -4,7 +4,6 @@ import 'package:shared/model.dart';
 import 'package:tw_app/testing/samples.dart' as samples;
 import 'package:tw_app/testing/stub.dart';
 import 'package:tw_app/ui/schedules/schedule_screen.dart';
-import 'package:tw_app/ui/schedules/schedule_card.dart';
 
 import '../../robots.dart';
 
@@ -182,18 +181,47 @@ void main() {
       expect(find.text(samples.tireRotation.name), findsNothing);
     });
 
-    testWidgets('Delete is available in the schedule menu', (tester) async {
-      final harness = Harness(vehicle: samples.santaFe, initialSchedules: [samples.oilChange]);
+    testWidgets('Delete opens confirmation and Cancel preserves the list', (tester) async {
+      final inspection = Schedule(
+        id: 'inspection',
+        vehicleId: samples.santaFe.id,
+        name: 'Inspection',
+        intervalDistance: null,
+        intervalMonths: 6,
+        details: '',
+      );
+      final harness = Harness(
+        vehicle: samples.santaFe,
+        initialSchedules: [samples.oilChange, inspection],
+      );
       final schedules = ScheduleRobot(tester);
       await harness.pumpLoadedScreen(tester);
 
-      await schedules.tapScheduleMenu(samples.oilChange.id);
+      await schedules.tapScheduleMenuDelete(inspection.id);
 
-      final delete = find.byWidgetPredicate(
-        (widget) => widget is PopupMenuItem<ScheduleAction> && widget.value == .delete,
-      );
-      expect(delete, findsOneWidget);
-      expect(tester.widget<PopupMenuItem<ScheduleAction>>(delete).enabled, isTrue);
+      final dialog = find.byKey(ScheduleScreen.deleteConfirmation);
+      expect(dialog, findsOneWidget);
+      expect(harness.repo.schedules, hasLength(2));
+
+      await tester.tap(find.byKey(ScheduleScreen.cancelButton));
+      await tester.pumpAndSettle();
+
+      expect(dialog, findsNothing);
+      expectSchedulesVisible([samples.oilChange, inspection]);
+      expect(harness.repo.schedules, hasLength(2));
+      expect(harness.repo.listCalls, equals(1));
+    });
+
+    testWidgets('the Delete confirmation button closes the dialog', (tester) async {
+      final harness = Harness(vehicle: samples.santaFe, initialSchedules: [samples.oilChange]);
+      await harness.pumpLoadedScreen(tester);
+      await ScheduleRobot(tester).tapScheduleMenuDelete(samples.oilChange.id);
+
+      await tester.tap(find.byKey(ScheduleScreen.deleteButton));
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(ScheduleScreen.deleteConfirmation), findsNothing);
+      expect(findScheduleScreen, findsOneWidget);
     });
 
     testWidgets('can leave while a request is pending', (tester) async {

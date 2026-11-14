@@ -183,13 +183,17 @@ class ScheduleRobot(super.tester) extends TestRobot {
     await tester.pumpAndSettle();
   }
 
-  Future<void> tapScheduleMenuEdit(String id) async {
+  Future<void> tapScheduleMenuEdit(String id) => _tapScheduleMenuAction(id, .edit);
+
+  Future<void> tapScheduleMenuDelete(String id) => _tapScheduleMenuAction(id, .delete);
+
+  Future<void> _tapScheduleMenuAction(String id, ScheduleAction action) async {
     await tapScheduleMenu(id);
     await tester.tap(
       find
           .byWidgetPredicate(
-            (widget) => widget is PopupMenuItem<ScheduleAction> && widget.value == .edit,
-            description: 'schedule edit menu item',
+            (widget) => widget is PopupMenuItem<ScheduleAction> && widget.value == action,
+            description: 'schedule menu item for ${action.name}',
           )
           .hitTestable(),
     );
