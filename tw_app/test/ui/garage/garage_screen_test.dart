@@ -178,7 +178,7 @@ void main() {
         final harness = Harness();
         final garage = GarageRobot(tester);
         final vehicle = harness.repo.vehicles.values.last;
-        harness.schedulesRepo.schedules.addAll({
+        harness.scheduleRepo.schedules.addAll({
           for (final schedule in samples.sampleSchedules) schedule.id: schedule,
         });
         await harness.pumpLoadedScreen(tester);
@@ -278,7 +278,7 @@ class Harness({Iterable<Vehicle>? initialVehicles}) {
   final repo = stub.InMemoryVehicleRepo(
     initialVehicles: initialVehicles ?? [samples.santaFe, samples.fourRunner],
   );
-  final schedulesRepo = stub.InMemorySchedulesRepo();
+  final scheduleRepo = stub.InMemoryScheduleRepo();
   final clock = ClockMock();
 
   this {
@@ -297,7 +297,7 @@ class Harness({Iterable<Vehicle>? initialVehicles}) {
           onLogout: () async {},
           userName: userName,
           repo: repo,
-          schedulesRepo: schedulesRepo,
+          scheduleRepo: scheduleRepo,
           clock: clock,
         ),
       ),

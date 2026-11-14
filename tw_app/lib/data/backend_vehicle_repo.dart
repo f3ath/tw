@@ -3,10 +3,10 @@ import 'package:tw_app/app/vehicle_repo.dart';
 
 class BackendVehicleRepo(final TwApiClient _client) implements VehicleRepo {
   @override
-  Future<List<Vehicle>> listVehicles() => _client.listVehicles();
+  Future<List<Vehicle>> list() => _client.listVehicles();
 
   @override
-  Future<void> createVehicle({
+  Future<void> create({
     required String name,
     required DateTime manufactureDate,
     required DistanceUnit distanceUnit,
@@ -19,14 +19,10 @@ class BackendVehicleRepo(final TwApiClient _client) implements VehicleRepo {
   }
 
   @override
-  Future<void> updateVehicle(
-    String id, {
-    required String name,
-    required DateTime manufactureDate,
-  }) async {
+  Future<void> update(String id, {required String name, required DateTime manufactureDate}) async {
     await _client.updateVehicle(id, name: name, manufactureDate: manufactureDate);
   }
 
   @override
-  Future<void> deleteVehicle(String id) => _client.deleteVehicle(id);
+  Future<void> delete(String id) => _client.deleteVehicle(id);
 }

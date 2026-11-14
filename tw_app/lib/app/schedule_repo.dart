@@ -1,6 +1,6 @@
 import 'package:shared/model.dart';
 
-abstract interface class SchedulesRepo {
+abstract interface class ScheduleRepo {
   Future<List<Schedule>> list(String vehicleId);
 
   Future<void> create(

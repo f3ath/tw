@@ -133,9 +133,9 @@ class _VehicleFormScreenState extends State<VehicleFormScreen> {
   Future<void> _persistVehicle() async {
     final vehicle = widget.vehicle;
     if (vehicle != null) {
-      await widget.repo.updateVehicle(vehicle.id, name: _name, manufactureDate: _manufactureDate!);
+      await widget.repo.update(vehicle.id, name: _name, manufactureDate: _manufactureDate!);
     } else {
-      await widget.repo.createVehicle(
+      await widget.repo.create(
         name: _name,
         manufactureDate: _manufactureDate!,
         distanceUnit: _distanceUnit,

@@ -1,7 +1,7 @@
 import 'package:material_ui/material_ui.dart';
 import 'package:shared/model.dart';
 import 'package:tw_app/app/vehicle_repo.dart';
-import 'package:tw_app/app/schedules_repo.dart';
+import 'package:tw_app/app/schedule_repo.dart';
 import 'package:tw_app/time/clock.dart';
 import 'package:tw_app/ui/garage/garage_view_model.dart';
 import 'package:tw_app/ui/garage/vehicle_card.dart';
@@ -13,7 +13,7 @@ class const GarageScreen({
   required final Future<void> Function() onLogout,
   required final String userName,
   required final VehicleRepo repo,
-  required final SchedulesRepo schedulesRepo,
+  required final ScheduleRepo scheduleRepo,
   final Clock clock = const Clock(),
 }) extends StatefulWidget {
   static ValueKey<String> vehicleCardKey(String vehicleId) => ValueKey('vehicle-$vehicleId');
@@ -143,7 +143,7 @@ class _GarageScreenState extends State<GarageScreen> {
 
   Future<void> _openSchedules(Vehicle vehicle) => Navigator.of(context).push<void>(
     MaterialPageRoute(
-      builder: (_) => ScheduleScreen(vehicle: vehicle, repo: widget.schedulesRepo),
+      builder: (_) => ScheduleScreen(vehicle: vehicle, repo: widget.scheduleRepo),
     ),
   );
 
@@ -170,7 +170,7 @@ class _GarageScreenState extends State<GarageScreen> {
     );
     if (confirmed != true || !mounted) return false;
     try {
-      await widget.repo.deleteVehicle(v.id);
+      await widget.repo.delete(v.id);
     } on Exception {
       if (mounted) {
         ScaffoldMessenger.of(context)

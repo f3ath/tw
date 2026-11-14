@@ -1,6 +1,6 @@
 import 'package:material_ui/material_ui.dart';
 import 'package:shared/model.dart';
-import 'package:tw_app/app/schedules_repo.dart';
+import 'package:tw_app/app/schedule_repo.dart';
 import 'package:tw_app/ui/schedules/schedule_view_model.dart';
 import 'package:tw_app/ui/schedules/schedule_card.dart';
 import 'package:tw_app/ui/schedules/schedule_form_screen.dart';
@@ -8,7 +8,7 @@ import 'package:tw_app/ui/schedules/schedule_form_screen.dart';
 class const ScheduleScreen({
   super.key,
   required final Vehicle vehicle,
-  required final SchedulesRepo repo,
+  required final ScheduleRepo repo,
 }) extends StatefulWidget {
   static const addButtonKey = ValueKey('schedules-add-button');
   static const loadingIndicatorKey = ValueKey('schedules-loading-indicator');

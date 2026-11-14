@@ -1,7 +1,7 @@
 import 'package:shared/api.dart';
-import 'package:tw_app/app/schedules_repo.dart';
+import 'package:tw_app/app/schedule_repo.dart';
 
-class BackendSchedulesRepo(final TwApiClient _client) implements SchedulesRepo {
+class BackendScheduleRepo(final TwApiClient _client) implements ScheduleRepo {
   @override
   Future<List<Schedule>> list(String vehicleId) => _client.listSchedules(vehicleId);
 

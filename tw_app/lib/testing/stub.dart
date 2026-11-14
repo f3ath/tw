@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:shared/model.dart';
 import 'package:tw_app/app/auth_service.dart';
 import 'package:tw_app/app/vehicle_repo.dart';
-import 'package:tw_app/app/schedules_repo.dart';
+import 'package:tw_app/app/schedule_repo.dart';
 
 class InMemoryAuthService({required final User _user}) implements AuthService {
   @override
@@ -44,7 +44,7 @@ class InMemoryVehicleRepo({Iterable<Vehicle> initialVehicles = const []}) implem
   }
 
   @override
-  Future<void> createVehicle({
+  Future<void> create({
     required String name,
     required DateTime manufactureDate,
     required DistanceUnit distanceUnit,
@@ -61,7 +61,7 @@ class InMemoryVehicleRepo({Iterable<Vehicle> initialVehicles = const []}) implem
   }
 
   @override
-  Future<List<Vehicle>> listVehicles() async {
+  Future<List<Vehicle>> list() async {
     listCalls++;
     final pending = _nextList;
     _nextList = null;
@@ -70,11 +70,7 @@ class InMemoryVehicleRepo({Iterable<Vehicle> initialVehicles = const []}) implem
   }
 
   @override
-  Future<void> updateVehicle(
-    String id, {
-    required String name,
-    required DateTime manufactureDate,
-  }) async {
+  Future<void> update(String id, {required String name, required DateTime manufactureDate}) async {
     final v = vehicles[id];
     if (v == null) {
       throw StateError('Vehicle not found');
@@ -88,7 +84,7 @@ class InMemoryVehicleRepo({Iterable<Vehicle> initialVehicles = const []}) implem
   }
 
   @override
-  Future<void> deleteVehicle(String id) async {
+  Future<void> delete(String id) async {
     final pending = _nextDelete;
     _nextDelete = null;
     await pending;
@@ -96,8 +92,8 @@ class InMemoryVehicleRepo({Iterable<Vehicle> initialVehicles = const []}) implem
   }
 }
 
-class InMemorySchedulesRepo({Iterable<Schedule> initialSchedules = const []})
-    implements SchedulesRepo {
+class InMemoryScheduleRepo({Iterable<Schedule> initialSchedules = const []})
+    implements ScheduleRepo {
   final schedules = <String, Schedule>{
     for (final schedule in initialSchedules) schedule.id: schedule,
   };

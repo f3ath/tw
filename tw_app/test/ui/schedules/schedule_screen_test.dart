@@ -222,7 +222,7 @@ void expectSchedulesVisible(List<Schedule> schedules) {
 }
 
 class Harness({required final Vehicle vehicle, Iterable<Schedule> initialSchedules = const []}) {
-  final repo = InMemorySchedulesRepo(initialSchedules: initialSchedules);
+  final repo = InMemoryScheduleRepo(initialSchedules: initialSchedules);
 
   Future<void> pumpScreen(WidgetTester tester) => tester.pumpWidget(
     MaterialApp(

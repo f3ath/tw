@@ -1,15 +1,15 @@
 import 'package:shared/model.dart';
 
 abstract interface class VehicleRepo {
-  Future<List<Vehicle>> listVehicles();
+  Future<List<Vehicle>> list();
 
-  Future<void> createVehicle({
+  Future<void> create({
     required String name,
     required DateTime manufactureDate,
     required DistanceUnit distanceUnit,
   });
 
-  Future<void> updateVehicle(String id, {required String name, required DateTime manufactureDate});
+  Future<void> update(String id, {required String name, required DateTime manufactureDate});
 
-  Future<void> deleteVehicle(String id);
+  Future<void> delete(String id);
 }

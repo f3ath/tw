@@ -19,7 +19,7 @@ class GarageViewModel({required final VehicleRepo _vehicleRepository}) extends C
     _hasError = false;
     notifyListeners();
     try {
-      _vehicles = List.unmodifiableOf(await _vehicleRepository.listVehicles());
+      _vehicles = List.unmodifiableOf(await _vehicleRepository.list());
     } on Exception {
       _hasError = true;
     } finally {

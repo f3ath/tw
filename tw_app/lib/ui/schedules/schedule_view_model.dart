@@ -1,8 +1,8 @@
 import 'package:material_ui/material_ui.dart';
 import 'package:shared/model.dart';
-import 'package:tw_app/app/schedules_repo.dart';
+import 'package:tw_app/app/schedule_repo.dart';
 
-class ScheduleViewModel({required final SchedulesRepo _repo, required final String _vehicleId})
+class ScheduleViewModel({required final ScheduleRepo _repo, required final String _vehicleId})
     extends ChangeNotifier {
   var _isLoading = false;
   var _hasError = false;

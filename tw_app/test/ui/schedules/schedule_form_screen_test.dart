@@ -278,7 +278,7 @@ class Harness({
   final Schedule? schedule,
   Iterable<Schedule> initialSchedules = const [],
 }) {
-  final repo = InMemorySchedulesRepo(initialSchedules: initialSchedules);
+  final repo = InMemoryScheduleRepo(initialSchedules: initialSchedules);
   final _navigatorKey = GlobalKey<NavigatorState>();
   late Future<bool?> result;
 

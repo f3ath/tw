@@ -1,11 +1,11 @@
 import 'package:material_ui/material_ui.dart';
 import 'package:shared/model.dart';
-import 'package:tw_app/app/schedules_repo.dart';
+import 'package:tw_app/app/schedule_repo.dart';
 
 class const ScheduleFormScreen({
   super.key,
   required final Vehicle vehicle,
-  required final SchedulesRepo repo,
+  required final ScheduleRepo repo,
   final Schedule? schedule,
 }) extends StatefulWidget {
   static const nameFieldKey = ValueKey('schedule-name-field');

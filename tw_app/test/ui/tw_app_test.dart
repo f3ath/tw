@@ -22,7 +22,7 @@ void main() {
         TwApp(
           authService: authService,
           vehicleRepo: InMemoryVehicleRepo(),
-          schedulesRepo: InMemorySchedulesRepo(),
+          scheduleRepo: InMemoryScheduleRepo(),
         ),
       );
 
