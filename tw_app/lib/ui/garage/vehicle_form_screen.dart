@@ -70,7 +70,6 @@ class _VehicleFormScreenState extends State<VehicleFormScreen> {
             DateFormField(
               key: VehicleFormScreen.dateFieldKey,
               enabled: !_isSaving,
-              format: _formatDate,
               firstDate: DateTime(1900),
               lastDate: DateTime(2100),
               initialValue: widget.vehicle?.manufactureDate,
@@ -143,7 +142,3 @@ class _VehicleFormScreenState extends State<VehicleFormScreen> {
     }
   }
 }
-
-String _formatDate(DateTime? value) => value == null
-    ? ''
-    : DateTime(value.year, value.month, value.day).toIso8601String().split('T').first;

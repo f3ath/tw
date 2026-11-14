@@ -8,7 +8,7 @@ class const DateFormField({
   super.validator,
   super.onSaved,
   super.enabled,
-  required final String Function(DateTime?) _format,
+  final String Function(DateTime?)? _format,
   required final DateTime _firstDate,
   required final DateTime _lastDate,
   final InputDecoration? _decoration = const InputDecoration(),
@@ -27,15 +27,28 @@ class _DateFormFieldState extends FormFieldState<DateTime> {
   late final _controller = TextEditingController();
 
   @override
-  void initState() {
-    super.initState();
-    _controller.text = widget._format(value);
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _controller.text = _formattedValue;
+  }
+
+  @override
+  void didUpdateWidget(covariant DateFormField oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget._format != widget._format) _controller.text = _formattedValue;
+  }
+
+  String get _formattedValue {
+    final format = widget._format;
+    if (format != null) return format(value);
+    final date = value;
+    return date == null ? '' : MaterialLocalizations.of(context).formatShortDate(date);
   }
 
   @override
   void didChange(DateTime? value) {
     super.didChange(value);
-    _controller.text = widget._format(value);
+    _controller.text = _formattedValue;
   }
 
   @override
@@ -47,7 +60,7 @@ class _DateFormFieldState extends FormFieldState<DateTime> {
   @override
   void reset() {
     super.reset();
-    _controller.text = widget._format(value);
+    _controller.text = _formattedValue;
   }
 
   @override

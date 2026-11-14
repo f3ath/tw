@@ -4,6 +4,7 @@ import 'package:shared/model.dart';
 import 'package:tw_app/testing/samples.dart' as samples;
 import 'package:tw_app/testing/stub.dart';
 import 'package:tw_app/ui/services/service_screen.dart';
+import 'package:tw_app/ui/services/service_form_screen.dart';
 
 import '../../robots.dart';
 
@@ -76,6 +77,42 @@ void main() {
       expect(services.findServiceCard(samples.santaFeOilService.id), findsNothing);
       expect(harness.repo.listCalls, equals(2));
     });
+
+    for (final vehicle in samples.sampleVehicles) {
+      testWidgets('New Service opens the form for ${vehicle.name} and Back preserves the list', (
+        tester,
+      ) async {
+        final harness = Harness(vehicle: vehicle, initialServices: samples.sampleServices);
+        final services = ServiceRobot(tester);
+        await harness.pumpLoadedScreen(tester);
+
+        await services.tapNewService();
+
+        expect(findServiceFormScreen, findsOneWidget);
+        expect(findServiceScreen, findsNothing);
+        expect(find.text(vehicle.name), findsOneWidget);
+        final odometer = tester.widget<TextField>(
+          find.descendant(
+            of: find.byKey(ServiceFormScreen.odometerFieldKey),
+            matching: find.byType(TextField),
+          ),
+        );
+        expect(odometer.decoration?.suffixText, equals(vehicle.distanceUnit.name));
+        final save = tester.widget<FilledButton>(find.byKey(ServiceFormScreen.saveButtonKey));
+        expect(save.enabled, isFalse);
+
+        await tester.pageBack();
+        await tester.pumpAndSettle();
+
+        expect(findServiceFormScreen, findsNothing);
+        expect(findServiceScreen, findsOneWidget);
+        expectServicesVisible(
+          tester,
+          samples.sampleServices.where((service) => service.vehicleId == vehicle.id).toList(),
+        );
+        expect(harness.repo.listCalls, equals(1));
+      });
+    }
 
     for (final fails in [false, true]) {
       testWidgets('can leave while a request later ${fails ? 'fails' : 'succeeds'}', (

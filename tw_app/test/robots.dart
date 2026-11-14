@@ -9,6 +9,7 @@ import 'package:tw_app/ui/schedules/schedule_form_screen.dart';
 import 'package:tw_app/ui/garage/vehicle_form_screen.dart';
 import 'package:tw_app/ui/welcome/welcome_screen.dart';
 import 'package:tw_app/ui/services/service_screen.dart';
+import 'package:tw_app/ui/services/service_form_screen.dart';
 
 final findWelcomeScreen = find.byType(WelcomeScreen);
 final findGarageScreen = find.byType(GarageScreen);
@@ -16,6 +17,7 @@ final findVehicleFormScreen = find.byType(VehicleFormScreen);
 final findScheduleScreen = find.byType(ScheduleScreen);
 final findScheduleFormScreen = find.byType(ScheduleFormScreen);
 final findServiceScreen = find.byType(ServiceScreen);
+final findServiceFormScreen = find.byType(ServiceFormScreen);
 
 enum PumpMode { none, frame, settle }
 
@@ -267,6 +269,13 @@ class ScheduleFormRobot(super.tester) extends TestRobot {
 }
 
 class ServiceRobot(super.tester) extends TestRobot {
+  final findNewServiceButton = find.byKey(ServiceScreen.addButtonKey);
+
+  Future<void> tapNewService({PumpMode pump = .settle}) async {
+    await tester.tap(findNewServiceButton);
+    await pumpAfterAction(pump);
+  }
+
   Finder findServiceCard(String id) => find.byKey(ServiceScreen.serviceKey(id));
 
   Future<void> tapRetry({PumpMode pump = .frame}) async {

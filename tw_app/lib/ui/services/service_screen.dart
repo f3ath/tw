@@ -3,12 +3,14 @@ import 'package:shared/model.dart';
 import 'package:tw_app/app/service_repo.dart';
 import 'package:tw_app/ui/services/service_card.dart';
 import 'package:tw_app/ui/services/service_view_model.dart';
+import 'package:tw_app/ui/services/service_form_screen.dart';
 
 class const ServiceScreen({
   super.key,
   required final Vehicle vehicle,
   required final ServiceRepo repo,
 }) extends StatefulWidget {
+  static const addButtonKey = ValueKey('services-add-button');
   static const loadingIndicatorKey = ValueKey('services-loading-indicator');
   static const errorTextKey = ValueKey('services-error-text');
   static const emptyTextKey = ValueKey('services-empty-text');
@@ -78,6 +80,12 @@ class _ServiceScreenState extends State<ServiceScreen> {
         );
       },
     ),
+    floatingActionButton: FloatingActionButton.extended(
+      key: ServiceScreen.addButtonKey,
+      icon: const Icon(Icons.add),
+      label: const Text('New Service'),
+      onPressed: () => _openServiceForm(),
+    ),
   );
 
   ServiceCard _buildServiceCard(Service service) => ServiceCard(
@@ -85,4 +93,10 @@ class _ServiceScreenState extends State<ServiceScreen> {
     service: service,
     distanceUnit: widget.vehicle.distanceUnit,
   );
+
+  Future<void> _openServiceForm() async {
+    final refresh = await Navigator.of(context)
+        .push<bool>(MaterialPageRoute(builder: (_) => ServiceFormScreen(vehicle: widget.vehicle)));
+    if (refresh == true && mounted) await _model.load();
+  }
 }
