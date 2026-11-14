@@ -9,11 +9,12 @@ class const DateFormField({
   super.onSaved,
   super.enabled,
   final String Function(DateTime?)? _format,
-  required final DateTime _firstDate,
-  required final DateTime _lastDate,
   final InputDecoration? _decoration = const InputDecoration(),
   final Clock _clock = const Clock(),
 }) extends FormField<DateTime> {
+  static final _firstDate = DateTime(1900);
+  static final _lastDate = DateTime(2100);
+
   this : super(builder: _builder);
 
   @override
@@ -74,8 +75,8 @@ class _DateFormFieldState extends FormFieldState<DateTime> {
       final selected = await showDatePicker(
         context: context,
         initialDate: value ?? widget._clock.now(),
-        firstDate: widget._firstDate,
-        lastDate: widget._lastDate,
+        firstDate: DateFormField._firstDate,
+        lastDate: DateFormField._lastDate,
       );
       if (!mounted || !widget.enabled || selected == null) return;
       didChange(selected);

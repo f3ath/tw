@@ -20,11 +20,6 @@ class const ServiceFormScreen({
 class _ServiceFormScreenState extends State<ServiceFormScreen> {
   final _detailsController = TextEditingController();
 
-  DateTime get _latestDate {
-    final now = widget.clock.now();
-    return DateTime(now.year, now.month, now.day + 7);
-  }
-
   @override
   void dispose() {
     _detailsController.dispose();
@@ -44,13 +39,7 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
             DateFormField(
               key: ServiceFormScreen.dateFieldKey,
               initialValue: widget.clock.now(),
-              firstDate: DateTime(1900),
-              lastDate: _latestDate,
-              validator: (value) {
-                if (value == null) return 'Please select a date';
-                final date = DateTime(value.year, value.month, value.day);
-                return date.isAfter(_latestDate) ? 'Choose a date no more than 7 days ahead' : null;
-              },
+              validator: (value) => value == null ? 'Please select a date' : null,
               decoration: const InputDecoration(labelText: 'Date'),
               clock: widget.clock,
             ),

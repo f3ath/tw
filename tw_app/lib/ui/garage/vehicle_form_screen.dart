@@ -70,8 +70,6 @@ class _VehicleFormScreenState extends State<VehicleFormScreen> {
             DateFormField(
               key: VehicleFormScreen.dateFieldKey,
               enabled: !_isSaving,
-              firstDate: DateTime(1900),
-              lastDate: DateTime(2100),
               initialValue: widget.vehicle?.manufactureDate,
               decoration: InputDecoration(labelText: 'Manufacture Date'),
               validator: (val) {

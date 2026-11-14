@@ -12,12 +12,7 @@ void main() {
       await tester.pumpWidget(
         MaterialApp(
           home: Scaffold(
-            body: DateFormField(
-              key: key,
-              initialValue: initial,
-              firstDate: DateTime(1900),
-              lastDate: DateTime(2100),
-            ),
+            body: DateFormField(key: key, initialValue: initial),
           ),
         ),
       );
@@ -40,9 +35,7 @@ void main() {
       final key = GlobalKey<FormFieldState<DateTime>>();
       await tester.pumpWidget(
         MaterialApp(
-          home: Scaffold(
-            body: DateFormField(key: key, firstDate: DateTime(1900), lastDate: DateTime(2100)),
-          ),
+          home: Scaffold(body: DateFormField(key: key)),
         ),
       );
       final field = find.descendant(of: find.byKey(key), matching: find.byType(TextField));
