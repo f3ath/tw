@@ -14,6 +14,7 @@ class const ScheduleScreen({
   static const loadingIndicatorKey = ValueKey('schedules-loading-indicator');
   static const errorTextKey = ValueKey('schedules-error-text');
   static const emptyTextKey = ValueKey('schedules-empty-text');
+  static const deleteErrorSnackBarKey = ValueKey('schedule-delete-error-snackbar');
   static const deleteConfirmation = ValueKey('schedule-delete-confirmation');
   static const deleteButton = ValueKey('schedule-delete-confirmation-delete');
   static const cancelButton = ValueKey('schedule-delete-confirmation-cancel');
@@ -104,9 +105,29 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
         await _openScheduleForm(schedule: schedule);
         return;
       case .delete:
-        await _confirmScheduleDeletion(schedule);
+        await _deleteSchedule(schedule);
         return;
     }
+  }
+
+  Future<void> _deleteSchedule(Schedule schedule) async {
+    final confirmed = await _confirmScheduleDeletion(schedule);
+    if (!confirmed || !mounted) return;
+    try {
+      await widget.repo.delete(schedule.id);
+    } on Exception {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+          ..hideCurrentSnackBar()
+          ..showSnackBar(
+            const SnackBar(
+              key: ScheduleScreen.deleteErrorSnackBarKey,
+              content: Text('Could not confirm deletion. Refreshing...'),
+            ),
+          );
+      }
+    }
+    if (mounted) await _model.load();
   }
 
   Future<bool> _confirmScheduleDeletion(Schedule schedule) async =>

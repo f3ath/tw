@@ -212,7 +212,59 @@ void main() {
       expect(harness.repo.listCalls, equals(1));
     });
 
-    testWidgets('the Delete confirmation button closes the dialog', (tester) async {
+    testWidgets('dismissing deletion confirmation preserves the schedule without reloading', (
+      tester,
+    ) async {
+      final harness = Harness(vehicle: samples.santaFe, initialSchedules: [samples.oilChange]);
+      final schedules = ScheduleRobot(tester);
+      await harness.pumpLoadedScreen(tester);
+      await schedules.tapScheduleMenuDelete(samples.oilChange.id);
+
+      await tester.binding.handlePopRoute();
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(ScheduleScreen.deleteConfirmation), findsNothing);
+      expectSchedulesVisible([samples.oilChange]);
+      expect(harness.repo.schedules[samples.oilChange.id], same(samples.oilChange));
+      expect(harness.repo.listCalls, equals(1));
+    });
+
+    testWidgets('deleting the selected schedule preserves the other schedules', (tester) async {
+      final inspection = Schedule(
+        id: 'inspection',
+        vehicleId: samples.santaFe.id,
+        name: 'Inspection',
+        intervalDistance: null,
+        intervalMonths: 6,
+        details: '',
+      );
+      final harness = Harness(
+        vehicle: samples.santaFe,
+        initialSchedules: [samples.oilChange, inspection, samples.tireRotation],
+      );
+      final schedules = ScheduleRobot(tester);
+      final pending = harness.repo.pauseNextDelete();
+      await harness.pumpLoadedScreen(tester);
+      await schedules.tapScheduleMenuDelete(inspection.id);
+      await tester.tap(find.byKey(ScheduleScreen.deleteButton));
+      await tester.pump();
+
+      expect(harness.repo.schedules, hasLength(3));
+      expect(harness.repo.listCalls, equals(1));
+
+      pending.complete();
+      await tester.pumpAndSettle();
+
+      expect(schedules.findScheduleCard(inspection.id), findsNothing);
+      expectSchedulesVisible([samples.oilChange]);
+      expect(harness.repo.schedules, hasLength(2));
+      expect(harness.repo.schedules[samples.oilChange.id], same(samples.oilChange));
+      expect(harness.repo.schedules[samples.tireRotation.id], same(samples.tireRotation));
+      expect(harness.repo.listCalls, equals(2));
+      expect(find.byKey(ScheduleScreen.emptyTextKey), findsNothing);
+    });
+
+    testWidgets('confirmed deletion removes the schedule and refreshes the list', (tester) async {
       final harness = Harness(vehicle: samples.santaFe, initialSchedules: [samples.oilChange]);
       await harness.pumpLoadedScreen(tester);
       await ScheduleRobot(tester).tapScheduleMenuDelete(samples.oilChange.id);
@@ -222,7 +274,48 @@ void main() {
 
       expect(find.byKey(ScheduleScreen.deleteConfirmation), findsNothing);
       expect(findScheduleScreen, findsOneWidget);
+      expect(harness.repo.schedules, isEmpty);
+      expect(find.byKey(ScheduleScreen.scheduleKey(samples.oilChange.id)), findsNothing);
+      expect(find.byKey(ScheduleScreen.emptyTextKey), findsOneWidget);
+      expect(harness.repo.listCalls, equals(2));
     });
+
+    for (final scenario in [
+      (name: 'retained', deleted: false),
+      (name: 'deleted before the response fails', deleted: true),
+    ]) {
+      testWidgets('reloads after a deletion error when the schedule was ${scenario.name}', (
+        tester,
+      ) async {
+        final harness = Harness(vehicle: samples.santaFe, initialSchedules: [samples.oilChange]);
+        final schedules = ScheduleRobot(tester);
+        final pending = harness.repo.pauseNextDelete();
+        await harness.pumpLoadedScreen(tester);
+        await schedules.tapScheduleMenuDelete(samples.oilChange.id);
+        await tester.tap(find.byKey(ScheduleScreen.deleteButton));
+        await tester.pump();
+        expect(harness.repo.listCalls, equals(1));
+
+        if (scenario.deleted) {
+          // Simulate the server committing deletion before losing its response.
+          harness.repo.schedules.remove(samples.oilChange.id);
+        }
+        pending.completeError(Exception('Network error'));
+        await tester.pump();
+
+        expect(find.byKey(ScheduleScreen.deleteErrorSnackBarKey), findsOneWidget);
+        await tester.pumpAndSettle();
+
+        expect(harness.repo.listCalls, equals(2));
+        if (scenario.deleted) {
+          expect(schedules.findScheduleCard(samples.oilChange.id), findsNothing);
+          expect(find.byKey(ScheduleScreen.emptyTextKey), findsOneWidget);
+        } else {
+          expectSchedulesVisible([samples.oilChange]);
+          expect(find.byKey(ScheduleScreen.emptyTextKey), findsNothing);
+        }
+      });
+    }
 
     testWidgets('can leave while a request is pending', (tester) async {
       final harness = Harness(vehicle: samples.santaFe);
