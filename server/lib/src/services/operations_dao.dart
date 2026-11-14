@@ -6,10 +6,8 @@ import 'package:shared/time.dart';
 class OperationsDAO(final ScopedDatabase _database, {final Clock _clock = systemClock}) {
   static const _select = '''
 SELECT operation.id, operation.service_id, operation.schedule_id,
-       COALESCE(schedule.name, operation.name) AS name,
-       COALESCE(schedule.details, operation.details) AS details
+       operation.name, operation.details
 FROM service_operations AS operation
-LEFT JOIN schedules AS schedule ON schedule.id = operation.schedule_id
 ''';
 
   Future<List<OperationRecord>?> fetchByServiceId(String serviceId) =>
@@ -52,6 +50,18 @@ ORDER BY operation.created_at, operation.id
       vehicleId: vehicleId,
       scheduleId: scheduleId,
     );
+    String? resolvedName = name;
+    if (resolvedName == null && scheduleId != null) {
+      final rows = await session.execute(
+        Sql.named('''
+SELECT name
+FROM schedules
+WHERE id = @schedule_id:uuid
+'''),
+        parameters: {'schedule_id': scheduleId},
+      );
+      resolvedName = rows.single[0] as String;
+    }
     await session.execute(
       Sql.named('''
 INSERT INTO service_operations (id, owner_id, vehicle_id, service_id, schedule_id, name, details, created_at, updated_at)
@@ -63,8 +73,8 @@ WHERE id = @service_id:uuid
         'id': id,
         'service_id': serviceId,
         'schedule_id': scheduleId,
-        'name': name,
-        'details': scheduleId == null ? details ?? '' : null,
+        'name': resolvedName,
+        'details': details ?? '',
         'now': _clock(),
       },
     );
@@ -95,8 +105,8 @@ WHERE id = @service_id:uuid
       Sql.named('''
 UPDATE service_operations
 SET schedule_id = @schedule_id:uuid,
-    name = @name:text,
-    details = CASE WHEN @schedule_id:uuid IS NOT NULL THEN NULL ELSE COALESCE(@details:text, details, '') END,
+    name = COALESCE(@name:text, name),
+    details = COALESCE(@details:text, details),
     updated_at = @now:timestamp
 WHERE id = @id:uuid
   AND service_id = @service_id:uuid

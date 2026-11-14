@@ -143,10 +143,7 @@ CREATE TABLE service_operations
         REFERENCES services (owner_id, vehicle_id, id) ON DELETE CASCADE,
     FOREIGN KEY (owner_id, vehicle_id, schedule_id)
         REFERENCES schedules (owner_id, vehicle_id, id),
-    CONSTRAINT service_operations_content_check CHECK (
-        (schedule_id IS NOT NULL AND name IS NULL AND details IS NULL)
-        OR (schedule_id IS NULL AND name IS NOT NULL AND BTRIM(name) <> '' AND details IS NOT NULL)
-    )
+    CONSTRAINT service_operations_content_check CHECK (name IS NOT NULL OR schedule_id IS NOT NULL)
 );
 
 GRANT SELECT, INSERT, UPDATE, DELETE

@@ -27,8 +27,8 @@ isolation and business validation. Maintenance data in the app still uses
   references while archiving and restoring items. Existing historical completions
   remain available for client-derived calculations.
 - [x] **Linked service operations:** Persist operations in `service_operations`,
-  linked to a service and optionally a schedule. Scheduled operations expose
-  read-only `name` and `details` from the current schedule, including after edits.
+  linked to a service and optionally a schedule. All operations store independently editable
+  `name` and `details`; optional schedule links do not override their text.
 - [x] **Multiple custom service operations:** Persist multiple custom operations
   with editable `name` and `details`, alongside scheduled operations. Services can
   have no operations. Custom text never implicitly creates a schedule link.

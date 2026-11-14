@@ -51,13 +51,13 @@ void main() {
     expect(created.serviceId, service.id);
     expect(created.scheduleId, schedule.id);
     expect(created.name, schedule.name);
-    expect(created.details, schedule.details);
+    expect(created.details, isEmpty);
     final listed = (await client.listOperations(service.id)).single;
     expect(listed.id, created.id);
     expect(listed.serviceId, service.id);
     expect(listed.scheduleId, schedule.id);
     expect(listed.name, schedule.name);
-    expect(listed.details, schedule.details);
+    expect(listed.details, isEmpty);
   });
 
   test('create and list a custom operation', () async {
@@ -145,12 +145,12 @@ void main() {
     expect(listed.details, 'Replace the rear blade');
   });
 
-  test('editing can replace custom text with a schedule link and back', () async {
+  test('editing can change schedule linkage without replacing operation text', () async {
     final created = await client.createOperation(service.id, name: 'Wash car');
     final linked = await client.updateOperation(created.id, scheduleId: schedule.id);
     expect(linked!.id, created.id);
     expect(linked.scheduleId, schedule.id);
-    expect(linked.name, schedule.name);
+    expect(linked.name, 'Wash car');
     expect((await client.listOperations(service.id)).single.scheduleId, schedule.id);
     final custom = await client.updateOperation(created.id, name: 'Replace wipers');
     expect(custom!.id, created.id);
@@ -165,7 +165,7 @@ void main() {
     final updated = await client.updateOperation(created.id, scheduleId: brakes.id);
     expect(updated!.id, created.id);
     expect(updated.scheduleId, brakes.id);
-    expect(updated.name, brakes.name);
+    expect(updated.name, schedule.name);
     expect((await client.listOperations(service.id)).single.scheduleId, brakes.id);
   });
 
@@ -200,10 +200,10 @@ void main() {
     expect(listed.serviceId, service.id);
     expect(listed.scheduleId, schedule.id);
     expect(listed.name, schedule.name);
-    expect(listed.details, schedule.details);
+    expect(listed.details, isEmpty);
   });
 
-  test('scheduled names and details follow schedule edits; custom fields stay unchanged', () async {
+  test('operation text stays independent of schedule edits', () async {
     final linked = await client.createOperation(service.id, scheduleId: schedule.id);
     final custom = await client.createOperation(
       service.id,
@@ -220,8 +220,8 @@ void main() {
     final listed = await client.listOperations(service.id);
     final updated = listed.singleWhere((operation) => operation.id == linked.id);
     expect(updated.scheduleId, schedule.id);
-    expect(updated.name, 'Engine oil and filter');
-    expect(updated.details, 'Replace the filter as well');
+    expect(updated.name, schedule.name);
+    expect(updated.details, isEmpty);
     expect(listed.singleWhere((operation) => operation.id == custom.id).name, schedule.name);
     expect(listed.singleWhere((operation) => operation.id == custom.id).details, schedule.details);
   });
@@ -283,7 +283,7 @@ void main() {
       expect(listed.serviceId, service.id);
       expect(listed.scheduleId, schedule.id);
       expect(listed.name, schedule.name);
-      expect(listed.details, schedule.details);
+      expect(listed.details, isEmpty);
       expect((await client.listSchedules(vehicle.id)).single.isArchived, isArchived);
     }
   });
@@ -439,49 +439,66 @@ void main() {
     });
   }
 
-  for (final isEditing in [false, true]) {
-    for (final isName in [true, false]) {
-      test(
-        'scheduled operation ${isName ? 'name' : 'details'} is read-only on ${isEditing ? 'editing' : 'creation'}',
-        () async {
-          final existing = isEditing
-              ? await client.createOperation(service.id, scheduleId: schedule.id)
-              : null;
-          await expectLater(
-            existing == null
-                ? client.createOperation(
-                    service.id,
-                    scheduleId: schedule.id,
-                    name: isName ? 'Override' : null,
-                    details: isName ? null : 'Override',
-                  )
-                : client.updateOperation(
-                    existing.id,
-                    scheduleId: schedule.id,
-                    name: isName ? 'Override' : null,
-                    details: isName ? null : 'Override',
-                  ),
-            throwsStatusCode(400),
-          );
-          final listed = await client.listOperations(service.id);
-          expect(listed, hasLength(isEditing ? 1 : 0));
-          if (isEditing) {
-            expect(listed.single.name, schedule.name);
-            expect(listed.single.details, schedule.details);
-          }
-        },
+  test('linked operation text is editable independently of its schedule', () async {
+    final created = await client.createOperation(
+      service.id,
+      scheduleId: schedule.id,
+      name: 'Performed oil work',
+      details: 'Used 4 litres',
+    );
+    expect(created.name, 'Performed oil work');
+    expect(created.details, 'Used 4 litres');
+    final updated = await client.updateOperation(
+      created.id,
+      scheduleId: schedule.id,
+      name: 'Oil and filter replaced',
+      details: 'Checked for leaks',
+    );
+    expect(updated!.scheduleId, schedule.id);
+    expect(updated.name, 'Oil and filter replaced');
+    expect(updated.details, 'Checked for leaks');
+    final listed = (await client.listOperations(service.id)).single;
+    expect(listed.name, updated.name);
+    expect(listed.details, updated.details);
+    expect((await client.listSchedules(vehicle.id)).single.name, schedule.name);
+    expect((await client.listSchedules(vehicle.id)).single.details, schedule.details);
+  });
+
+  for (final linked in [false, true]) {
+    test('details-only edits preserve name and can clear details (linked: $linked)', () async {
+      final created = await client.createOperation(
+        service.id,
+        scheduleId: linked ? schedule.id : null,
+        name: 'Work performed',
+        details: 'Initial notes',
       );
-    }
+      final updated = await client.updateOperation(
+        created.id,
+        scheduleId: created.scheduleId,
+        details: 'New notes',
+      );
+      expect(updated!.name, created.name);
+      expect(updated.details, 'New notes');
+      final cleared = await client.updateOperation(
+        created.id,
+        scheduleId: created.scheduleId,
+        details: '',
+      );
+      expect(cleared!.name, created.name);
+      expect(cleared.details, isEmpty);
+    });
   }
 
   const invalidInputs = <({String label, String? name, bool isScheduled})>[
     (label: 'neither a schedule nor custom text', name: null, isScheduled: false),
     (label: 'an empty custom description', name: '', isScheduled: false),
     (label: 'a blank custom description', name: '   ', isScheduled: false),
-    (label: 'both a schedule and custom text', name: 'Wash car', isScheduled: true),
+    (label: 'an empty linked name', name: '', isScheduled: true),
+    (label: 'a blank linked name', name: '   ', isScheduled: true),
   ];
   for (final input in invalidInputs) {
     for (final isEditing in [false, true]) {
+      if (isEditing && input.name == null) continue;
       test('reject ${input.label} on ${isEditing ? 'editing' : 'creation'}', () async {
         final existing = isEditing
             ? await client.createOperation(service.id, name: 'Replace wipers')

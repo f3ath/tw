@@ -32,7 +32,7 @@ class OperationsController(final OperationsDAOProvider _ownedOperations, final U
     }
     final scheduleId = schedule?.singleOrNull?.id;
     final attributes = resource.attributes;
-    if (!_isValid(attributes, scheduleId)) return badRequest();
+    if (!_isValid(attributes, nameRequired: scheduleId == null)) return badRequest();
     final OperationRecord? operation;
     try {
       operation = await _ownedOperations(request.userId).create(
@@ -61,7 +61,7 @@ class OperationsController(final OperationsDAOProvider _ownedOperations, final U
     }
     final scheduleId = schedule?.singleOrNull?.id;
     final attributes = resource.attributes;
-    if (!_isValid(attributes, scheduleId)) return badRequest();
+    if (!_isValid(attributes)) return badRequest();
     final OperationRecord? operation;
     try {
       operation = await _ownedOperations(request.userId).update(
@@ -89,12 +89,12 @@ class OperationsController(final OperationsDAOProvider _ownedOperations, final U
   Future<Response> deleteResource(Request request, ResourceTarget target) async =>
       await _ownedOperations(request.userId).delete(target.id) ? noContent() : notFound();
 
-  static bool _isValid(Map<String, dynamic> attributes, String? scheduleId) {
-    if (scheduleId != null) {
-      return !attributes.containsKey('name') && !attributes.containsKey('details');
-    }
+  static bool _isValid(Map<String, dynamic> attributes, {bool nameRequired = false}) {
     final name = attributes['name'];
     final details = attributes['details'];
-    return name is String && name.trim().isNotEmpty && (details == null || details is String);
+    final validName = attributes.containsKey('name')
+        ? name is String && name.trim().isNotEmpty
+        : !nameRequired;
+    return validName && (details == null || details is String);
   }
 }
