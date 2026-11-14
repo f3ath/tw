@@ -2,6 +2,8 @@ import 'package:material_ui/material_ui.dart';
 import 'package:shared/model.dart';
 import 'package:tw_app/app/schedule_repo.dart';
 import 'package:tw_app/ui/list_view_model.dart';
+import 'package:tw_app/ui/schedules/schedule_autocomplete_item.dart';
+import 'package:tw_app/ui/schedules/schedule_summary.dart';
 import 'package:tw_app/app/operation_repo.dart';
 import 'package:tw_app/app/repository_provider.dart';
 import 'package:tw_app/app/vehicle_service.dart';
@@ -99,6 +101,7 @@ class _OperationFormScreenState extends State<OperationFormScreen> {
                 focusNode: _nameFocus,
                 displayStringForOption: (schedule) => schedule.name,
                 optionsBuilder: _scheduleOptions,
+                optionsViewBuilder: _buildScheduleOptions,
                 onSelected: _selectSchedule,
                 fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) =>
                     TextFormField(
@@ -122,17 +125,21 @@ class _OperationFormScreenState extends State<OperationFormScreen> {
                       textInputAction: TextInputAction.next,
                     ),
               ),
-              if (_selectedSchedule == null)
-                TextFormField(
-                  key: OperationFormScreen.detailsFieldKey,
-                  controller: _detailsController,
-                  enabled: !_submission.isSubmitting,
-                  onSaved: (value) => _details = value?.trim() ?? '',
-                  decoration: const InputDecoration(labelText: 'Details (optional)'),
-                  textCapitalization: TextCapitalization.sentences,
-                  minLines: 3,
-                  maxLines: 5,
+              if (_selectedSchedule != null)
+                ScheduleSummary(
+                  schedule: _selectedSchedule!,
+                  distanceUnit: widget.vehicleService.vehicle.distanceUnit,
                 ),
+              TextFormField(
+                key: OperationFormScreen.detailsFieldKey,
+                controller: _detailsController,
+                enabled: !_submission.isSubmitting,
+                onSaved: (value) => _details = value?.trim() ?? '',
+                decoration: const InputDecoration(labelText: 'Details (optional)'),
+                textCapitalization: TextCapitalization.sentences,
+                minLines: 3,
+                maxLines: 5,
+              ),
               const SizedBox(height: 16),
               FilledButton(
                 key: OperationFormScreen.saveButtonKey,
@@ -145,6 +152,34 @@ class _OperationFormScreenState extends State<OperationFormScreen> {
       ),
     ),
   );
+
+  Widget _buildScheduleOptions(
+    BuildContext context,
+    AutocompleteOnSelected<Schedule> onSelected,
+    Iterable<Schedule> options,
+  ) {
+    final highlightedIndex = AutocompleteHighlightedOption.of(context);
+    return Material(
+      elevation: 4,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxHeight: 200),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              for (final (index, schedule) in options.indexed)
+                ScheduleAutocompleteItem(
+                  schedule: schedule,
+                  distanceUnit: widget.vehicleService.vehicle.distanceUnit,
+                  highlighted: index == highlightedIndex,
+                  onTap: () => onSelected(schedule),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 
   Future<void> _saveForm() async {
     if (_submission.isSubmitting) return;
@@ -198,7 +233,11 @@ class _OperationFormScreenState extends State<OperationFormScreen> {
   Future<void> _persistOperation() {
     final schedule = _selectedSchedule;
     if (schedule != null) {
-      return _repo.createFromSchedule(widget.vehicleService.service.id, scheduleId: schedule.id);
+      return _repo.createFromSchedule(
+        widget.vehicleService.service.id,
+        scheduleId: schedule.id,
+        details: _details,
+      );
     }
     return _repo.create(widget.vehicleService.service.id, name: _name, details: _details);
   }

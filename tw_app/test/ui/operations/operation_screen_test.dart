@@ -144,10 +144,11 @@ void main() {
       expect(operation.scheduleId, equals(samples.oilChange.id));
       expectOperationsVisible(tester, [operation]);
       expect(find.text(samples.oilChange.name), findsOneWidget);
-      expect(find.text(samples.oilChange.details), findsOneWidget);
+      expect(operation.details, isEmpty);
+      expect(find.text(samples.oilChange.details), findsNothing);
     });
 
-    testWidgets('linked work uses current schedule text after editing', (tester) async {
+    testWidgets('linked work keeps operation details after schedule editing', (tester) async {
       final harness = Harness(
         vehicle: samples.santaFe,
         service: samples.santaFeOilService,
@@ -169,7 +170,7 @@ void main() {
       final card = operations.findOperationCard(samples.oilChangeOperation.id);
       expect(find.descendant(of: card, matching: find.text('Updated oil change')), findsOneWidget);
       expect(
-        find.descendant(of: card, matching: find.text('Updated oil instructions')),
+        find.descendant(of: card, matching: find.text(samples.oilChangeOperation.details)),
         findsOneWidget,
       );
       expect(find.descendant(of: card, matching: find.text(schedule.name)), findsNothing);

@@ -11,6 +11,189 @@ import '../../robots.dart';
 
 void main() {
   group('OperationFormScreen', () {
+    testWidgets('empty name shows all vehicle suggestions with intervals and scrolls', (
+      tester,
+    ) async {
+      final schedules = [
+        samples.oilChange,
+        for (var i = 0; i < 12; i++)
+          Schedule(
+            id: 'inspection-$i',
+            vehicleId: samples.santaFe.id,
+            name: 'Inspection $i',
+            intervalDistance: null,
+            intervalMonths: 6,
+            details: '',
+          ),
+      ];
+      final harness = Harness(initialSchedules: [...schedules, samples.tireRotation]);
+      final form = OperationFormRobot(tester);
+      await harness.pumpForm(tester);
+
+      await form.focusName();
+
+      for (final schedule in schedules) {
+        expect(form.findScheduleSuggestion(schedule.id), findsOneWidget);
+      }
+      expect(form.findScheduleSuggestion(samples.tireRotation.id), findsNothing);
+      expect(
+        form.findSuggestionText(samples.oilChange.id, 'Every 10,000 km / 12 mo'),
+        findsOneWidget,
+      );
+      await form.selectSchedule(schedules.last.id);
+      expect(form.name, equals(schedules.last.name));
+      expect(form.findSummaryText('Every 6 mo'), findsOneWidget);
+    });
+
+    testWidgets('filters suggestions and supports keyboard selection', (tester) async {
+      final second = Schedule(
+        id: 'oil-inspection',
+        vehicleId: samples.santaFe.id,
+        name: 'Oil inspection',
+        intervalDistance: 5000,
+        intervalMonths: null,
+        details: '',
+      );
+      final harness = Harness(initialSchedules: [samples.oilChange, second]);
+      final form = OperationFormRobot(tester);
+      await harness.pumpForm(tester);
+      await form.enterName('OIL');
+      await tester.pumpAndSettle();
+      expect(form.findScheduleSuggestion(samples.oilChange.id), findsOneWidget);
+      expect(form.findScheduleSuggestion(second.id), findsOneWidget);
+
+      await form.selectNextSuggestionWithKeyboard();
+      expect(form.isSuggestionHighlighted(second.id), isTrue);
+      await form.confirmSuggestionWithKeyboard();
+      expect(form.name, equals(second.name));
+      expect(form.findSummaryText('Every 5,000 km'), findsOneWidget);
+      await form.enterName('unmatched work');
+      await tester.pumpAndSettle();
+      expect(form.findScheduleSuggestion(second.id), findsNothing);
+      expect(form.findScheduleSummary, findsNothing);
+    });
+
+    for (final details in ['  Replaced with synthetic oil  ', '', '   ']) {
+      testWidgets('selected schedule saves independent details "$details"', (tester) async {
+        final harness = Harness(initialSchedules: [samples.oilChange]);
+        final form = OperationFormRobot(tester);
+        await harness.pumpForm(tester);
+        await form.enterDetails(details);
+        await form.focusName();
+        await form.selectSchedule(samples.oilChange.id);
+
+        expect(form.findSummaryText('Every 10,000 km / 12 mo'), findsOneWidget);
+        expect(form.findSummaryText(samples.oilChange.details), findsOneWidget);
+        expect(form.details, equals(details));
+        expect(form.detailsEnabled, isTrue);
+        await form.saveForm(pump: .settle);
+
+        expect(await harness.result, isTrue);
+        final operation = harness.repo.operations.values.single;
+        expect(operation.scheduleId, equals(samples.oilChange.id));
+        expect(operation.name, equals(samples.oilChange.name));
+        expect(operation.details, equals(details.trim()));
+        expect(
+          (await harness.repo.list(operation.serviceId)).single.details,
+          equals(details.trim()),
+        );
+      });
+    }
+
+    testWidgets('scheduled submission failure retains selection and details for retry', (
+      tester,
+    ) async {
+      final harness = Harness(initialSchedules: [samples.oilChange]);
+      final form = OperationFormRobot(tester);
+      await harness.pumpForm(tester);
+      await form.focusName();
+      await form.selectSchedule(samples.oilChange.id);
+      await form.enterDetails('  Independent notes  ');
+      final pending = harness.repo.pauseNextCreate();
+      await form.saveForm(pump: .none);
+      await form.saveForm();
+      expect(form.nameEnabled, isFalse);
+      expect(form.detailsEnabled, isFalse);
+      expect(form.saveButton.enabled, isFalse);
+      expect(harness.repo.operations, isEmpty);
+      pending.completeError(Exception('Network error'));
+      await tester.pumpAndSettle();
+      expect(form.findSaveError, findsOneWidget);
+      expect(form.findSummaryText(samples.oilChange.details), findsOneWidget);
+      expect(form.details, equals('  Independent notes  '));
+      expect(form.detailsEnabled, isTrue);
+      await form.saveForm(pump: .settle);
+      expect(await harness.result, isTrue);
+      expect(harness.repo.operations, hasLength(1));
+      expect(harness.repo.operations.values.single.scheduleId, equals(samples.oilChange.id));
+      expect(harness.repo.operations.values.single.details, equals('Independent notes'));
+    });
+
+    testWidgets('editing a selection clears summary and saves custom work with retained details', (
+      tester,
+    ) async {
+      final harness = Harness(initialSchedules: [samples.oilChange]);
+      final form = OperationFormRobot(tester);
+      await harness.pumpForm(tester);
+      await form.focusName();
+      await form.selectSchedule(samples.oilChange.id);
+      await form.enterDetails('  My operation notes  ');
+      await form.enterName('  Custom oil work  ');
+      expect(form.findScheduleSummary, findsNothing);
+      expect(form.details, equals('  My operation notes  '));
+      await form.saveForm(pump: .settle);
+      final operation = harness.repo.operations.values.single;
+      expect(operation.scheduleId, isNull);
+      expect(operation.name, equals('Custom oil work'));
+      expect(operation.details, equals('My operation notes'));
+    });
+
+    testWidgets('typing a schedule name without selecting keeps work custom', (tester) async {
+      final harness = Harness(initialSchedules: [samples.oilChange]);
+      final form = OperationFormRobot(tester);
+      await harness.pumpForm(tester);
+      await form.enterName(samples.oilChange.name);
+      await form.enterDetails('Independent notes');
+      await form.saveForm(pump: .settle);
+      expect(harness.repo.operations.values.single.scheduleId, isNull);
+      expect(form.findScheduleSummary, findsNothing);
+    });
+
+    testWidgets('schedule loading failure can retry without losing operation inputs', (
+      tester,
+    ) async {
+      final harness = Harness(initialSchedules: [samples.oilChange]);
+      final pending = harness.scheduleRepo.pauseNextList();
+      final form = OperationFormRobot(tester);
+      await harness.pumpForm(tester, pump: .frame);
+      await tester.pump(const Duration(seconds: 1));
+      expect(form.findSuggestionsLoading, findsOneWidget);
+      await form.enterDetails('My notes');
+      pending.completeError(Exception('Network error'));
+      await tester.pumpAndSettle();
+      expect(form.findSuggestionsError, findsOneWidget);
+      expect(form.details, equals('My notes'));
+      await form.retrySuggestions();
+      expect(form.findSuggestionsError, findsNothing);
+      await form.focusName();
+      await form.selectSchedule(samples.oilChange.id);
+      expect(form.details, equals('My notes'));
+    });
+
+    testWidgets('suggestion failure still allows custom creation', (tester) async {
+      final harness = Harness();
+      final pending = harness.scheduleRepo.pauseNextList();
+      final form = OperationFormRobot(tester);
+      await harness.pumpForm(tester, pump: .frame);
+      pending.completeError(Exception('Network error'));
+      await tester.pumpAndSettle();
+      await form.enterName('Custom work');
+      await form.enterDetails('My notes');
+      await form.saveForm(pump: .settle);
+      expect(await harness.result, isTrue);
+      expect(harness.repo.operations.values.single.details, equals('My notes'));
+    });
+
     for (final name in ['', '   ']) {
       testWidgets('rejects a blank name "$name"', (tester) async {
         final harness = Harness();
@@ -161,18 +344,25 @@ void main() {
 
 class Harness({
   final VehicleService? vehicleService,
-  Iterable<Operation> initialOperations = const [],
+  final Iterable<Operation> initialOperations = const [],
+  Iterable<Schedule> initialSchedules = const [],
 }) {
-  final repo = InMemoryOperationRepo(initialOperations: initialOperations);
+  final scheduleRepo = InMemoryScheduleRepo(initialSchedules: initialSchedules);
+  final serviceRepo = InMemoryServiceRepo(initialServices: samples.sampleServices);
+  late final repo = InMemoryOperationRepo(
+    initialOperations: initialOperations,
+    scheduleRepo: scheduleRepo,
+    serviceRepo: serviceRepo,
+  );
   final _navigatorKey = GlobalKey<NavigatorState>();
   late Future<bool?> result;
 
-  Future<void> pumpForm(WidgetTester tester) async {
+  Future<void> pumpForm(WidgetTester tester, {PumpMode pump = .settle}) async {
     await tester.pumpWidget(
       RepositoryProvider(
         vehicleRepo: InMemoryVehicleRepo(),
-        scheduleRepo: InMemoryScheduleRepo(),
-        serviceRepo: InMemoryServiceRepo(),
+        scheduleRepo: scheduleRepo,
+        serviceRepo: serviceRepo,
         operationRepo: repo,
         child: MaterialApp(navigatorKey: _navigatorKey, home: const Scaffold()),
       ),
@@ -186,6 +376,6 @@ class Harness({
         ),
       ),
     );
-    await tester.pumpAndSettle();
+    await OperationFormRobot(tester).pumpAfterAction(pump);
   }
 }

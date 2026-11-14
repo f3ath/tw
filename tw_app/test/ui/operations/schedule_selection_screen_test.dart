@@ -106,7 +106,7 @@ void main() {
       expect(operation.serviceId, equals(samples.santaFeOilService.id));
       expect(operation.scheduleId, equals(samples.oilChange.id));
       expect(operation.name, equals(samples.oilChange.name));
-      expect(operation.details, equals(samples.oilChange.details));
+      expect(operation.details, isEmpty);
     });
 
     testWidgets('Back returns without creating work', (tester) async {

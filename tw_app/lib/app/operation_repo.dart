@@ -5,5 +5,9 @@ abstract interface class OperationRepo {
 
   Future<void> create(String serviceId, {required String name, String details = ''});
 
-  Future<void> createFromSchedule(String serviceId, {required String scheduleId});
+  Future<void> createFromSchedule(
+    String serviceId, {
+    required String scheduleId,
+    String details = '',
+  });
 }

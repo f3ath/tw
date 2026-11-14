@@ -1,3 +1,4 @@
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:shared/model.dart';
@@ -14,6 +15,8 @@ import 'package:tw_app/ui/services/service_card.dart';
 import 'package:tw_app/ui/services/service_delete_dialog.dart';
 import 'package:tw_app/ui/operations/operation_screen.dart';
 import 'package:tw_app/ui/operations/operation_form_screen.dart';
+import 'package:tw_app/ui/schedules/schedule_autocomplete_item.dart';
+import 'package:tw_app/ui/schedules/schedule_summary.dart';
 import 'package:tw_app/ui/operations/schedule_selection_screen.dart';
 
 final findWelcomeScreen = find.byType(WelcomeScreen);
@@ -410,6 +413,51 @@ class OperationFormRobot(super.tester) extends TestRobot {
   String? get nameError => tester.state<FormFieldState<String>>(findNameField).errorText;
   bool get nameEnabled => tester.widget<TextFormField>(findNameField).enabled;
   bool get detailsEnabled => tester.widget<TextFormField>(findDetailsField).enabled;
+
+  final findScheduleSummary = find.byType(ScheduleSummary);
+  final findSuggestionsLoading = find.byKey(OperationFormScreen.suggestionsLoadingKey);
+  final findSuggestionsError = find.byKey(OperationFormScreen.suggestionsErrorKey);
+
+  Finder findScheduleSuggestion(String id) => find.byWidgetPredicate(
+    (widget) => widget is ScheduleAutocompleteItem && widget.schedule.id == id,
+  );
+
+  Finder findSummaryText(String text) =>
+      find.descendant(of: findScheduleSummary, matching: find.text(text));
+
+  Finder findSuggestionText(String id, String text) =>
+      find.descendant(of: findScheduleSuggestion(id), matching: find.text(text));
+
+  bool isSuggestionHighlighted(String id) =>
+      tester.widget<ScheduleAutocompleteItem>(findScheduleSuggestion(id)).highlighted;
+
+  Future<void> focusName() async {
+    await tester.ensureVisible(findNameField);
+    await tester.tap(findNameField);
+    await tester.pumpAndSettle();
+  }
+
+  Future<void> selectSchedule(String id) async {
+    final suggestion = findScheduleSuggestion(id);
+    await tester.ensureVisible(suggestion);
+    await tester.tap(suggestion);
+    await tester.pumpAndSettle();
+  }
+
+  Future<void> selectNextSuggestionWithKeyboard() async {
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+    await tester.pumpAndSettle();
+  }
+
+  Future<void> confirmSuggestionWithKeyboard() async {
+    await tester.testTextInput.receiveAction(TextInputAction.next);
+    await tester.pumpAndSettle();
+  }
+
+  Future<void> retrySuggestions({PumpMode pump = .settle}) async {
+    await tester.tap(find.byKey(OperationFormScreen.suggestionsRetryKey));
+    await pumpAfterAction(pump);
+  }
 
   Future<void> enterName(String value) => _enterText(findNameField, value);
   Future<void> enterDetails(String value) => _enterText(findDetailsField, value);

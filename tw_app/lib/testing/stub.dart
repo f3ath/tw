@@ -273,7 +273,11 @@ class InMemoryOperationRepo({
   }
 
   @override
-  Future<void> createFromSchedule(String serviceId, {required String scheduleId}) async {
+  Future<void> createFromSchedule(
+    String serviceId, {
+    required String scheduleId,
+    String details = '',
+  }) async {
     await _createGate.wait();
     final service = _serviceRepo.services[serviceId];
     if (service == null) throw Exception('Service not found');
@@ -288,12 +292,7 @@ class InMemoryOperationRepo({
     )) {
       throw Exception('Schedule already recorded in this service');
     }
-    _addOperation(
-      serviceId,
-      name: schedule.name,
-      details: schedule.details,
-      scheduleId: schedule.id,
-    );
+    _addOperation(serviceId, name: schedule.name, details: details, scheduleId: schedule.id);
   }
 
   Operation _resolveSchedule(Operation operation) {
@@ -304,7 +303,7 @@ class InMemoryOperationRepo({
       serviceId: operation.serviceId,
       scheduleId: operation.scheduleId,
       name: schedule.name,
-      details: schedule.details,
+      details: operation.details,
     );
   }
 

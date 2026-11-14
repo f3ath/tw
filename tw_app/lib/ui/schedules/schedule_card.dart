@@ -1,5 +1,6 @@
 import 'package:material_ui/material_ui.dart';
 import 'package:shared/model.dart';
+import 'package:tw_app/ui/schedules/schedule_interval.dart';
 
 class const ScheduleCard({
   super.key,
@@ -11,7 +12,11 @@ class const ScheduleCard({
 
   @override
   Widget build(BuildContext context) {
-    final interval = _formatInterval(schedule, distanceUnit, MaterialLocalizations.of(context));
+    final interval = formatScheduleInterval(
+      schedule,
+      distanceUnit,
+      MaterialLocalizations.of(context),
+    );
     return Card(
       child: ListTile(
         title: Text(schedule.name),
@@ -59,13 +64,3 @@ class const ScheduleCard({
 }
 
 enum ScheduleAction { edit, delete }
-
-String _formatInterval(Schedule schedule, DistanceUnit unit, MaterialLocalizations localizations) {
-  final distance = schedule.intervalDistance;
-  final months = schedule.intervalMonths;
-  final intervals = [
-    if (distance != null) '${localizations.formatDecimal(distance)} ${unit.name}',
-    if (months != null) '$months mo',
-  ];
-  return intervals.isEmpty ? '' : 'Every ${intervals.join(' / ')}';
-}
