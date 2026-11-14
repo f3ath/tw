@@ -130,6 +130,132 @@ void main() {
       expectOperationsVisible(tester, [samples.tireRotationOperation]);
     });
 
+    group('New Operation', () {
+      for (final service in samples.sampleServices) {
+        final vehicle = samples.sampleVehicles.singleWhere(
+          (vehicle) => vehicle.id == service.vehicleId,
+        );
+
+        testWidgets('opens the ${service.id} form and Back skips refresh', (tester) async {
+          final harness = Harness(
+            vehicle: vehicle,
+            service: service,
+            initialOperations: samples.sampleOperations,
+          );
+          final operations = OperationRobot(tester);
+          final form = OperationFormRobot(tester);
+          await harness.pumpLoadedScreen(tester);
+
+          await operations.tapNewOperation();
+
+          expect(findOperationFormScreen, findsOneWidget);
+          expect(findOperationScreen, findsNothing);
+          expect(find.text(vehicle.name), findsOneWidget);
+          final labels = MaterialLocalizations.of(tester.element(findOperationFormScreen));
+          expect(find.text(labels.formatShortDate(service.date)), findsOneWidget);
+          await form.enterName('Unsaved work');
+
+          await tester.pageBack();
+          await tester.pumpAndSettle();
+
+          expect(findOperationFormScreen, findsNothing);
+          expect(findOperationScreen, findsOneWidget);
+          expect(harness.repo.listCalls, equals(1));
+          expect(harness.repo.operations, hasLength(samples.sampleOperations.length));
+          expectOperationsVisible(
+            tester,
+            samples.sampleOperations.where((operation) => operation.serviceId == service.id),
+          );
+        });
+
+        testWidgets('saving new work refreshes only ${service.id} operations', (tester) async {
+          final harness = Harness(
+            vehicle: vehicle,
+            service: service,
+            initialOperations: samples.sampleOperations,
+          );
+          final operations = OperationRobot(tester);
+          final form = OperationFormRobot(tester);
+          await harness.pumpLoadedScreen(tester);
+          await operations.tapNewOperation();
+          await form.enterName('  Inspection  ');
+          await form.enterDetails('  Check brakes  ');
+          final refresh = harness.repo.pauseNextList();
+
+          await form.saveForm();
+          await tester.pump(const Duration(seconds: 1));
+
+          expect(findOperationFormScreen, findsNothing);
+          expect(find.byKey(OperationScreen.loadingIndicatorKey), findsOneWidget);
+          expect(harness.repo.listCalls, equals(2));
+          refresh.complete();
+          await tester.pumpAndSettle();
+
+          final created = harness.repo.operations.values.singleWhere(
+            (operation) => operation.name == 'Inspection',
+          );
+          expect(created.serviceId, equals(service.id));
+          expect(created.details, equals('Check brakes'));
+          expect(created.scheduleId, isNull);
+          expectOperationsVisible(tester, [
+            ...samples.sampleOperations.where((operation) => operation.serviceId == service.id),
+            created,
+          ]);
+          for (final other in samples.sampleOperations.where(
+            (operation) => operation.serviceId != service.id,
+          )) {
+            expect(operations.findOperationCard(other.id), findsNothing);
+          }
+        });
+      }
+
+      testWidgets('creating the first operation replaces the empty state', (tester) async {
+        final harness = Harness(vehicle: samples.santaFe, service: samples.santaFeOilService);
+        final operations = OperationRobot(tester);
+        final form = OperationFormRobot(tester);
+        await harness.pumpLoadedScreen(tester);
+        expect(find.byKey(OperationScreen.emptyTextKey), findsOneWidget);
+        await operations.tapNewOperation();
+        await form.enterName('Inspection');
+
+        await form.saveForm(pump: .settle);
+
+        expect(findOperationFormScreen, findsNothing);
+        expect(find.byKey(OperationScreen.emptyTextKey), findsNothing);
+        expect(harness.repo.operations, hasLength(1));
+        expectOperationsVisible(tester, harness.repo.operations.values);
+        expect(harness.repo.listCalls, equals(2));
+      });
+
+      testWidgets('failed save refreshes only after retry succeeds', (tester) async {
+        final harness = Harness(vehicle: samples.santaFe, service: samples.santaFeOilService);
+        final operations = OperationRobot(tester);
+        final form = OperationFormRobot(tester);
+        await harness.pumpLoadedScreen(tester);
+        await operations.tapNewOperation();
+        await form.enterName('Inspection');
+        final pending = harness.repo.pauseNextCreate();
+
+        await form.saveForm();
+        pending.completeError(Exception('Network error'));
+        await tester.pumpAndSettle();
+
+        expect(findOperationFormScreen, findsOneWidget);
+        expect(form.findSaveError, findsOneWidget);
+        expect(form.name, equals('Inspection'));
+        expect(harness.repo.listCalls, equals(1));
+        expect(harness.repo.operations, isEmpty);
+
+        await form.saveForm(pump: .settle);
+
+        expect(findOperationFormScreen, findsNothing);
+        expect(findOperationScreen, findsOneWidget);
+        expect(harness.repo.listCalls, equals(2));
+        expect(harness.repo.operations, hasLength(1));
+        expectOperationsVisible(tester, harness.repo.operations.values);
+      });
+    });
+
     for (final fails in [false, true]) {
       testWidgets('can leave while a request later ${fails ? 'fails' : 'succeeds'}', (
         tester,

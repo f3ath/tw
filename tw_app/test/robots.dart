@@ -350,6 +350,13 @@ class ServiceRobot(super.tester) extends TestRobot {
 }
 
 class OperationRobot(super.tester) extends TestRobot {
+  final findNewOperationButton = find.byKey(OperationScreen.addButtonKey);
+
+  Future<void> tapNewOperation({PumpMode pump = .settle}) async {
+    await tester.tap(findNewOperationButton);
+    await pumpAfterAction(pump);
+  }
+
   Service get selectedService =>
       tester.widget<OperationScreen>(findOperationScreen).vehicleService.service;
   final findVehicleNameText = find.byKey(OperationScreen.vehicleNameTextKey);

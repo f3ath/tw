@@ -4,6 +4,7 @@ import 'package:tw_app/app/vehicle_service.dart';
 import 'package:shared/model.dart';
 import 'package:tw_app/app/operation_repo.dart';
 import 'package:tw_app/ui/operations/operation_card.dart';
+import 'package:tw_app/ui/operations/operation_form_screen.dart';
 import 'package:tw_app/ui/list_view_model.dart';
 import 'package:tw_app/ui/loading_view.dart';
 import 'package:tw_app/ui/error_retry_view.dart';
@@ -16,6 +17,7 @@ class const OperationScreen({super.key, required final VehicleService vehicleSer
   static const errorTextKey = ValueKey('operations-error-text');
   static const emptyTextKey = ValueKey('operations-empty-text');
   static const retryButtonKey = ValueKey('operations-retry-button');
+  static const addButtonKey = ValueKey('operations-add-button');
   static ValueKey<String> operationKey(String id) => ValueKey('operation-$id');
 
   @override
@@ -95,8 +97,21 @@ class _OperationScreenState extends State<OperationScreen> {
         );
       },
     ),
+    floatingActionButton: FloatingActionButton.extended(
+      key: OperationScreen.addButtonKey,
+      icon: const Icon(Icons.add),
+      label: const Text('New Operation'),
+      onPressed: _openOperationForm,
+    ),
   );
 
   OperationCard _buildOperationCard(Operation operation) =>
       OperationCard(key: OperationScreen.operationKey(operation.id), operation: operation);
+
+  Future<void> _openOperationForm() async {
+    final refresh = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(builder: (_) => OperationFormScreen(vehicleService: widget.vehicleService)),
+    );
+    if (refresh == true && mounted) await _model.load();
+  }
 }
