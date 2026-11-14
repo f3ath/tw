@@ -3,6 +3,8 @@ import 'package:shared/model.dart';
 import 'package:tw_app/app/operation_repo.dart';
 import 'package:tw_app/ui/operations/operation_card.dart';
 import 'package:tw_app/ui/list_view_model.dart';
+import 'package:tw_app/ui/loading_view.dart';
+import 'package:tw_app/ui/error_retry_view.dart';
 
 class const OperationScreen({
   super.key,
@@ -55,23 +57,14 @@ class _OperationScreenState extends State<OperationScreen> {
       listenable: _model,
       builder: (_, _) {
         if (_model.isLoading) {
-          return const Center(
-            child: CircularProgressIndicator(key: OperationScreen.loadingIndicatorKey),
-          );
+          return const LoadingView(indicatorKey: OperationScreen.loadingIndicatorKey);
         }
         if (_model.hasError) {
-          return Center(
-            child: Column(
-              mainAxisSize: .min,
-              children: [
-                const Text('Error loading operations', key: OperationScreen.errorTextKey),
-                FilledButton(
-                  key: OperationScreen.retryButtonKey,
-                  onPressed: _model.load,
-                  child: const Text('Retry'),
-                ),
-              ],
-            ),
+          return ErrorRetryView(
+            message: 'Error loading operations',
+            errorTextKey: OperationScreen.errorTextKey,
+            retryButtonKey: OperationScreen.retryButtonKey,
+            onRetry: _model.load,
           );
         }
         if (_model.items.isEmpty) {

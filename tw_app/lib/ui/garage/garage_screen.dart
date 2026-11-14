@@ -7,6 +7,8 @@ import 'package:tw_app/app/service_repo.dart';
 import 'package:tw_app/app/operation_repo.dart';
 import 'package:tw_app/time/clock.dart';
 import 'package:tw_app/ui/list_view_model.dart';
+import 'package:tw_app/ui/loading_view.dart';
+import 'package:tw_app/ui/error_retry_view.dart';
 import 'package:tw_app/ui/garage/vehicle_card.dart';
 import 'package:tw_app/ui/schedules/schedule_screen.dart';
 import 'package:tw_app/ui/services/service_screen.dart';
@@ -79,22 +81,15 @@ class _GarageScreenState extends State<GarageScreen> {
       listenable: _model,
       builder: (_, _) {
         if (_model.isLoading) {
-          return const Center(
-            child: CircularProgressIndicator(key: GarageScreen.loadingIndicatorKey),
-          );
+          return const LoadingView(indicatorKey: GarageScreen.loadingIndicatorKey);
         }
         if (_model.hasError) {
-          return Center(
-            child: Column(
-              children: [
-                Text('Error loading vehicles', key: GarageScreen.errorTextKey),
-                FilledButton(
-                  key: GarageScreen.retryButtonKey,
-                  onPressed: _model.load,
-                  child: Text('Retry'),
-                ),
-              ],
-            ),
+          return ErrorRetryView(
+            message: 'Error loading vehicles',
+            errorTextKey: GarageScreen.errorTextKey,
+            retryButtonKey: GarageScreen.retryButtonKey,
+            onRetry: _model.load,
+            mainAxisSize: .max,
           );
         }
         if (_model.items.isEmpty) {

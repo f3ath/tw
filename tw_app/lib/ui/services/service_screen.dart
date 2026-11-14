@@ -5,6 +5,8 @@ import 'package:tw_app/app/operation_repo.dart';
 import 'package:tw_app/ui/operations/operation_screen.dart';
 import 'package:tw_app/ui/services/service_card.dart';
 import 'package:tw_app/ui/list_view_model.dart';
+import 'package:tw_app/ui/loading_view.dart';
+import 'package:tw_app/ui/error_retry_view.dart';
 import 'package:tw_app/ui/services/service_form_screen.dart';
 import 'package:tw_app/ui/services/service_delete_dialog.dart';
 
@@ -57,23 +59,14 @@ class _ServiceScreenState extends State<ServiceScreen> {
       listenable: _model,
       builder: (_, _) {
         if (_model.isLoading) {
-          return const Center(
-            child: CircularProgressIndicator(key: ServiceScreen.loadingIndicatorKey),
-          );
+          return const LoadingView(indicatorKey: ServiceScreen.loadingIndicatorKey);
         }
         if (_model.hasError) {
-          return Center(
-            child: Column(
-              mainAxisSize: .min,
-              children: [
-                const Text('Error loading services', key: ServiceScreen.errorTextKey),
-                FilledButton(
-                  key: ServiceScreen.retryButtonKey,
-                  onPressed: _model.load,
-                  child: const Text('Retry'),
-                ),
-              ],
-            ),
+          return ErrorRetryView(
+            message: 'Error loading services',
+            errorTextKey: ServiceScreen.errorTextKey,
+            retryButtonKey: ServiceScreen.retryButtonKey,
+            onRetry: _model.load,
           );
         }
         if (_model.items.isEmpty) {

@@ -52,7 +52,7 @@ Offline mode, synchronization, and advanced network behavior such as atomicity a
 - ScheduleRepo.list(vehicleId) is wired through main → TwApp → GarageScreen → ScheduleScreen. BackendScheduleRepo delegates to TwApiClient; ListViewModel<Schedule> owns loading/error/list state and is disposed with the screen. Rows show schedule names and optional details, with loading, error/retry, and empty states.
 - InMemoryScheduleRepo defaults to empty, accepts initialSchedules, filters by vehicle ID, counts list calls, and supports one-request pauseNextList and pauseNextCreate gates. ScheduleRepo.create(vehicleId, ...) is implemented by both adapters, returning Future<void>; the backend delegates to TwApiClient.createSchedule. The fake generates unique IDs without overwriting seeds. Sample schedules seed the fake backend and tests. Widget tests cover vehicle filtering, loading, empty results, retry, rebuild behavior, pending-request disposal, and garage navigation.
 - InMemoryVehicleRepo defaults to empty and accepts initialVehicles. pauseNextList/Create/Delete gates affect one request each. Sample users/vehicles live in lib/testing/samples.dart; the test harness and fake-backend setup seed explicitly.
-- Latest verification: all **136 tw_app tests pass** after extracting ListViewModel<T>; static analysis is clean. Builds were not rerun.
+- Latest verification: all **136 tw_app tests pass** after extracting shared LoadingView/ErrorRetryView widgets; static analysis is clean. Builds were not rerun.
 
 ## Next exercise
 
@@ -85,6 +85,8 @@ Vehicle form tests now live in test/ui/garage/vehicle_form_screen_test.dart with
 All in-memory repository pauseNext methods delegate to per-operation RequestGate instances in lib/testing/request_gate.dart. The helper consumes and clears the pending future before awaiting it, so only the next request pauses; errors propagate before reads/mutations. Named pause methods and call counters remain on the repositories.
 
 GarageScreen, ScheduleScreen, ServiceScreen, and OperationScreen use ListViewModel<T> from lib/ui/list_view_model.dart directly, providing repository fetch callbacks. It exposes items/isLoading/hasError/load(), copies loaded results into an unmodifiable list, clears errors on load, and suppresses completion notifications after disposal. Each screen owns model creation, initial loading, disposal, and its existing UI/navigation/mutation behavior. The four resource-specific view models were removed. Their existing screen tests remain; the garage view-model tests moved to test/ui/list_view_model_test.dart with an added immutable-results assertion.
+
+All four list screens use LoadingView and ErrorRetryView from lib/ui/. Existing screen-owned keys remain on the CircularProgressIndicator, error Text, and Retry FilledButton, preserving Robot/widget finder targets. ErrorRetryView accepts the message, keys, callback, and MainAxisSize (default min); GarageScreen supplies max to retain its previous error layout. Empty and list states remain in each screen. Existing screen tests cover loading and retry behavior without additional wrapper-specific tests.
 
 ## Next iteration — deferred work
 

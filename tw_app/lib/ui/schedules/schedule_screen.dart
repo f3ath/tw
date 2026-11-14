@@ -3,6 +3,8 @@ import 'package:shared/model.dart';
 import 'package:tw_app/ui/schedules/schedule_delete_dialog.dart';
 import 'package:tw_app/app/schedule_repo.dart';
 import 'package:tw_app/ui/list_view_model.dart';
+import 'package:tw_app/ui/loading_view.dart';
+import 'package:tw_app/ui/error_retry_view.dart';
 import 'package:tw_app/ui/schedules/schedule_card.dart';
 import 'package:tw_app/ui/schedules/schedule_form_screen.dart';
 
@@ -54,23 +56,14 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
       listenable: _model,
       builder: (_, _) {
         if (_model.isLoading) {
-          return const Center(
-            child: CircularProgressIndicator(key: ScheduleScreen.loadingIndicatorKey),
-          );
+          return const LoadingView(indicatorKey: ScheduleScreen.loadingIndicatorKey);
         }
         if (_model.hasError) {
-          return Center(
-            child: Column(
-              mainAxisSize: .min,
-              children: [
-                const Text('Error loading schedules', key: ScheduleScreen.errorTextKey),
-                FilledButton(
-                  key: ScheduleScreen.retryButtonKey,
-                  onPressed: _model.load,
-                  child: const Text('Retry'),
-                ),
-              ],
-            ),
+          return ErrorRetryView(
+            message: 'Error loading schedules',
+            errorTextKey: ScheduleScreen.errorTextKey,
+            retryButtonKey: ScheduleScreen.retryButtonKey,
+            onRetry: _model.load,
           );
         }
         if (_model.items.isEmpty) {
