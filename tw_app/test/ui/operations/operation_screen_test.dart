@@ -130,6 +130,52 @@ void main() {
       expectOperationsVisible(tester, [samples.tireRotationOperation]);
     });
 
+    testWidgets('shows newly recorded scheduled work for the selected service', (tester) async {
+      final harness = Harness(vehicle: samples.santaFe, service: samples.santaFeOilService);
+
+      await harness.repo.createFromSchedule(
+        samples.santaFeOilService.id,
+        scheduleId: samples.oilChange.id,
+      );
+      await harness.pumpLoadedScreen(tester);
+
+      final operation = harness.repo.operations.values.single;
+      expect(operation.serviceId, equals(samples.santaFeOilService.id));
+      expect(operation.scheduleId, equals(samples.oilChange.id));
+      expectOperationsVisible(tester, [operation]);
+      expect(find.text(samples.oilChange.name), findsOneWidget);
+      expect(find.text(samples.oilChange.details), findsOneWidget);
+    });
+
+    testWidgets('linked work uses current schedule text after editing', (tester) async {
+      final harness = Harness(
+        vehicle: samples.santaFe,
+        service: samples.santaFeOilService,
+        initialOperations: [samples.oilChangeOperation, samples.brakeInspectionOperation],
+      );
+      final schedule = samples.oilChange;
+      harness.scheduleRepo.schedules[schedule.id] = Schedule(
+        id: schedule.id,
+        vehicleId: schedule.vehicleId,
+        name: 'Updated oil change',
+        details: 'Updated oil instructions',
+        intervalDistance: schedule.intervalDistance,
+        intervalMonths: schedule.intervalMonths,
+      );
+
+      await harness.pumpLoadedScreen(tester);
+
+      final operations = OperationRobot(tester);
+      final card = operations.findOperationCard(samples.oilChangeOperation.id);
+      expect(find.descendant(of: card, matching: find.text('Updated oil change')), findsOneWidget);
+      expect(
+        find.descendant(of: card, matching: find.text('Updated oil instructions')),
+        findsOneWidget,
+      );
+      expect(find.descendant(of: card, matching: find.text(schedule.name)), findsNothing);
+      expectOperationsVisible(tester, [samples.brakeInspectionOperation]);
+    });
+
     group('New Operation', () {
       for (final service in samples.sampleServices) {
         final vehicle = samples.sampleVehicles.singleWhere(
@@ -298,15 +344,21 @@ void expectOperationsVisible(WidgetTester tester, Iterable<Operation> operations
 class Harness({
   required final Vehicle vehicle,
   required final Service service,
-  Iterable<Operation> initialOperations = const [],
+  final Iterable<Operation> initialOperations = const [],
 }) {
-  final repo = InMemoryOperationRepo(initialOperations: initialOperations);
+  final serviceRepo = InMemoryServiceRepo(initialServices: [service]);
+  final scheduleRepo = InMemoryScheduleRepo(initialSchedules: samples.sampleSchedules);
+  late final repo = InMemoryOperationRepo(
+    initialOperations: initialOperations,
+    serviceRepo: serviceRepo,
+    scheduleRepo: scheduleRepo,
+  );
 
   Future<void> pumpScreen(WidgetTester tester) => tester.pumpWidget(
     RepositoryProvider(
       vehicleRepo: InMemoryVehicleRepo(),
-      scheduleRepo: InMemoryScheduleRepo(),
-      serviceRepo: InMemoryServiceRepo(),
+      scheduleRepo: scheduleRepo,
+      serviceRepo: serviceRepo,
       operationRepo: repo,
       child: MaterialApp(
         home: OperationScreen(

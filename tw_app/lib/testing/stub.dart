@@ -237,8 +237,13 @@ class InMemoryServiceRepo({Iterable<Service> initialServices = const []}) implem
   }
 }
 
-class InMemoryOperationRepo({Iterable<Operation> initialOperations = const []})
-    implements OperationRepo {
+class InMemoryOperationRepo({
+  Iterable<Operation> initialOperations = const [],
+  InMemoryServiceRepo? serviceRepo,
+  InMemoryScheduleRepo? scheduleRepo,
+}) implements OperationRepo {
+  final _serviceRepo = serviceRepo ?? InMemoryServiceRepo();
+  final _scheduleRepo = scheduleRepo ?? InMemoryScheduleRepo();
   final operations = <String, Operation>{
     for (final operation in initialOperations) operation.id: operation,
   };
@@ -255,16 +260,70 @@ class InMemoryOperationRepo({Iterable<Operation> initialOperations = const []})
   Future<List<Operation>> list(String serviceId) async {
     listCalls++;
     await _listGate.wait();
-    return operations.values.where((operation) => operation.serviceId == serviceId).toList();
+    return operations.values
+        .where((operation) => operation.serviceId == serviceId)
+        .map(_resolveSchedule)
+        .toList();
   }
 
   @override
   Future<void> create(String serviceId, {required String name, String details = ''}) async {
     await _createGate.wait();
+    _addOperation(serviceId, name: name, details: details);
+  }
+
+  @override
+  Future<void> createFromSchedule(String serviceId, {required String scheduleId}) async {
+    await _createGate.wait();
+    final service = _serviceRepo.services[serviceId];
+    if (service == null) throw Exception('Service not found');
+    final schedule = _scheduleRepo.schedules[scheduleId];
+    if (schedule == null) throw Exception('Schedule not found');
+    if (schedule.vehicleId != service.vehicleId) {
+      throw Exception('Schedule belongs to another vehicle');
+    }
+    if (schedule.isArchived) throw Exception('Schedule is archived');
+    if (operations.values.any(
+      (operation) => operation.serviceId == serviceId && operation.scheduleId == scheduleId,
+    )) {
+      throw Exception('Schedule already recorded in this service');
+    }
+    _addOperation(
+      serviceId,
+      name: schedule.name,
+      details: schedule.details,
+      scheduleId: schedule.id,
+    );
+  }
+
+  Operation _resolveSchedule(Operation operation) {
+    final schedule = _scheduleRepo.schedules[operation.scheduleId];
+    if (schedule == null) return operation;
+    return Operation(
+      operation.id,
+      serviceId: operation.serviceId,
+      scheduleId: operation.scheduleId,
+      name: schedule.name,
+      details: schedule.details,
+    );
+  }
+
+  void _addOperation(
+    String serviceId, {
+    required String name,
+    required String details,
+    String? scheduleId,
+  }) {
     String id;
     do {
       id = 'operation-${_nextId++}';
     } while (operations.containsKey(id));
-    operations[id] = Operation(id, serviceId: serviceId, name: name, details: details);
+    operations[id] = Operation(
+      id,
+      serviceId: serviceId,
+      name: name,
+      details: details,
+      scheduleId: scheduleId,
+    );
   }
 }

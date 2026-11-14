@@ -22,13 +22,7 @@ void main() {
 
   runApp(
     fake
-        ? TwApp(
-            authService: stub.InMemoryAuthService(user: samples.sampleUser),
-            scheduleRepo: stub.InMemoryScheduleRepo(initialSchedules: samples.sampleSchedules),
-            serviceRepo: stub.InMemoryServiceRepo(initialServices: samples.sampleServices),
-            operationRepo: stub.InMemoryOperationRepo(initialOperations: samples.sampleOperations),
-            vehicleRepo: stub.InMemoryVehicleRepo(initialVehicles: samples.sampleVehicles),
-          )
+        ? _fakeApp()
         : TwApp(
             authService: BackendAuthService(
               authApi: ApiClientAdapter(twApiClient),
@@ -39,5 +33,21 @@ void main() {
             operationRepo: BackendOperationRepo(twApiClient),
             vehicleRepo: BackendVehicleRepo(twApiClient),
           ),
+  );
+}
+
+TwApp _fakeApp() {
+  final scheduleRepo = stub.InMemoryScheduleRepo(initialSchedules: samples.sampleSchedules);
+  final serviceRepo = stub.InMemoryServiceRepo(initialServices: samples.sampleServices);
+  return TwApp(
+    authService: stub.InMemoryAuthService(user: samples.sampleUser),
+    vehicleRepo: stub.InMemoryVehicleRepo(initialVehicles: samples.sampleVehicles),
+    scheduleRepo: scheduleRepo,
+    serviceRepo: serviceRepo,
+    operationRepo: stub.InMemoryOperationRepo(
+      initialOperations: samples.sampleOperations,
+      serviceRepo: serviceRepo,
+      scheduleRepo: scheduleRepo,
+    ),
   );
 }

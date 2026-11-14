@@ -14,6 +14,7 @@ import 'package:tw_app/ui/services/service_card.dart';
 import 'package:tw_app/ui/services/service_delete_dialog.dart';
 import 'package:tw_app/ui/operations/operation_screen.dart';
 import 'package:tw_app/ui/operations/operation_form_screen.dart';
+import 'package:tw_app/ui/operations/schedule_selection_screen.dart';
 
 final findWelcomeScreen = find.byType(WelcomeScreen);
 final findGarageScreen = find.byType(GarageScreen);
@@ -24,6 +25,7 @@ final findServiceScreen = find.byType(ServiceScreen);
 final findServiceFormScreen = find.byType(ServiceFormScreen);
 final findOperationScreen = find.byType(OperationScreen);
 final findOperationFormScreen = find.byType(OperationFormScreen);
+final findScheduleSelectionScreen = find.byType(ScheduleSelectionScreen);
 
 enum PumpMode { none, frame, settle }
 
@@ -369,6 +371,29 @@ class OperationRobot(super.tester) extends TestRobot {
 
   Future<void> tapRetry({PumpMode pump = .frame}) async {
     await tester.tap(find.byKey(OperationScreen.retryButtonKey));
+    await pumpAfterAction(pump);
+  }
+}
+
+class ScheduleSelectionRobot(super.tester) extends TestRobot {
+  final findSaveError = find.byKey(ScheduleSelectionScreen.errorSnackBarKey);
+  final findSavingIndicator = find.byKey(ScheduleSelectionScreen.savingIndicatorKey);
+
+  Finder findScheduleCard(String id) => find.byKey(ScheduleSelectionScreen.scheduleKey(id));
+
+  ListTile scheduleTile(String id) => tester.widget<ListTile>(
+    find.descendant(of: findScheduleCard(id), matching: find.byType(ListTile)),
+  );
+
+  Future<void> selectSchedule(String id, {PumpMode pump = .frame}) async {
+    final card = findScheduleCard(id);
+    await tester.ensureVisible(card);
+    await tester.tap(card);
+    await pumpAfterAction(pump);
+  }
+
+  Future<void> tapRetry({PumpMode pump = .frame}) async {
+    await tester.tap(find.byKey(ScheduleSelectionScreen.retryButtonKey));
     await pumpAfterAction(pump);
   }
 }

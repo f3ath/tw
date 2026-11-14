@@ -61,7 +61,7 @@ final oilChangeOperation = Operation(
   serviceId: santaFeOilService.id,
   scheduleId: oilChange.id,
   name: oilChange.name,
-  details: 'Replaced engine oil and filter',
+  details: oilChange.details,
 );
 
 final brakeInspectionOperation = Operation(
@@ -76,7 +76,7 @@ final tireRotationOperation = Operation(
   serviceId: fourRunnerTireService.id,
   scheduleId: tireRotation.id,
   name: tireRotation.name,
-  details: 'Rotated all four tires',
+  details: tireRotation.details,
 );
 
 final sampleOperations = List<Operation>.unmodifiable([

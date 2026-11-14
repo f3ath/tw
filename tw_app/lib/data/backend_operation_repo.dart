@@ -9,4 +9,9 @@ class BackendOperationRepo(final TwApiClient _client) implements OperationRepo {
   Future<void> create(String serviceId, {required String name, String details = ''}) async {
     await _client.createOperation(serviceId, name: name, details: details);
   }
+
+  @override
+  Future<void> createFromSchedule(String serviceId, {required String scheduleId}) async {
+    await _client.createOperation(serviceId, scheduleId: scheduleId);
+  }
 }
