@@ -55,3 +55,32 @@ final fourRunnerTireService = Service(
 );
 
 final sampleServices = List<Service>.unmodifiable([santaFeOilService, fourRunnerTireService]);
+
+final oilChangeOperation = Operation(
+  'operation-0',
+  serviceId: santaFeOilService.id,
+  scheduleId: oilChange.id,
+  name: oilChange.name,
+  details: 'Replaced engine oil and filter',
+);
+
+final brakeInspectionOperation = Operation(
+  'operation-1',
+  serviceId: santaFeOilService.id,
+  name: 'Brake inspection',
+  details: '',
+);
+
+final tireRotationOperation = Operation(
+  'operation-2',
+  serviceId: fourRunnerTireService.id,
+  scheduleId: tireRotation.id,
+  name: tireRotation.name,
+  details: 'Rotated all four tires',
+);
+
+final sampleOperations = List<Operation>.unmodifiable([
+  oilChangeOperation,
+  brakeInspectionOperation,
+  tireRotationOperation,
+]);

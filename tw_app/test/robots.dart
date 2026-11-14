@@ -12,6 +12,7 @@ import 'package:tw_app/ui/services/service_screen.dart';
 import 'package:tw_app/ui/services/service_form_screen.dart';
 import 'package:tw_app/ui/services/service_card.dart';
 import 'package:tw_app/ui/services/service_delete_dialog.dart';
+import 'package:tw_app/ui/operations/operation_screen.dart';
 
 final findWelcomeScreen = find.byType(WelcomeScreen);
 final findGarageScreen = find.byType(GarageScreen);
@@ -20,6 +21,7 @@ final findScheduleScreen = find.byType(ScheduleScreen);
 final findScheduleFormScreen = find.byType(ScheduleFormScreen);
 final findServiceScreen = find.byType(ServiceScreen);
 final findServiceFormScreen = find.byType(ServiceFormScreen);
+final findOperationScreen = find.byType(OperationScreen);
 
 enum PumpMode { none, frame, settle }
 
@@ -335,6 +337,15 @@ class ServiceRobot(super.tester) extends TestRobot {
 
   Future<void> tapRetry({PumpMode pump = .frame}) async {
     await tester.tap(find.byKey(ServiceScreen.retryButtonKey));
+    await pumpAfterAction(pump);
+  }
+}
+
+class OperationRobot(super.tester) extends TestRobot {
+  Finder findOperationCard(String id) => find.byKey(OperationScreen.operationKey(id));
+
+  Future<void> tapRetry({PumpMode pump = .frame}) async {
+    await tester.tap(find.byKey(OperationScreen.retryButtonKey));
     await pumpAfterAction(pump);
   }
 }
