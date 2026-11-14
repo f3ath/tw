@@ -1,24 +1,21 @@
 import 'package:material_ui/material_ui.dart';
-import 'package:shared/model.dart';
-import 'package:tw_app/app/operation_repo.dart';
 
-class OperationViewModel({required final OperationRepo _repo, required final String _serviceId})
-    extends ChangeNotifier {
+class ListViewModel<T>({required final Future<List<T>> Function() _fetch}) extends ChangeNotifier {
   var _isLoading = false;
   var _hasError = false;
   var _isDisposed = false;
-  var _operations = <Operation>[];
+  var _items = <T>[];
 
   bool get isLoading => _isLoading;
   bool get hasError => _hasError;
-  List<Operation> get operations => _operations;
+  List<T> get items => _items;
 
   Future<void> load() async {
     _isLoading = true;
     _hasError = false;
     notifyListeners();
     try {
-      _operations = List.unmodifiable(await _repo.list(_serviceId));
+      _items = List<T>.unmodifiable(await _fetch());
     } on Exception {
       _hasError = true;
     } finally {

@@ -4,7 +4,7 @@ import 'package:tw_app/app/service_repo.dart';
 import 'package:tw_app/app/operation_repo.dart';
 import 'package:tw_app/ui/operations/operation_screen.dart';
 import 'package:tw_app/ui/services/service_card.dart';
-import 'package:tw_app/ui/services/service_view_model.dart';
+import 'package:tw_app/ui/list_view_model.dart';
 import 'package:tw_app/ui/services/service_form_screen.dart';
 import 'package:tw_app/ui/services/service_delete_dialog.dart';
 
@@ -27,12 +27,12 @@ class const ServiceScreen({
 }
 
 class _ServiceScreenState extends State<ServiceScreen> {
-  late final ServiceViewModel _model;
+  late final ListViewModel<Service> _model;
 
   @override
   void initState() {
     super.initState();
-    _model = ServiceViewModel(repo: widget.repo, vehicleId: widget.vehicle.id);
+    _model = ListViewModel<Service>(fetch: () => widget.repo.list(widget.vehicle.id));
     _model.load();
   }
 
@@ -76,12 +76,12 @@ class _ServiceScreenState extends State<ServiceScreen> {
             ),
           );
         }
-        if (_model.services.isEmpty) {
+        if (_model.items.isEmpty) {
           return const Center(child: Text('No services yet', key: ServiceScreen.emptyTextKey));
         }
         return ListView.builder(
-          itemCount: _model.services.length,
-          itemBuilder: (_, index) => _buildServiceCard(_model.services[index]),
+          itemCount: _model.items.length,
+          itemBuilder: (_, index) => _buildServiceCard(_model.items[index]),
         );
       },
     ),

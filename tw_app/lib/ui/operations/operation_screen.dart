@@ -2,7 +2,7 @@ import 'package:material_ui/material_ui.dart';
 import 'package:shared/model.dart';
 import 'package:tw_app/app/operation_repo.dart';
 import 'package:tw_app/ui/operations/operation_card.dart';
-import 'package:tw_app/ui/operations/operation_view_model.dart';
+import 'package:tw_app/ui/list_view_model.dart';
 
 class const OperationScreen({
   super.key,
@@ -20,12 +20,12 @@ class const OperationScreen({
 }
 
 class _OperationScreenState extends State<OperationScreen> {
-  late final OperationViewModel _model;
+  late final ListViewModel<Operation> _model;
 
   @override
   void initState() {
     super.initState();
-    _model = OperationViewModel(repo: widget.repo, serviceId: widget.service.id);
+    _model = ListViewModel<Operation>(fetch: () => widget.repo.list(widget.service.id));
     _model.load();
   }
 
@@ -74,12 +74,12 @@ class _OperationScreenState extends State<OperationScreen> {
             ),
           );
         }
-        if (_model.operations.isEmpty) {
+        if (_model.items.isEmpty) {
           return const Center(child: Text('No operations yet', key: OperationScreen.emptyTextKey));
         }
         return ListView.builder(
-          itemCount: _model.operations.length,
-          itemBuilder: (_, index) => _buildOperationCard(_model.operations[index]),
+          itemCount: _model.items.length,
+          itemBuilder: (_, index) => _buildOperationCard(_model.items[index]),
         );
       },
     ),

@@ -2,7 +2,7 @@ import 'package:material_ui/material_ui.dart';
 import 'package:shared/model.dart';
 import 'package:tw_app/ui/schedules/schedule_delete_dialog.dart';
 import 'package:tw_app/app/schedule_repo.dart';
-import 'package:tw_app/ui/schedules/schedule_view_model.dart';
+import 'package:tw_app/ui/list_view_model.dart';
 import 'package:tw_app/ui/schedules/schedule_card.dart';
 import 'package:tw_app/ui/schedules/schedule_form_screen.dart';
 
@@ -24,12 +24,12 @@ class const ScheduleScreen({
 }
 
 class _ScheduleScreenState extends State<ScheduleScreen> {
-  late final ScheduleViewModel _model;
+  late final ListViewModel<Schedule> _model;
 
   @override
   void initState() {
     super.initState();
-    _model = ScheduleViewModel(repo: widget.repo, vehicleId: widget.vehicle.id);
+    _model = ListViewModel<Schedule>(fetch: () => widget.repo.list(widget.vehicle.id));
     _model.load();
   }
 
@@ -73,12 +73,12 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
             ),
           );
         }
-        if (_model.schedules.isEmpty) {
+        if (_model.items.isEmpty) {
           return const Center(child: Text('No schedules yet', key: ScheduleScreen.emptyTextKey));
         }
         return ListView.builder(
-          itemCount: _model.schedules.length,
-          itemBuilder: (_, index) => _buildScheduleCard(_model.schedules[index]),
+          itemCount: _model.items.length,
+          itemBuilder: (_, index) => _buildScheduleCard(_model.items[index]),
         );
       },
     ),

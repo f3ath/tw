@@ -6,7 +6,7 @@ import 'package:tw_app/app/schedule_repo.dart';
 import 'package:tw_app/app/service_repo.dart';
 import 'package:tw_app/app/operation_repo.dart';
 import 'package:tw_app/time/clock.dart';
-import 'package:tw_app/ui/garage/garage_view_model.dart';
+import 'package:tw_app/ui/list_view_model.dart';
 import 'package:tw_app/ui/garage/vehicle_card.dart';
 import 'package:tw_app/ui/schedules/schedule_screen.dart';
 import 'package:tw_app/ui/services/service_screen.dart';
@@ -39,12 +39,12 @@ class const GarageScreen({
 }
 
 class _GarageScreenState extends State<GarageScreen> {
-  late final GarageViewModel _model;
+  late final ListViewModel<Vehicle> _model;
 
   @override
   void initState() {
     super.initState();
-    _model = GarageViewModel(vehicleRepository: widget.vehicleRepo);
+    _model = ListViewModel<Vehicle>(fetch: widget.vehicleRepo.list);
     _model.load();
   }
 
@@ -97,12 +97,12 @@ class _GarageScreenState extends State<GarageScreen> {
             ),
           );
         }
-        if (_model.vehicles.isEmpty) {
+        if (_model.items.isEmpty) {
           return Center(child: Text('No vehicles yet', key: GarageScreen.emptyTextKey));
         }
         return ListView.builder(
-          itemCount: _model.vehicles.length,
-          itemBuilder: (_, index) => _buildVehicleCard(_model.vehicles[index]),
+          itemCount: _model.items.length,
+          itemBuilder: (_, index) => _buildVehicleCard(_model.items[index]),
         );
       },
     ),
@@ -117,7 +117,8 @@ class _GarageScreenState extends State<GarageScreen> {
   Future<void> _openVehicleForm({Vehicle? vehicle}) async {
     final refresh = await Navigator.of(context).push<bool>(
       MaterialPageRoute(
-        builder: (_) => VehicleFormScreen(repo: widget.vehicleRepo, clock: widget.clock, vehicle: vehicle),
+        builder: (_) =>
+            VehicleFormScreen(repo: widget.vehicleRepo, clock: widget.clock, vehicle: vehicle),
       ),
     );
     if (refresh == true && mounted) await _model.load();
