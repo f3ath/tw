@@ -52,7 +52,7 @@ Offline mode, synchronization, and advanced network behavior such as atomicity a
 - ScheduleRepo.list(vehicleId) is wired through main → TwApp → GarageScreen → ScheduleScreen. BackendScheduleRepo delegates to TwApiClient; ScheduleViewModel owns loading/error/list state and is disposed with the screen. Rows show schedule names and optional details, with loading, error/retry, and empty states.
 - InMemoryScheduleRepo defaults to empty, accepts initialSchedules, filters by vehicle ID, counts list calls, and supports one-request pauseNextList and pauseNextCreate gates. ScheduleRepo.create(vehicleId, ...) is implemented by both adapters, returning Future<void>; the backend delegates to TwApiClient.createSchedule. The fake generates unique IDs without overwriting seeds. Sample schedules seed the fake backend and tests. Widget tests cover vehicle filtering, loading, empty results, retry, rebuild behavior, pending-request disposal, and garage navigation.
 - InMemoryVehicleRepo defaults to empty and accepts initialVehicles. pauseNextList/Create/Delete gates affect one request each. Sample users/vehicles live in lib/testing/samples.dart; the test harness and fake-backend setup seed explicitly.
-- Latest verification: all **18 garage-screen tests pass** after adding the vehicle-card New Service shortcut; static analysis is clean. The 47 service-form/service-screen tests passed before this shortcut change. Other suites and builds were not rerun.
+- Latest verification: static analysis is clean after adding the operation-list port/adapters. Tests/builds were not rerun for these unwired additions. Previously, all **18 garage-screen tests** passed for the New Service shortcut and all **47 service-form/service-screen tests** passed for deletion.
 
 ## Next exercise
 
@@ -72,7 +72,9 @@ ServiceRepo.delete(serviceId) is implemented by BackendServiceRepo through TwApi
 
 VehicleCard has a visible keyed New Service button that emits VehicleAction.newService. GarageScreen owns navigation directly to ServiceFormScreen with the selected vehicle, ServiceRepo, and shared Clock. Saving or cancelling returns to the garage without reloading vehicles while due-services content remains a placeholder. GarageRobot.tapVehicleNewService(id) targets the per-vehicle button; garage widget tests cover both distance units, Back without creation/refresh, and saving a service that appears in the selected vehicle’s history.
 
-Recommended next: scheduled/custom service operations, starting with listing operations for a selected service.
+OperationRepo.list(serviceId) returns Future<List<Operation>>. BackendOperationRepo delegates to TwApiClient.listOperations. InMemoryOperationRepo defaults to empty, accepts initialOperations, filters by service ID, counts list calls, and supports pauseNextList() through RequestGate. The repository is not yet wired into the app; no dedicated fake/adapter tests were added, following the working agreement.
+
+Recommended next: an operations screen/view model with loading, error/retry, empty, and list states, followed by a service-card Operations action and repository wiring. Scheduled/custom operation mutations remain planned.
 
 Vehicle form tests now live in test/ui/garage/vehicle_form_screen_test.dart with a direct route harness that captures results. They cover isolated validation, creation values, pending-field disabling, creation failure/retry, edit identity/unit preservation, and edit failure/retry. Garage tests retain navigation and list refresh. InMemoryVehicleRepo supports pauseNextUpdate for application behavior tests. A remaining vehicle-test gap is deletion that succeeds server-side before the response fails. Both in-memory repositories use incrementing ID counters and skip existing IDs.
 

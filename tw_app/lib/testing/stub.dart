@@ -5,6 +5,7 @@ import 'package:tw_app/app/auth_service.dart';
 import 'package:tw_app/app/vehicle_repo.dart';
 import 'package:tw_app/app/schedule_repo.dart';
 import 'package:tw_app/app/service_repo.dart';
+import 'package:tw_app/app/operation_repo.dart';
 import 'package:tw_app/testing/request_gate.dart';
 
 class InMemoryAuthService({required final User _user}) implements AuthService {
@@ -231,5 +232,23 @@ class InMemoryServiceRepo({Iterable<Service> initialServices = const []}) implem
       odometer: odometer,
       details: details,
     );
+  }
+}
+
+class InMemoryOperationRepo({Iterable<Operation> initialOperations = const []})
+    implements OperationRepo {
+  final operations = <String, Operation>{
+    for (final operation in initialOperations) operation.id: operation,
+  };
+  var listCalls = 0;
+  final _listGate = RequestGate();
+
+  Completer<void> pauseNextList() => _listGate.pause();
+
+  @override
+  Future<List<Operation>> list(String serviceId) async {
+    listCalls++;
+    await _listGate.wait();
+    return operations.values.where((operation) => operation.serviceId == serviceId).toList();
   }
 }

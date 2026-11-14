@@ -7,11 +7,11 @@ import 'package:tw_app/app/tw_app.dart';
 import 'package:tw_app/data/auth/api_client_adapter.dart';
 import 'package:tw_app/data/auth/backend_auth_service.dart';
 import 'package:tw_app/data/auth/login_window/open_login_window.dart';
-import 'package:tw_app/data/backend_vehicle_repo.dart';
 import 'package:tw_app/data/backend_schedule_repo.dart';
 import 'package:tw_app/data/backend_service_repo.dart';
-import 'package:tw_app/testing/stub.dart' as stub;
+import 'package:tw_app/data/backend_vehicle_repo.dart';
 import 'package:tw_app/testing/samples.dart' as samples;
+import 'package:tw_app/testing/stub.dart' as stub;
 
 void main() {
   const fake = bool.fromEnvironment('FAKE');
@@ -20,19 +20,21 @@ void main() {
   final twApiClient = TwApiClient(uriDesign, handler);
 
   runApp(
-    TwApp(
-      authService: fake
-          ? stub.InMemoryAuthService(user: samples.sampleUser)
-          : BackendAuthService(authApi: ApiClientAdapter(twApiClient), newWindow: openLoginWindow),
-      scheduleRepo: fake
-          ? stub.InMemoryScheduleRepo(initialSchedules: samples.sampleSchedules)
-          : BackendScheduleRepo(twApiClient),
-      serviceRepo: fake
-          ? stub.InMemoryServiceRepo(initialServices: samples.sampleServices)
-          : BackendServiceRepo(twApiClient),
-      vehicleRepo: fake
-          ? stub.InMemoryVehicleRepo(initialVehicles: samples.sampleVehicles)
-          : BackendVehicleRepo(twApiClient),
-    ),
+    fake
+        ? TwApp(
+            authService: stub.InMemoryAuthService(user: samples.sampleUser),
+            scheduleRepo: stub.InMemoryScheduleRepo(initialSchedules: samples.sampleSchedules),
+            serviceRepo: stub.InMemoryServiceRepo(initialServices: samples.sampleServices),
+            vehicleRepo: stub.InMemoryVehicleRepo(initialVehicles: samples.sampleVehicles),
+          )
+        : TwApp(
+            authService: BackendAuthService(
+              authApi: ApiClientAdapter(twApiClient),
+              newWindow: openLoginWindow,
+            ),
+            scheduleRepo: BackendScheduleRepo(twApiClient),
+            serviceRepo: BackendServiceRepo(twApiClient),
+            vehicleRepo: BackendVehicleRepo(twApiClient),
+          ),
   );
 }
