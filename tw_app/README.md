@@ -52,7 +52,7 @@ Offline mode, synchronization, and advanced network behavior such as atomicity a
 - ScheduleRepo.list(vehicleId) is wired through main → TwApp → GarageScreen → ScheduleScreen. BackendScheduleRepo delegates to TwApiClient; ScheduleViewModel owns loading/error/list state and is disposed with the screen. Rows show schedule names and optional details, with loading, error/retry, and empty states.
 - InMemoryScheduleRepo defaults to empty, accepts initialSchedules, filters by vehicle ID, counts list calls, and supports one-request pauseNextList and pauseNextCreate gates. ScheduleRepo.create(vehicleId, ...) is implemented by both adapters, returning Future<void>; the backend delegates to TwApiClient.createSchedule. The fake generates unique IDs without overwriting seeds. Sample schedules seed the fake backend and tests. Widget tests cover vehicle filtering, loading, empty results, retry, rebuild behavior, pending-request disposal, and garage navigation.
 - InMemoryVehicleRepo defaults to empty and accepts initialVehicles. pauseNextList/Create/Delete gates affect one request each. Sample users/vehicles live in lib/testing/samples.dart; the test harness and fake-backend setup seed explicitly.
-- Latest verification: all **27 service-form tests and 9 service-screen tests pass** after adding form editing; static analysis is clean. Other suites and builds were not rerun for form editing.
+- Latest verification: all **109 tw_app tests pass** after extracting RequestGate; static analysis is clean. Builds were not rerun.
 
 ## Next exercise
 
@@ -71,6 +71,8 @@ ServiceRepo.update(serviceId, date:, odometer:, details:) returns Future<void>, 
 Recommended next: add an Edit action to service cards, open ServiceFormScreen with the selected service, and refresh history only after success. Service deletion and scheduled/custom service operations remain planned.
 
 Vehicle form tests now live in test/ui/garage/vehicle_form_screen_test.dart with a direct route harness that captures results. They cover isolated validation, creation values, pending-field disabling, creation failure/retry, edit identity/unit preservation, and edit failure/retry. Garage tests retain navigation and list refresh. InMemoryVehicleRepo supports pauseNextUpdate for application behavior tests. A remaining vehicle-test gap is deletion that succeeds server-side before the response fails. Both in-memory repositories use incrementing ID counters and skip existing IDs.
+
+All in-memory repository pauseNext methods delegate to per-operation RequestGate instances in lib/testing/request_gate.dart. The helper consumes and clears the pending future before awaiting it, so only the next request pauses; errors propagate before reads/mutations. Named pause methods and call counters remain on the repositories.
 
 ## Next iteration — deferred work
 

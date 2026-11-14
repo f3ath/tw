@@ -5,6 +5,7 @@ import 'package:tw_app/app/auth_service.dart';
 import 'package:tw_app/app/vehicle_repo.dart';
 import 'package:tw_app/app/schedule_repo.dart';
 import 'package:tw_app/app/service_repo.dart';
+import 'package:tw_app/testing/request_gate.dart';
 
 class InMemoryAuthService({required final User _user}) implements AuthService {
   @override
@@ -22,34 +23,18 @@ class InMemoryVehicleRepo({Iterable<Vehicle> initialVehicles = const []}) implem
   var listCalls = 0;
   var _nextId = 0;
 
-  Future<void>? _nextList;
-  Future<void>? _nextCreate;
-  Future<void>? _nextUpdate;
-  Future<void>? _nextDelete;
+  final _listGate = RequestGate();
+  final _createGate = RequestGate();
+  final _updateGate = RequestGate();
+  final _deleteGate = RequestGate();
 
-  Completer<void> pauseNextList() {
-    final c = Completer<void>();
-    _nextList = c.future;
-    return c;
-  }
+  Completer<void> pauseNextList() => _listGate.pause();
 
-  Completer<void> pauseNextCreate() {
-    final c = Completer<void>();
-    _nextCreate = c.future;
-    return c;
-  }
+  Completer<void> pauseNextCreate() => _createGate.pause();
 
-  Completer<void> pauseNextUpdate() {
-    final completer = Completer<void>();
-    _nextUpdate = completer.future;
-    return completer;
-  }
+  Completer<void> pauseNextUpdate() => _updateGate.pause();
 
-  Completer<void> pauseNextDelete() {
-    final c = Completer<void>();
-    _nextDelete = c.future;
-    return c;
-  }
+  Completer<void> pauseNextDelete() => _deleteGate.pause();
 
   @override
   Future<void> create({
@@ -57,9 +42,7 @@ class InMemoryVehicleRepo({Iterable<Vehicle> initialVehicles = const []}) implem
     required DateTime manufactureDate,
     required DistanceUnit distanceUnit,
   }) async {
-    final pending = _nextCreate;
-    _nextCreate = null;
-    await pending;
+    await _createGate.wait();
     String id;
     do {
       id = 'vehicle-${_nextId++}';
@@ -71,17 +54,13 @@ class InMemoryVehicleRepo({Iterable<Vehicle> initialVehicles = const []}) implem
   @override
   Future<List<Vehicle>> list() async {
     listCalls++;
-    final pending = _nextList;
-    _nextList = null;
-    await pending;
+    await _listGate.wait();
     return vehicles.values.toList();
   }
 
   @override
   Future<void> update(String id, {required String name, required DateTime manufactureDate}) async {
-    final pending = _nextUpdate;
-    _nextUpdate = null;
-    await pending;
+    await _updateGate.wait();
     final v = vehicles[id];
     if (v == null) {
       throw StateError('Vehicle not found');
@@ -96,9 +75,7 @@ class InMemoryVehicleRepo({Iterable<Vehicle> initialVehicles = const []}) implem
 
   @override
   Future<void> delete(String id) async {
-    final pending = _nextDelete;
-    _nextDelete = null;
-    await pending;
+    await _deleteGate.wait();
     if (vehicles.remove(id) == null) throw StateError('Invalid id');
   }
 }
@@ -109,42 +86,24 @@ class InMemoryScheduleRepo({Iterable<Schedule> initialSchedules = const []})
     for (final schedule in initialSchedules) schedule.id: schedule,
   };
   var listCalls = 0;
-  Future<void>? _nextList;
-  Future<void>? _nextCreate;
-  Future<void>? _nextUpdate;
-  Future<void>? _nextDelete;
+  final _listGate = RequestGate();
+  final _createGate = RequestGate();
+  final _updateGate = RequestGate();
+  final _deleteGate = RequestGate();
   var _nextId = 0;
 
-  Completer<void> pauseNextList() {
-    final completer = Completer<void>();
-    _nextList = completer.future;
-    return completer;
-  }
+  Completer<void> pauseNextList() => _listGate.pause();
 
-  Completer<void> pauseNextCreate() {
-    final completer = Completer<void>();
-    _nextCreate = completer.future;
-    return completer;
-  }
+  Completer<void> pauseNextCreate() => _createGate.pause();
 
-  Completer<void> pauseNextUpdate() {
-    final completer = Completer<void>();
-    _nextUpdate = completer.future;
-    return completer;
-  }
+  Completer<void> pauseNextUpdate() => _updateGate.pause();
 
-  Completer<void> pauseNextDelete() {
-    final completer = Completer<void>();
-    _nextDelete = completer.future;
-    return completer;
-  }
+  Completer<void> pauseNextDelete() => _deleteGate.pause();
 
   @override
   Future<List<Schedule>> list(String vehicleId) async {
     listCalls++;
-    final pending = _nextList;
-    _nextList = null;
-    await pending;
+    await _listGate.wait();
     return schedules.values.where((schedule) => schedule.vehicleId == vehicleId).toList();
   }
 
@@ -156,9 +115,7 @@ class InMemoryScheduleRepo({Iterable<Schedule> initialSchedules = const []})
     int? intervalMonths,
     String details = '',
   }) async {
-    final pending = _nextCreate;
-    _nextCreate = null;
-    await pending;
+    await _createGate.wait();
     String id;
     do {
       id = 'schedule-${_nextId++}';
@@ -181,9 +138,7 @@ class InMemoryScheduleRepo({Iterable<Schedule> initialSchedules = const []})
     required int? intervalMonths,
     required String details,
   }) async {
-    final pending = _nextUpdate;
-    _nextUpdate = null;
-    await pending;
+    await _updateGate.wait();
     final original = schedules[scheduleId];
     if (original == null) throw StateError('Schedule not found');
     schedules[scheduleId] = Schedule(
@@ -199,9 +154,7 @@ class InMemoryScheduleRepo({Iterable<Schedule> initialSchedules = const []})
 
   @override
   Future<void> delete(String scheduleId) async {
-    final pending = _nextDelete;
-    _nextDelete = null;
-    await pending;
+    await _deleteGate.wait();
     if (schedules.remove(scheduleId) == null) throw StateError('Schedule not found');
   }
 }
@@ -210,35 +163,21 @@ class InMemoryServiceRepo({Iterable<Service> initialServices = const []}) implem
   final services = <String, Service>{for (final service in initialServices) service.id: service};
   var listCalls = 0;
   var updateCalls = 0;
-  Future<void>? _nextList;
-  Future<void>? _nextCreate;
-  Future<void>? _nextUpdate;
+  final _listGate = RequestGate();
+  final _createGate = RequestGate();
+  final _updateGate = RequestGate();
   var _nextId = 0;
 
-  Completer<void> pauseNextList() {
-    final completer = Completer<void>();
-    _nextList = completer.future;
-    return completer;
-  }
+  Completer<void> pauseNextList() => _listGate.pause();
 
-  Completer<void> pauseNextCreate() {
-    final completer = Completer<void>();
-    _nextCreate = completer.future;
-    return completer;
-  }
+  Completer<void> pauseNextCreate() => _createGate.pause();
 
-  Completer<void> pauseNextUpdate() {
-    final completer = Completer<void>();
-    _nextUpdate = completer.future;
-    return completer;
-  }
+  Completer<void> pauseNextUpdate() => _updateGate.pause();
 
   @override
   Future<List<Service>> list(String vehicleId) async {
     listCalls++;
-    final pending = _nextList;
-    _nextList = null;
-    await pending;
+    await _listGate.wait();
     return services.values.where((service) => service.vehicleId == vehicleId).toList();
   }
 
@@ -249,9 +188,7 @@ class InMemoryServiceRepo({Iterable<Service> initialServices = const []}) implem
     required int odometer,
     String details = '',
   }) async {
-    final pending = _nextCreate;
-    _nextCreate = null;
-    await pending;
+    await _createGate.wait();
     String id;
     do {
       id = 'service-${_nextId++}';
@@ -273,9 +210,7 @@ class InMemoryServiceRepo({Iterable<Service> initialServices = const []}) implem
     required String details,
   }) async {
     updateCalls++;
-    final pending = _nextUpdate;
-    _nextUpdate = null;
-    await pending;
+    await _updateGate.wait();
     final original = services[serviceId];
     if (original == null) throw StateError('Service not found');
     services[serviceId] = Service(
