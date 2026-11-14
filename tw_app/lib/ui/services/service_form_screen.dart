@@ -7,11 +7,29 @@ class const ServiceFormScreen({
   super.key,
   required final Vehicle vehicle,
   final Clock clock = const Clock(),
-}) extends StatelessWidget {
+}) extends StatefulWidget {
   static const dateFieldKey = ValueKey('service-date-field');
   static const odometerFieldKey = ValueKey('service-odometer-field');
   static const detailsFieldKey = ValueKey('service-details-field');
   static const saveButtonKey = ValueKey('service-save-button');
+
+  @override
+  State<ServiceFormScreen> createState() => _ServiceFormScreenState();
+}
+
+class _ServiceFormScreenState extends State<ServiceFormScreen> {
+  final _detailsController = TextEditingController();
+
+  DateTime get _latestDate {
+    final now = widget.clock.now();
+    return DateTime(now.year, now.month, now.day + 7);
+  }
+
+  @override
+  void dispose() {
+    _detailsController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) => Scaffold(
@@ -21,34 +39,49 @@ class const ServiceFormScreen({
         child: ListView(
           padding: const EdgeInsets.all(10),
           children: [
-            Text(vehicle.name, style: Theme.of(context).textTheme.titleMedium),
+            Text(widget.vehicle.name, style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: 12),
             DateFormField(
-              key: dateFieldKey,
-              initialValue: clock.now(),
+              key: ServiceFormScreen.dateFieldKey,
+              initialValue: widget.clock.now(),
               firstDate: DateTime(1900),
-              lastDate: DateTime(2100),
+              lastDate: _latestDate,
+              validator: (value) {
+                if (value == null) return 'Please select a date';
+                final date = DateTime(value.year, value.month, value.day);
+                return date.isAfter(_latestDate) ? 'Choose a date no more than 7 days ahead' : null;
+              },
               decoration: const InputDecoration(labelText: 'Date'),
-              clock: clock,
+              clock: widget.clock,
             ),
             TextFormField(
-              key: odometerFieldKey,
+              key: ServiceFormScreen.odometerFieldKey,
+              validator: (value) {
+                final odometer = int.tryParse(value?.trim() ?? '');
+                return odometer == null || odometer < 0 ? 'Enter a nonnegative whole number' : null;
+              },
               decoration: InputDecoration(
                 labelText: 'Odometer',
-                suffixText: vehicle.distanceUnit.name,
+                suffixText: widget.vehicle.distanceUnit.name,
               ),
               keyboardType: TextInputType.number,
               textInputAction: TextInputAction.next,
             ),
             TextFormField(
-              key: detailsFieldKey,
+              key: ServiceFormScreen.detailsFieldKey,
+              controller: _detailsController,
+              onSaved: (value) => _detailsController.text = value?.trim() ?? '',
               decoration: const InputDecoration(labelText: 'Details (optional)'),
               textCapitalization: TextCapitalization.sentences,
               minLines: 3,
               maxLines: 5,
             ),
             const SizedBox(height: 16),
-            const FilledButton(key: saveButtonKey, onPressed: null, child: Text('Save')),
+            const FilledButton(
+              key: ServiceFormScreen.saveButtonKey,
+              onPressed: null,
+              child: Text('Save'),
+            ),
           ],
         ),
       ),
