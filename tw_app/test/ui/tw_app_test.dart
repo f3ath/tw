@@ -6,12 +6,13 @@ import 'package:tw_app/app/auth_service.dart';
 import 'package:tw_app/app/tw_app.dart';
 import 'package:tw_app/testing/stub.dart';
 
-import '../use_case.dart';
+import '../robots.dart';
 
 void main() {
   group('TwApp', () {
     testWidgets('Login opens Garage, Logout returns to Welcome', (WidgetTester tester) async {
-      final useCase = UseCase(tester);
+      final welcome = WelcomeRobot(tester);
+      final garage = GarageRobot(tester);
 
       final authResult = Completer<User>();
       final authService = AuthServiceMock();
@@ -22,11 +23,11 @@ void main() {
       expect(findWelcomeScreen, findsOneWidget);
       expect(findGarageScreen, findsNothing);
 
-      expect(useCase.loginButton.onPressed, isNotNull);
+      expect(welcome.loginButton.onPressed, isNotNull);
 
-      await useCase.tapLoginButton();
+      await welcome.tapLoginButton();
 
-      expect(useCase.loginButton.onPressed, isNull);
+      expect(welcome.loginButton.onPressed, isNull);
 
       authResult.complete(User('id', name: 'User Name', email: 'email'));
 
@@ -34,9 +35,9 @@ void main() {
 
       expect(findWelcomeScreen, findsNothing);
       expect(findGarageScreen, findsOneWidget);
-      expect(useCase.userNameText.data, equals('User Name'));
+      expect(garage.userNameText.data, equals('User Name'));
 
-      await useCase.tapLogoutButton(settle: true);
+      await garage.tapLogoutButton(pump: .settle);
 
       expect(findWelcomeScreen, findsOneWidget);
       expect(findGarageScreen, findsNothing);

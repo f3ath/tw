@@ -37,25 +37,29 @@ Offline mode, synchronization, and advanced network behavior such as atomicity a
 - User-facing feedback belongs in presentation. Cancellation is handled silently; other login exceptions currently show a generic snackbar.
 - Select login-window adapters through conditional exports. Web reserves a popup synchronously before awaiting requests. Native launches an external browser, cannot observe closure, and cannot close it.
 
-## Current state — 2026-11-11
+## Current state — 2026-11-13
 
-- Auth service orchestrates session creation, navigation, polling, timeout/cancellation, and window cleanup through ports.
-- `app_proto/` is the renamed reference prototype (Dart package `app_proto`); `tw_app/` remains the active learning application.
-- main selects real authentication/vehicles by default and shares one TwApiClient between their adapters. Use `--dart-define=USE_FAKE_BACKEND=true` for development stubs. Models come from `shared/model.dart`.
-- TwApp retains the authenticated User and switches between welcome and garage. The name appears beside logout.
-- Welcome handles pending, failure/retry, and cancellation states.
-- Domain Vehicle includes id, name, manufactureDate, and distanceUnit.
-- GarageScreen owns GarageViewModel in State, creates/loads it in initState, and disposes it on unmount. ListenableBuilder renders loading, error/retry, empty, and keyed vehicle rows. TwApp receives VehicleRepo; BackendVehicleRepo delegates listing and creation to TwApiClient.
-- Latest full verification on Flutter 3.50: `flutter test` — **22 passed**; static analysis, release web build, and macOS debug build pass. Prototype analysis/web/macOS debug builds also pass, with 31 server-independent tests passing; its live-API test needs the server at localhost:8080. Real browser/native authentication has not been verified by these tests.
-- Tests cover auth orchestration, welcome failure/retry/cancellation, app login/logout and name wiring, and garage empty/populated rendering.
+- `tw_app/` is the active learning application; `app_proto/` is the reference prototype.
+- Authentication orchestrates login, polling, timeout/cancellation, and window cleanup through ports. TwApp retains the authenticated User and switches between welcome and garage; welcome handles pending, failure/retry, and cancellation. Session restoration remains planned.
+- main shares one TwApiClient between real authentication and vehicle adapters. Use `--dart-define=FAKE=true` for the development fakes. Models come from `shared/model.dart`.
+- Vehicle listing, creation, editing, and confirmed deletion are wired to the backend. Edit preserves the vehicle ID and locks distance units. Successful form submission returns a boolean refresh signal.
+- GarageScreen owns/disposes GarageViewModel. VehicleCard owns card/menu rendering and emits actions; navigation, deletion feedback, and refresh remain in the screen. GarageScreen.vehicleCardKey supplies list-item identity.
+- Deletion refreshes after both success and exceptions because a lost response can leave the outcome uncertain. Exceptions show “Could not confirm deletion. Refreshing...”. Cancellation skips deletion and refresh. Manage schedules is still a no-op; due-services content is a placeholder.
+- VehicleFormScreen shares create/edit validation and submission/error handling, with persistence extracted into a private method. DateFormField provides typed date selection.
+- TestRobot contains shared utilities; WelcomeRobot, GarageRobot, and VehicleFormRobot own screen-specific interactions. PumpMode selects none/frame/settle. Menu and dropdown finders target typed, hit-testable entries.
+- InMemoryVehicleRepo defaults to empty and accepts initialVehicles. pauseNextList/Create/Delete gates affect one request each. Sample users/vehicles live in lib/testing/samples.dart; the test harness and fake-backend setup seed explicitly.
+- Latest verification: all **29 tw_app tests pass**; static analysis is clean. Builds and real authentication were not reverified during this refactor. Previously verified builds are not evidence of current real-backend behavior.
 
 ## Next exercise
 
-Vehicle cards now use Card → Column → ListTile/menu + padded due-services placeholder. Menu Edit opens prefilled form; schedules/delete only log. Form uses unified onSaved collection and instance Form key; edit title/prefill/unit lock implemented, but Save still calls createVehicle. Targeted garage tests: 6 passed; analyzer warns unused updated result.
+Recommended next: implement the schedule-list flow for a selected vehicle, before adding schedule mutations.
 
-Next implement/test semantic update operation (original vehicle ID, no creation) before treating menu editing as functional. Consume non-null edit result to reload garage with mounted check. Keep only Card keyed by vehicle ID (nested ListTile repeats same key, making find.byKey ambiguous). Add menu test selecting correct vehicle. Disable/hide unimplemented schedule/delete commands until wired. Preserve current accepted creation/refresh coverage; no extra refreshed-list-content assertion required.
+- Add a semantic ScheduleRepo listing port, a backend adapter using the existing TwApiClient.listSchedules(vehicleId), and an in-memory fake.
+- Wire Manage schedules to a screen showing the selected vehicle and its schedules, with loading, error/retry, and empty states.
+- Test selecting the correct vehicle and passing its ID, successful loading, empty results, and failure/retry using controlled futures.
+- Observable checkpoint: selecting Manage schedules on either vehicle shows that vehicle’s schedules; returning leaves the garage usable.
 
-Reusable typed DateFormField is integrated. Flutter 3.50 uses material_ui; latest full verification before cards: 22 tests passed. Reference prototype is app_proto; active app is tw_app. Session restoration remains planned, not completed.
+Remaining vehicle-test gaps include edit failure/retry and deletion that succeeds server-side before the response fails. The in-memory repository still derives new IDs from map length, which can collide after deletion; address before relying on delete-then-create fake workflows.
 
 ## Next iteration — deferred work
 

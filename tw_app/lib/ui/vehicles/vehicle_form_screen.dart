@@ -25,9 +25,11 @@ class _VehicleFormScreenState extends State<VehicleFormScreen> {
   String _name = '';
   var _isSaving = false;
 
+  bool get _isEditing => widget.vehicle != null;
+
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: Text(widget.vehicle == null ? 'Add Vehicle' : 'Edit Vehicle')),
+    appBar: AppBar(title: Text(_isEditing ? 'Edit Vehicle' : 'Add Vehicle')),
     body: Padding(
       padding: .all(10),
       child: Form(
@@ -45,9 +47,7 @@ class _VehicleFormScreenState extends State<VehicleFormScreen> {
                 return null;
               },
               onSaved: (val) {
-                if (val != null) {
-                  _name = val.trim();
-                }
+                _name = val!.trim();
               },
             ),
             DropdownButtonFormField<DistanceUnit>(
@@ -58,15 +58,13 @@ class _VehicleFormScreenState extends State<VehicleFormScreen> {
                   .map((it) => DropdownMenuItem<DistanceUnit>(value: it, child: Text(it.name)))
                   .toList(),
               onSaved: (val) {
-                if (val != null) {
-                  _distanceUnit = val;
-                }
+                _distanceUnit = val!;
               },
-              onChanged: widget.vehicle == null ? (_) {} : null, // enabled the control
+              onChanged: _isEditing ? null : (_) {}, // enables the control
             ),
             DateFormField(
               key: VehicleFormScreen.dateFieldKey,
-              format: day,
+              format: _formatDate,
               firstDate: DateTime(1900),
               lastDate: DateTime(2100),
               initialValue: widget.vehicle?.manufactureDate,
@@ -102,20 +100,7 @@ class _VehicleFormScreenState extends State<VehicleFormScreen> {
       _isSaving = true;
     });
     try {
-      final vehicle = widget.vehicle;
-      if (vehicle != null) {
-        await widget.repo.updateVehicle(
-          vehicle.id,
-          name: _name,
-          manufactureDate: _manufactureDate!,
-        );
-      } else {
-        await widget.repo.createVehicle(
-          name: _name,
-          manufactureDate: _manufactureDate!,
-          distanceUnit: _distanceUnit,
-        );
-      }
+      await _persistVehicle();
       if (!mounted) return;
       Navigator.of(context).pop(true);
     } on Exception {
@@ -132,8 +117,21 @@ class _VehicleFormScreenState extends State<VehicleFormScreen> {
       }
     }
   }
+
+  Future<void> _persistVehicle() async {
+    final vehicle = widget.vehicle;
+    if (vehicle != null) {
+      await widget.repo.updateVehicle(vehicle.id, name: _name, manufactureDate: _manufactureDate!);
+    } else {
+      await widget.repo.createVehicle(
+        name: _name,
+        manufactureDate: _manufactureDate!,
+        distanceUnit: _distanceUnit,
+      );
+    }
+  }
 }
 
-String day(DateTime? value) => value == null
+String _formatDate(DateTime? value) => value == null
     ? ''
     : DateTime(value.year, value.month, value.day).toIso8601String().split('T').first;

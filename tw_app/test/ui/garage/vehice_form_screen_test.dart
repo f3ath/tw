@@ -6,26 +6,24 @@ import 'package:tw_app/testing/stub.dart';
 import 'package:tw_app/time/clock.dart';
 import 'package:tw_app/ui/vehicles/vehicle_form_screen.dart';
 
-import '../../use_case.dart';
+import '../../robots.dart';
 
 void main() {
   group('VehicleFormScreen', () {
     group('New Vehicle', () {
       testWidgets('distance units are selectable', (WidgetTester tester) async {
-        final uc = VehicleFormUC(tester);
-        await tester.pumpWidget(
-            MaterialApp(home: VehicleFormScreen(repo: InMemoryVehicleRepo())));
+        final form = VehicleFormRobot(tester);
+        await tester.pumpWidget(MaterialApp(home: VehicleFormScreen(repo: InMemoryVehicleRepo())));
 
-        expect(uc.selectedDistanceUnit, equals(DistanceUnit.mi));
+        expect(form.selectedDistanceUnit, equals(DistanceUnit.mi));
 
-        await uc.selectDistanceUnit('km');
+        await form.selectDistanceUnit('km');
 
-        expect(uc.selectedDistanceUnit, equals(DistanceUnit.km));
+        expect(form.selectedDistanceUnit, equals(DistanceUnit.km));
       });
 
-      testWidgets(
-          'manufacture date is selectable', (WidgetTester tester) async {
-        final uc = VehicleFormUC(tester);
+      testWidgets('manufacture date is selectable', (WidgetTester tester) async {
+        final form = VehicleFormRobot(tester);
         final clock = ClockMock();
         when(() => clock.now()).thenReturn(DateTime(2009, 10, 15));
         await tester.pumpWidget(
@@ -34,19 +32,18 @@ void main() {
           ),
         );
 
-        expect(uc.selectedDate, isNull);
+        expect(form.selectedDate, isNull);
 
-        await uc.selectDayAndConfirm('13');
-        expect(uc.selectedDate, equals(DateTime(2009, 10, 13)));
+        await form.selectDayAndConfirm('13');
+        expect(form.selectedDate, equals(DateTime(2009, 10, 13)));
 
-        await uc.selectDayAndCancel('22');
-        expect(uc.selectedDate, equals(DateTime(2009, 10, 13))); // not changed
+        await form.selectDayAndCancel('22');
+        expect(form.selectedDate, equals(DateTime(2009, 10, 13))); // not changed
       });
 
       testWidgets('empty name is not allowed', (WidgetTester tester) async {
-        final uc = VehicleFormUC(tester);
+        final form = VehicleFormRobot(tester);
         final repo = InMemoryVehicleRepo();
-        repo.vehicles.clear();
         final clock = ClockMock();
         when(() => clock.now()).thenReturn(DateTime(2009, 10, 15));
         await tester.pumpWidget(
@@ -54,24 +51,23 @@ void main() {
             home: VehicleFormScreen(clock: clock, repo: repo),
           ),
         );
-        await uc.saveForm(settle: true);
+        await form.saveForm(pump: .settle);
 
         expect(repo.vehicles, isEmpty);
-        expect(uc.nameError, isNotEmpty);
-        expect(uc.dateError, isNotEmpty);
+        expect(form.nameError, isNotEmpty);
+        expect(form.dateError, isNotEmpty);
 
-        await uc.enterName('  ');
-        await uc.saveForm(settle: true);
+        await form.enterName('  ');
+        await form.saveForm(pump: .settle);
 
         expect(repo.vehicles, isEmpty);
-        expect(uc.nameError, isNotEmpty);
-        expect(uc.dateError, isNotEmpty);
+        expect(form.nameError, isNotEmpty);
+        expect(form.dateError, isNotEmpty);
       });
 
       testWidgets('shows snackbar on error', (WidgetTester tester) async {
-        final uc = VehicleFormUC(tester);
+        final form = VehicleFormRobot(tester);
         final repo = InMemoryVehicleRepo();
-        repo.vehicles.clear();
         final clock = ClockMock();
         when(() => clock.now()).thenReturn(DateTime(2009, 10, 15));
         await tester.pumpWidget(
@@ -79,32 +75,31 @@ void main() {
             home: VehicleFormScreen(clock: clock, repo: repo),
           ),
         );
-        final completer = repo.lockCreate();
-        await uc.enterName('   Ford T');
-        await uc.selectDayAndConfirm('13');
-        await uc.selectDistanceUnit('km');
-        await uc.saveForm();
+        final completer = repo.pauseNextCreate();
+        await form.enterName('   Ford T');
+        await form.selectDayAndConfirm('13');
+        await form.selectDistanceUnit('km');
+        await form.saveForm();
 
-        expect(uc.nameError, isNull);
-        expect(uc.dateError, isNull);
-        expect(uc.saveButton.enabled, isFalse);
+        expect(form.nameError, isNull);
+        expect(form.dateError, isNull);
+        expect(form.saveButton.enabled, isFalse);
 
         completer.completeError(Exception('Network error'));
         await tester.pump();
         expect(find.byType(SnackBar), findsOneWidget);
-        expect(uc.saveButton.enabled, isTrue);
+        expect(form.saveButton.enabled, isTrue);
       });
     });
     group('Editing', () {
-      testWidgets(
-          'shows loaded vehicle properties', (WidgetTester tester) async {
+      testWidgets('shows loaded vehicle properties', (WidgetTester tester) async {
         final vehicle = Vehicle(
           'veh-id',
           name: 'Suzuki Grand Vitara',
           manufactureDate: DateTime(2005, 02, 03),
           distanceUnit: .km,
         );
-        final uc = VehicleFormUC(tester);
+        final form = VehicleFormRobot(tester);
         final repo = InMemoryVehicleRepo();
         final clock = ClockMock();
         when(() => clock.now()).thenReturn(DateTime(2009, 10, 15));
@@ -113,12 +108,12 @@ void main() {
             home: VehicleFormScreen(clock: clock, repo: repo, vehicle: vehicle),
           ),
         );
-        expect(uc.selectedDate, equals(vehicle.manufactureDate));
-        expect(uc.selectedDistanceUnit, equals(vehicle.distanceUnit));
-        expect(uc.nameField.value, equals(vehicle.name));
+        expect(form.selectedDate, equals(vehicle.manufactureDate));
+        expect(form.selectedDistanceUnit, equals(vehicle.distanceUnit));
+        expect(form.nameField.value, equals(vehicle.name));
       });
     });
   });
 }
 
-class ClockMock extends Mock implements Clock ;
+class ClockMock extends Mock implements Clock;

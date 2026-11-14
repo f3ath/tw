@@ -5,12 +5,12 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:tw_app/app/auth/auth_exceptions.dart';
 import 'package:tw_app/ui/welcome/welcome_screen.dart';
 
-import '../use_case.dart';
+import '../robots.dart';
 
 void main() {
   group('WelcomeScreen', () {
     testWidgets('failed login restores the button and allows retry', (WidgetTester tester) async {
-      final useCase = UseCase(tester);
+      final welcome = WelcomeRobot(tester);
       var attempt = Completer<void>();
       var loginCalls = 0;
 
@@ -25,12 +25,12 @@ void main() {
         ),
       );
 
-      await useCase.tapLoginButton();
+      await welcome.tapLoginButton();
 
       expect(loginCalls, equals(1));
-      expect(useCase.loginButton.enabled, isFalse);
+      expect(welcome.loginButton.enabled, isFalse);
 
-      await useCase.tapLoginButton();
+      await welcome.tapLoginButton();
 
       expect(loginCalls, equals(1)); // still 1
 
@@ -38,26 +38,26 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.byType(SnackBar), findsOneWidget);
-      expect(useCase.loginButton.enabled, isTrue);
+      expect(welcome.loginButton.enabled, isTrue);
 
       attempt = Completer<void>();
 
-      await useCase.tapLoginButton();
+      await welcome.tapLoginButton();
 
       expect(loginCalls, equals(2));
-      expect(useCase.loginButton.enabled, isFalse);
+      expect(welcome.loginButton.enabled, isFalse);
 
       attempt.complete();
       await tester.pumpAndSettle();
 
       expect(find.byType(SnackBar), findsNothing);
-      expect(useCase.loginButton.enabled, isTrue);
+      expect(welcome.loginButton.enabled, isTrue);
     });
 
     testWidgets('cancelled login enables retry without showing an error', (
       WidgetTester tester,
     ) async {
-      final useCase = UseCase(tester);
+      final welcome = WelcomeRobot(tester);
       var attempt = Completer<void>();
       var loginCalls = 0;
 
@@ -72,17 +72,17 @@ void main() {
         ),
       );
 
-      await useCase.tapLoginButton();
+      await welcome.tapLoginButton();
 
       attempt.completeError(UserCancelledException('User cancelled'));
       await tester.pumpAndSettle();
 
       expect(find.byType(SnackBar), findsNothing);
-      expect(useCase.loginButton.enabled, isTrue);
+      expect(welcome.loginButton.enabled, isTrue);
 
       attempt = Completer<void>();
 
-      await useCase.tapLoginButton();
+      await welcome.tapLoginButton();
 
       expect(loginCalls, equals(2));
 

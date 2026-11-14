@@ -1,23 +1,34 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:mocktail/mocktail.dart';
+import 'package:shared/model.dart';
 import 'package:tw_app/testing/stub.dart' as stub;
+import 'package:tw_app/testing/samples.dart' as samples;
 import 'package:tw_app/time/clock.dart';
 import 'package:tw_app/ui/garage/garage_screen.dart';
 
-import '../../use_case.dart';
+import '../../robots.dart';
 
 void main() {
   group('GarageScreen', () {
+    testWidgets('displays the user name and updates it on rebuild', (WidgetTester tester) async {
+      final harness = Harness();
+      await harness.pumpLoadedScreen(tester, userName: 'First');
+
+      expectUserName(tester, 'First');
+
+      await harness.pumpLoadedScreen(tester, userName: 'Second');
+
+      expectUserName(tester, 'Second');
+    });
+
     group('Loading', () {
-      testWidgets('load and show empty', (WidgetTester tester) async {
-        final h = Harness();
-        h.repo.vehicles.clear();
-        final completer = h.repo.lockList();
-        await h.setup(tester);
+      testWidgets('shows an empty state when no vehicles exist', (WidgetTester tester) async {
+        final harness = Harness(initialVehicles: []);
+        final completer = harness.repo.pauseNextList();
+        await harness.pumpScreen(tester);
 
         expect(find.byType(CircularProgressIndicator), findsOne);
-        expectUserName(tester, 'Begelme');
 
         completer.complete();
         await tester.pumpAndSettle();
@@ -26,29 +37,26 @@ void main() {
         expect(find.textContaining('Nothing'), findsOne);
       });
 
-      testWidgets('load and show vehicles', (WidgetTester tester) async {
-        final h = Harness();
-        final completer = h.repo.lockList();
-        await h.setup(tester);
+      testWidgets('shows vehicles after loading completes', (WidgetTester tester) async {
+        final harness = Harness();
+        final completer = harness.repo.pauseNextList();
+        await harness.pumpScreen(tester);
 
         expect(find.byType(CircularProgressIndicator), findsOne);
-        expectUserName(tester, 'Begelme');
 
         completer.complete();
         await tester.pumpAndSettle();
 
         expect(find.byType(CircularProgressIndicator), findsNothing);
-
-        expectVehiclesLoaded();
+        expect(find.textContaining('Nothing'), findsNothing);
+        expectVehiclesVisible([samples.santaFe, samples.fourRunner]);
       });
 
-      testWidgets('load, error, restart', (WidgetTester tester) async {
-        final h = Harness();
-        var completer = h.repo.lockList();
-        await h.setup(tester);
+      testWidgets('failed loading can be retried', (WidgetTester tester) async {
+        final harness = Harness();
+        var completer = harness.repo.pauseNextList();
+        await harness.pumpScreen(tester);
 
-        expect(find.byType(CircularProgressIndicator), findsOne);
-        expectUserName(tester, 'Begelme');
         expect(find.byType(CircularProgressIndicator), findsOne);
 
         completer.completeError(Exception('Network error'));
@@ -57,7 +65,7 @@ void main() {
         expect(find.byType(CircularProgressIndicator), findsNothing);
         expect(find.textContaining('Nothing'), findsNothing);
 
-        completer = h.repo.lockList();
+        completer = harness.repo.pauseNextList();
         await tester.tap(find.byKey(GarageScreen.retryButtonKey));
         await tester.pump();
 
@@ -66,34 +74,35 @@ void main() {
         completer.complete();
         await tester.pumpAndSettle();
 
-        expectVehiclesLoaded();
+        expect(find.byType(CircularProgressIndicator), findsNothing);
+        expect(find.textContaining('Nothing'), findsNothing);
+        expectVehiclesVisible([samples.santaFe, samples.fourRunner]);
       });
 
-      testWidgets('repo is reused', (WidgetTester tester) async {
-        final h = Harness();
-        await h.setup(tester, userName: 'First');
-        await tester.pumpAndSettle();
+      testWidgets('rebuilding does not reload vehicles', (WidgetTester tester) async {
+        final harness = Harness();
+        await harness.pumpLoadedScreen(tester, userName: 'First');
 
-        expect(h.repo.listCalls, equals(1));
-        expectUserName(tester, 'First');
-        expectVehiclesLoaded();
+        expect(harness.repo.listCalls, equals(1));
+        expect(find.byType(CircularProgressIndicator), findsNothing);
+        expect(find.textContaining('Nothing'), findsNothing);
+        expectVehiclesVisible([samples.santaFe, samples.fourRunner]);
 
-        await h.setup(tester, userName: 'Second');
-        await tester.pumpAndSettle();
+        await harness.pumpLoadedScreen(tester, userName: 'Second');
 
-        expectUserName(tester, 'Second');
-        expectVehiclesLoaded();
-        expect(h.repo.listCalls, equals(1));
+        expect(find.byType(CircularProgressIndicator), findsNothing);
+        expect(find.textContaining('Nothing'), findsNothing);
+        expectVehiclesVisible([samples.santaFe, samples.fourRunner]);
+        expect(harness.repo.listCalls, equals(1));
       });
     });
 
     group('Add a Vehicle', () {
-      testWidgets('open the form, navigate back', (WidgetTester tester) async {
-        final useCase = GarageUC(tester);
-        final h = Harness();
-        await h.setup(tester);
-        await tester.pumpAndSettle();
-        await useCase.tapAddNewVehicleButton(settle: true);
+      testWidgets('leaving the add form returns to the garage', (WidgetTester tester) async {
+        final garage = GarageRobot(tester);
+        final harness = Harness();
+        await harness.pumpLoadedScreen(tester);
+        await garage.tapAddNewVehicleButton(pump: .settle);
 
         expect(findVehicleFormScreen, findsOne);
         expect(findGarageScreen, findsNothing);
@@ -103,88 +112,106 @@ void main() {
 
         expect(findVehicleFormScreen, findsNothing);
         expect(findGarageScreen, findsOne);
-        expectVehiclesLoaded();
+        expect(find.byType(CircularProgressIndicator), findsNothing);
+        expect(find.textContaining('Nothing'), findsNothing);
+        expectVehiclesVisible([samples.santaFe, samples.fourRunner]);
       });
 
-      testWidgets('open the form, add a vehicle', (WidgetTester tester) async {
-        final h = Harness();
-        await h.setup(tester);
-        await tester.pumpAndSettle();
+      testWidgets('saving a new vehicle refreshes the garage', (WidgetTester tester) async {
+        final harness = Harness();
+        await harness.pumpLoadedScreen(tester);
 
-        expect(h.repo.listCalls, equals(1));
+        expect(harness.repo.listCalls, equals(1));
 
-        final uc = VehicleFormUC(tester);
-        await uc.tapAddNewVehicleButton(settle: true);
-        await uc.enterName('New Car');
-        await uc.selectDistanceUnit('km');
-        await uc.selectDayAndConfirm('2');
-        await uc.saveForm(settle: true);
+        final garage = GarageRobot(tester);
+        final form = VehicleFormRobot(tester);
+        await garage.tapAddNewVehicleButton(pump: .settle);
+        await form.enterName('New Car');
+        await form.selectDistanceUnit('km');
+        await form.selectDayAndConfirm('2');
+        await form.saveForm(pump: .settle);
 
         expect(findGarageScreen, findsOne);
         expect(findVehicleFormScreen, findsNothing);
-        expect(h.repo.listCalls, equals(2));
-        expectVehiclesLoaded();
+        expect(harness.repo.listCalls, equals(2));
+        expect(find.byType(CircularProgressIndicator), findsNothing);
+        expect(find.textContaining('Nothing'), findsNothing);
+        expectVehiclesVisible([samples.santaFe, samples.fourRunner]);
         expect(find.text('New Car'), findsOne);
       });
     });
 
     group('Edit a Vehicle', () {
-      testWidgets('open the form, edit a vehicle', (WidgetTester tester) async {
-        final h = Harness();
-        await h.setup(tester);
-        await tester.pumpAndSettle();
+      testWidgets('saving edits updates the vehicle in the garage', (WidgetTester tester) async {
+        final harness = Harness();
+        final vehicle = harness.repo.vehicles.values.first;
+        await harness.pumpLoadedScreen(tester);
 
-        final uc = VehicleFormUC(tester);
-        await uc.tapVehicleMenuEdit(stub.vehicles.first.id);
+        final garage = GarageRobot(tester);
+        final form = VehicleFormRobot(tester);
+        await garage.tapVehicleMenuEdit(vehicle.id);
 
         expect(findGarageScreen, findsNothing);
         expect(findVehicleFormScreen, findsOne);
 
-        await uc.enterName('New Name');
-        await uc.selectDayAndConfirm('13');
-        await uc.saveForm(settle: true);
+        await form.enterName('New Name');
+        await form.selectDayAndConfirm('13');
+        await form.saveForm(pump: .settle);
 
-        expect(
-            h.repo.vehicles[stub.vehicles.first.id]?.name, equals('New Name'));
-        expect(h.repo.vehicles[stub.vehicles.first.id]?.manufactureDate.day,
-            equals(13));
+        expect(harness.repo.vehicles[vehicle.id]?.name, equals('New Name'));
+        expect(harness.repo.vehicles[vehicle.id]?.manufactureDate.day, equals(13));
         expect(findGarageScreen, findsOne);
         expect(findVehicleFormScreen, findsNothing);
-        expect(find.text(stub.vehicle1.name), findsNothing);
+        expect(find.text(vehicle.name), findsNothing);
         expect(find.text('New Name'), findsOne);
       });
     });
 
     group('Delete a Vehicle', () {
-      testWidgets(
-          'show confirmation, cancel, delete', (WidgetTester tester) async {
-        final uc = GarageUC(tester);
-        final h = Harness();
-        final v = h.repo.vehicles.values.first;
-        await h.setup(tester);
-        await tester.pumpAndSettle();
-        await uc.tapVehicleMenuDelete(v.id);
-        await uc.tapAlertDialogButton('Cancel');
+      testWidgets('cancelling deletion preserves the vehicle', (WidgetTester tester) async {
+        final garage = GarageRobot(tester);
+        final harness = Harness();
+        final vehicle = harness.repo.vehicles.values.first;
+        await harness.pumpLoadedScreen(tester);
+        await garage.tapVehicleMenuDelete(vehicle.id);
+        await garage.tapAlertDialogButton('Cancel');
         await tester.pumpAndSettle();
 
-        expect(h.repo.vehicles.containsKey(v.id), isTrue);
-
-        await uc.tapVehicleMenuDelete(v.id);
-        await uc.tapAlertDialogButton('Delete');
-        await tester.pumpAndSettle();
-
-        expect(h.repo.vehicles.containsKey(v.id), isFalse);
+        expect(harness.repo.vehicles.containsKey(vehicle.id), isTrue);
+        expect(garage.findVehicleCard(vehicle.id), findsOneWidget);
+        expect(find.byType(AlertDialog), findsNothing);
       });
 
-      testWidgets('error handling', (WidgetTester tester) async {
-        final uc = GarageUC(tester);
-        final h = Harness();
-        final v = h.repo.vehicles.values.first;
-        final completer = h.repo.lockDelete();
-        await h.setup(tester);
+      testWidgets('confirming deletion removes the vehicle and refreshes the list', (
+        WidgetTester tester,
+      ) async {
+        final garage = GarageRobot(tester);
+        final harness = Harness();
+        final vehicle = harness.repo.vehicles.values.first;
+        await harness.pumpLoadedScreen(tester);
+
+        expect(garage.findVehicleCard(vehicle.id), findsOneWidget);
+
+        await garage.tapVehicleMenuDelete(vehicle.id);
+        await garage.tapAlertDialogButton('Delete');
         await tester.pumpAndSettle();
-        await uc.tapVehicleMenuDelete(v.id);
-        await uc.tapAlertDialogButton('Delete');
+
+        expect(harness.repo.vehicles.containsKey(vehicle.id), isFalse);
+        expect(garage.findVehicleCard(vehicle.id), findsNothing);
+        expect(find.byType(AlertDialog), findsNothing);
+      });
+
+      testWidgets('failed deletion shows feedback and preserves the vehicle', (
+        WidgetTester tester,
+      ) async {
+        final garage = GarageRobot(tester);
+        final harness = Harness();
+        final vehicle = harness.repo.vehicles.values.first;
+        final completer = harness.repo.pauseNextDelete();
+        await harness.pumpScreen(tester);
+        await tester.pumpAndSettle();
+        await garage.tapVehicleMenuDelete(vehicle.id);
+        await garage.tapAlertDialogButton('Delete');
         completer.completeError(Exception('Network error'));
         await tester.pump();
 
@@ -192,39 +219,44 @@ void main() {
 
         await tester.pumpAndSettle();
 
-        expect(h.repo.vehicles.containsKey(v.id), isTrue);
+        expect(harness.repo.vehicles.containsKey(vehicle.id), isTrue);
       });
     });
   });
 }
 
 void expectUserName(WidgetTester tester, String name) =>
-    expect(UseCase(tester).userNameText.data, equals(name));
+    expect(GarageRobot(tester).userNameText.data, equals(name));
 
-void expectVehiclesLoaded() {
-  expect(find.byType(CircularProgressIndicator), findsNothing);
-  expect(find.textContaining('Nothing'), findsNothing);
-  expect(find.text(stub.vehicle1.name), findsOne);
-  expect(find.text(stub.vehicle2.name), findsOne);
+void expectVehiclesVisible(List<Vehicle> vehicles) {
+  for (final vehicle in vehicles) {
+    final card = find.byKey(GarageScreen.vehicleCardKey(vehicle.id));
+    expect(card, findsOneWidget);
+    expect(find.descendant(of: card, matching: find.text(vehicle.name)), findsOneWidget);
+  }
 }
 
-class ClockMock extends Mock implements Clock ;
+class ClockMock extends Mock implements Clock;
 
-class Harness {
-  final repo = stub.InMemoryVehicleRepo();
+class Harness({Iterable<Vehicle>? initialVehicles}) {
+  final repo = stub.InMemoryVehicleRepo(
+    initialVehicles: initialVehicles ?? [samples.santaFe, samples.fourRunner],
+  );
   final clock = ClockMock();
 
-  new() {
+  this {
     when(() => clock.now()).thenReturn(DateTime(2009, 10, 15));
   }
 
-  Future<void> setup(WidgetTester tester, {String userName = 'Begelme'}) async {
+  Future<void> pumpLoadedScreen(WidgetTester tester, {String userName = 'John Doe'}) async {
+    await pumpScreen(tester, userName: userName);
+    await tester.pumpAndSettle();
+  }
+
+  Future<void> pumpScreen(WidgetTester tester, {String userName = 'John Doe'}) async {
     await tester.pumpWidget(
       MaterialApp(
-        home: GarageScreen(onLogout: () async {},
-            userName: userName,
-            repo: repo,
-            clock: clock),
+        home: GarageScreen(onLogout: () async {}, userName: userName, repo: repo, clock: clock),
       ),
     );
   }

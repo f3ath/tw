@@ -2,6 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:shared/model.dart';
 import 'package:tw_app/ui/garage/garage_screen.dart';
+import 'package:tw_app/ui/garage/vehicle_card.dart';
 import 'package:tw_app/ui/vehicles/vehicle_form_screen.dart';
 import 'package:tw_app/ui/welcome/welcome_screen.dart';
 
@@ -9,32 +10,20 @@ final findWelcomeScreen = find.byType(WelcomeScreen);
 final findGarageScreen = find.byType(GarageScreen);
 final findVehicleFormScreen = find.byType(VehicleFormScreen);
 
+enum PumpMode { none, frame, settle }
+
 class TestRobot(final WidgetTester tester) {
-  final findLoginButton = find.byKey(WelcomeScreen.loginButtonKey);
-  final findUserNameText = find.byKey(GarageScreen.userNameTextKey);
-  final findLogoutButton = find.byKey(GarageScreen.logoutButtonKey);
-
-  FilledButton get loginButton => tester.widget<FilledButton>(findLoginButton);
-
-  Text get userNameText => tester.widget<Text>(findUserNameText);
-
-  Future<void> tapLoginButton({bool pump = true, bool settle = false}) async {
-    await tester.tap(findLoginButton);
-    await pumpAndSettle(pump: pump, settle: settle);
-  }
-
-  Future<void> tapLogoutButton({bool pump = true, bool settle = false}) async {
-    await tester.tap(findLogoutButton);
-    await pumpAndSettle(pump: pump, settle: settle);
-  }
-
-  Future<void> pumpAndSettle({bool pump = true, bool settle = false}) async {
-    if (!pump) return;
-    if (settle) {
-      await tester.pumpAndSettle();
-      return;
+  Future<void> pumpAfterAction(PumpMode mode) async {
+    switch (mode) {
+      case .none:
+        return;
+      case .frame:
+        await tester.pump();
+        return;
+      case .settle:
+        await tester.pumpAndSettle();
+        return;
     }
-    await tester.pump();
   }
 
   Future<void> tapAlertDialogButton(String text) async {
@@ -42,12 +31,33 @@ class TestRobot(final WidgetTester tester) {
   }
 }
 
+class WelcomeRobot(super.tester) extends TestRobot {
+  final findLoginButton = find.byKey(WelcomeScreen.loginButtonKey);
+
+  FilledButton get loginButton => tester.widget<FilledButton>(findLoginButton);
+
+  Future<void> tapLoginButton({PumpMode pump = .frame}) async {
+    await tester.tap(findLoginButton);
+    await pumpAfterAction(pump);
+  }
+}
+
 class GarageRobot(super.tester) extends TestRobot {
+  final findUserNameText = find.byKey(GarageScreen.userNameTextKey);
+  final findLogoutButton = find.byKey(GarageScreen.logoutButtonKey);
+
+  Text get userNameText => tester.widget<Text>(findUserNameText);
+
+  Future<void> tapLogoutButton({PumpMode pump = .frame}) async {
+    await tester.tap(findLogoutButton);
+    await pumpAfterAction(pump);
+  }
+
   final findAddNewVehicleButton = find.byKey(GarageScreen.addButtonKey);
 
-  Future<void> tapAddNewVehicleButton({bool pump = true, bool settle = false}) async {
+  Future<void> tapAddNewVehicleButton({PumpMode pump = .frame}) async {
     await tester.tap(findAddNewVehicleButton);
-    await pumpAndSettle(pump: pump, settle: settle);
+    await pumpAfterAction(pump);
   }
 
   Finder findVehicleCard(String id) => find.byKey(GarageScreen.vehicleCardKey(id));
@@ -59,15 +69,20 @@ class GarageRobot(super.tester) extends TestRobot {
     await tester.pumpAndSettle();
   }
 
-  Future<void> tapVehicleMenuEdit(String id) async {
-    await tapVehicleMenu(id);
-    await tester.tap(find.byKey(const ValueKey('edit')).hitTestable());
-    await tester.pumpAndSettle();
-  }
+  Future<void> tapVehicleMenuEdit(String id) => _tapVehicleMenuAction(id, .edit);
 
-  Future<void> tapVehicleMenuDelete(String id) async {
+  Future<void> tapVehicleMenuDelete(String id) => _tapVehicleMenuAction(id, .delete);
+
+  Future<void> _tapVehicleMenuAction(String id, VehicleAction action) async {
     await tapVehicleMenu(id);
-    await tester.tap(find.byKey(const ValueKey('delete')).hitTestable());
+    await tester.tap(
+      find
+          .byWidgetPredicate(
+            (widget) => widget is PopupMenuItem<VehicleAction> && widget.value == action,
+            description: 'vehicle menu item for ${action.name}',
+          )
+          .hitTestable(),
+    );
     await tester.pumpAndSettle();
   }
 }
@@ -94,9 +109,9 @@ class VehicleFormRobot(super.tester) extends TestRobot {
 
   String? get dateError => dateField.errorText;
 
-  Future<void> saveForm({bool pump = true, bool settle = false}) async {
+  Future<void> saveForm({PumpMode pump = .frame}) async {
     await tester.tap(findSaveButton);
-    await pumpAndSettle(pump: pump, settle: settle);
+    await pumpAfterAction(pump);
   }
 
   Future<void> enterName(String name) async {
@@ -105,44 +120,39 @@ class VehicleFormRobot(super.tester) extends TestRobot {
   }
 
   Future<void> selectDayAndConfirm(String day) async {
-    await tester.tap(findDateField);
-    await tester.pumpAndSettle();
-    await _selectDay(day);
-    final context = tester.element(findDatePickerDialog);
-    await tester.tap(
-      find.descendant(
-        of: findDatePickerDialog,
-        matching: find.text(MaterialLocalizations.of(context).okButtonLabel),
-      ),
-    );
-    await tester.pumpAndSettle();
+    await _openDatePickerAndSelectDay(day);
+    final labels = MaterialLocalizations.of(tester.element(findDatePickerDialog));
+    await _tapDatePickerButton(labels.okButtonLabel);
   }
 
   Future<void> selectDayAndCancel(String day) async {
-    await tester.tap(findDateField);
-    await tester.pumpAndSettle();
-    await _selectDay(day);
-    final context = tester.element(findDatePickerDialog);
-    await tester.tap(
-      find.descendant(
-        of: findDatePickerDialog,
-        matching: find.text(MaterialLocalizations.of(context).cancelButtonLabel),
-      ),
-    );
-    await tester.pumpAndSettle();
+    await _openDatePickerAndSelectDay(day);
+    final labels = MaterialLocalizations.of(tester.element(findDatePickerDialog));
+    await _tapDatePickerButton(labels.cancelButtonLabel);
   }
 
-  Future<void> _selectDay(String day) async {
+  Future<void> _openDatePickerAndSelectDay(String day) async {
+    await tester.tap(findDateField);
+    await tester.pumpAndSettle();
     await tester.tap(
       find.descendant(of: findDatePickerDialog, matching: find.text(day)).hitTestable(),
     );
     await tester.pumpAndSettle();
   }
 
+  Future<void> _tapDatePickerButton(String label) async {
+    await tester.tap(find.descendant(of: findDatePickerDialog, matching: find.text(label)));
+    await tester.pumpAndSettle();
+  }
+
   Future<void> selectDistanceUnit(String name) async {
     await tester.tap(findDistanceUnitField);
     await tester.pumpAndSettle();
-    await tester.tap(find.text(name).hitTestable());
+    await tester.tap(
+      find
+          .descendant(of: find.byType(DropdownMenuItem<DistanceUnit>), matching: find.text(name))
+          .hitTestable(),
+    );
     await tester.pumpAndSettle();
   }
 }

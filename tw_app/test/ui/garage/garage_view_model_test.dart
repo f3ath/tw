@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared/model.dart';
 import 'package:tw_app/testing/stub.dart' as stub;
+import 'package:tw_app/testing/samples.dart' as samples;
 import 'package:tw_app/ui/garage/garage_view_model.dart';
 
 void main() {
@@ -10,7 +11,7 @@ void main() {
     ({bool loading, bool error, List<Vehicle> vehicles})? observed;
 
     setUp(() {
-      repo = stub.InMemoryVehicleRepo();
+      repo = stub.InMemoryVehicleRepo(initialVehicles: samples.sampleVehicles);
       garageVM = GarageViewModel(vehicleRepository: repo);
       observed = null;
       garageVM.addListener(() {
@@ -29,7 +30,7 @@ void main() {
       expect(garageVM.isLoading, isFalse);
       expect(garageVM.vehicles, isEmpty);
 
-      var completer = repo.lockList();
+      var completer = repo.pauseNextList();
       final result = garageVM.load();
       expect(observed?.loading, isTrue);
       expect(observed?.error, isFalse);
@@ -43,7 +44,7 @@ void main() {
       expect(observed?.error, isTrue);
       expect(observed?.vehicles, isEmpty);
 
-      completer = repo.lockList();
+      completer = repo.pauseNextList();
 
       final result2 = garageVM.load();
       expect(observed?.loading, isTrue);
@@ -55,12 +56,27 @@ void main() {
 
       expect(observed?.loading, isFalse);
       expect(observed?.error, isFalse);
-      expect(observed?.vehicles, equals(stub.vehicles));
+      expect(observed?.vehicles, equals(samples.sampleVehicles));
+    });
+
+    test('retry succeeds without arranging another response', () async {
+      addTearDown(garageVM.dispose);
+      final completer = repo.pauseNextList();
+      final firstLoad = garageVM.load();
+
+      completer.completeError(Exception('Network error'));
+      await firstLoad;
+      expect(garageVM.hasError, isTrue);
+
+      await garageVM.load();
+
+      expect(garageVM.hasError, isFalse);
+      expect(garageVM.isLoading, isFalse);
+      expect(garageVM.vehicles, equals(samples.sampleVehicles));
     });
 
     test('stops notifying after disposal', () async {
-      repo.vehicles.clear();
-      final completer = repo.lockList();
+      final completer = repo.pauseNextList();
       final res = garageVM.load();
       observed = null;
       garageVM.dispose();
@@ -70,7 +86,7 @@ void main() {
     });
 
     test('handles failed loading after error', () async {
-      final completer = repo.lockList();
+      final completer = repo.pauseNextList();
       final res = garageVM.load();
       observed = null;
       garageVM.dispose();

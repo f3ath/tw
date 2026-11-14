@@ -1,8 +1,9 @@
 import 'package:material_ui/material_ui.dart';
-import 'package:shared/api.dart';
+import 'package:shared/model.dart';
 import 'package:tw_app/app/vehicle_repo.dart';
 import 'package:tw_app/time/clock.dart';
 import 'package:tw_app/ui/garage/garage_view_model.dart';
+import 'package:tw_app/ui/garage/vehicle_card.dart';
 import 'package:tw_app/ui/vehicles/vehicle_form_screen.dart';
 
 class const GarageScreen({
@@ -12,6 +13,8 @@ class const GarageScreen({
   required final VehicleRepo repo,
   final Clock clock = const Clock(),
 }) extends StatefulWidget {
+  static ValueKey<String> vehicleCardKey(String vehicleId) => ValueKey('vehicle-$vehicleId');
+
   static const userNameTextKey = ValueKey('user-name-text');
   static const logoutButtonKey = ValueKey('logout-button');
   static const retryButtonKey = ValueKey('retry-button');
@@ -25,18 +28,18 @@ class const GarageScreen({
 }
 
 class _GarageScreenState extends State<GarageScreen> {
-  late final GarageViewModel model;
+  late final GarageViewModel _model;
 
   @override
   void initState() {
     super.initState();
-    model = GarageViewModel(vehicleRepository: widget.repo);
-    model.load();
+    _model = GarageViewModel(vehicleRepository: widget.repo);
+    _model.load();
   }
 
   @override
   void dispose() {
-    model.dispose();
+    _model.dispose();
     super.dispose();
   }
 
@@ -62,29 +65,32 @@ class _GarageScreenState extends State<GarageScreen> {
       ],
     ),
     body: ListenableBuilder(
-      listenable: model,
+      listenable: _model,
       builder: (_, _) {
-        if (model.isLoading) {
+        if (_model.isLoading) {
           return const Center(child: CircularProgressIndicator());
         }
-        if (model.hasError) {
+        if (_model.hasError) {
           return Center(
             child: Column(
               children: [
                 Text('Error loading vehicles :('),
                 FilledButton(
                   key: GarageScreen.retryButtonKey,
-                  onPressed: model.load,
+                  onPressed: _model.load,
                   child: Text('Retry.'),
                 ),
               ],
             ),
           );
         }
-        if (model.vehicles.isEmpty) {
+        if (_model.vehicles.isEmpty) {
           return Center(child: Text('Nothing yet'));
         }
-        return ListView.builder(itemCount: model.vehicles.length, itemBuilder: _buildVehicleCard);
+        return ListView.builder(
+          itemCount: _model.vehicles.length,
+          itemBuilder: (_, index) => _buildVehicleCard(_model.vehicles[index]),
+        );
       },
     ),
     floatingActionButton: FloatingActionButton(
@@ -92,99 +98,42 @@ class _GarageScreenState extends State<GarageScreen> {
       tooltip: 'Add new vehicle',
       child: const Icon(Icons.add),
       onPressed: () async {
-        final added = await Navigator.of(context).push<bool>(
-          MaterialPageRoute(
-            builder: (_) => VehicleFormScreen(repo: widget.repo, clock: widget.clock),
-          ),
-        );
-        if (added == true && mounted) {
-          await model.load();
+        final refresh = await _openVehicleForm();
+        if (refresh == true && mounted) {
+          await _model.load();
         }
       },
     ),
   );
 
-  Card _buildVehicleCard(BuildContext context, int index) {
-    final v = model.vehicles[index];
-    final age = v.ageAsOf(widget.clock.now());
-    return Card(
-      key: ValueKey('vehicle-${v.id}'),
-      child: Column(
-        mainAxisSize: .min,
-        children: [
-          ListTile(
-            title: Text(v.name),
-            subtitle: Text('${age.years > 0 ? '${age.years} yr ' : ''}${age.months} mon old'),
-            trailing: PopupMenuButton<VehicleAction>(
-              key: ValueKey('menu-${v.id}'),
-              tooltip: 'Manage ${v.name}',
-              icon: const Icon(Icons.more_vert),
-              itemBuilder: (_) => const [
-                PopupMenuItem(
-                  key: ValueKey('edit'),
-                  value: VehicleAction.edit,
-                  child: Row(
-                    children: [
-                      Icon(Icons.edit_outlined, size: 20),
-                      SizedBox(width: 12),
-                      Expanded(child: Text('Edit vehicle')),
-                    ],
-                  ),
-                ),
-                PopupMenuItem(
-                  key: ValueKey('schedules'),
-                  value: VehicleAction.schedules,
-                  child: Row(
-                    children: [
-                      Icon(Icons.event_repeat, size: 20),
-                      SizedBox(width: 12),
-                      Expanded(child: Text('Manage schedules')),
-                    ],
-                  ),
-                ),
-                PopupMenuDivider(),
-                PopupMenuItem(
-                  key: ValueKey('delete'),
-                  value: VehicleAction.delete,
-                  child: Row(
-                    children: [
-                      Icon(Icons.delete_outline, size: 20),
-                      SizedBox(width: 12),
-                      Expanded(child: Text('Delete vehicle')),
-                    ],
-                  ),
-                ),
-              ],
-              onSelected: (action) => handleMenuAction(context, action, v),
-            ),
-          ),
-          Padding(padding: const EdgeInsets.all(16), child: Text('Services due will go here')),
-        ],
-      ),
-    );
-  }
-
-  Future<void> handleMenuAction(BuildContext context, VehicleAction action, Vehicle v) async {
-    debugPrint('${v.id}: $action');
-    final reload = await switch (action) {
-      .edit => editVehicle(context, v),
-      .delete => deleteVehicle(context, v),
-      .schedules => editSchedules(context, v),
-    };
-    if (reload == true && mounted) {
-      await model.load();
-    }
-  }
-
-  Future<bool?> editVehicle(BuildContext context, Vehicle v) => Navigator.of(context).push<bool>(
+  /// Returns true if Vehicles list needs to be reloaded
+  Future<bool?> _openVehicleForm({Vehicle? vehicle}) => Navigator.of(context).push<bool>(
     MaterialPageRoute(
-      builder: (_) => VehicleFormScreen(repo: widget.repo, clock: widget.clock, vehicle: v),
+      builder: (_) => VehicleFormScreen(repo: widget.repo, clock: widget.clock, vehicle: vehicle),
     ),
   );
 
-  Future<bool?> editSchedules(BuildContext context, Vehicle v) async => false;
+  VehicleCard _buildVehicleCard(Vehicle vehicle) => VehicleCard(
+    key: GarageScreen.vehicleCardKey(vehicle.id),
+    vehicle: vehicle,
+    now: widget.clock.now(),
+    onAction: (action) => _handleMenuAction(action, vehicle),
+  );
 
-  Future<bool?> deleteVehicle(BuildContext context, Vehicle v) async {
+  Future<void> _handleMenuAction(VehicleAction action, Vehicle v) async {
+    final refresh = await switch (action) {
+      .edit => _openVehicleForm(vehicle: v),
+      .delete => _deleteVehicle(v),
+      .schedules => _editSchedules(v),
+    };
+    if (refresh == true && mounted) {
+      await _model.load();
+    }
+  }
+
+  Future<bool?> _editSchedules(Vehicle v) async => false;
+
+  Future<bool?> _deleteVehicle(Vehicle v) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -205,20 +154,18 @@ class _GarageScreenState extends State<GarageScreen> {
         ],
       ),
     );
-    if (confirmed != true) return false;
-    if (mounted) {
-      try {
-        await widget.repo.deleteVehicle(v.id);
-      } on Exception {
-        if (mounted) {
-          ScaffoldMessenger.of(this.context)
-            ..hideCurrentSnackBar()
-            ..showSnackBar(const SnackBar(content: Text('Could not confirm deletion. Refreshing...')));
-        }
+    if (confirmed != true || !mounted) return false;
+    try {
+      await widget.repo.deleteVehicle(v.id);
+    } on Exception {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+          ..hideCurrentSnackBar()
+          ..showSnackBar(
+            const SnackBar(content: Text('Could not confirm deletion. Refreshing...')),
+          );
       }
     }
     return true;
   }
 }
-
-enum VehicleAction { edit, schedules, delete }

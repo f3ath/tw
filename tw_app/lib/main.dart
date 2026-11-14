@@ -9,6 +9,7 @@ import 'package:tw_app/data/auth/backend_auth_service.dart';
 import 'package:tw_app/data/auth/login_window/open_login_window.dart';
 import 'package:tw_app/data/backend_vehicle_repo.dart';
 import 'package:tw_app/testing/stub.dart' as stub;
+import 'package:tw_app/testing/samples.dart' as samples;
 
 void main() {
   const fake = bool.fromEnvironment('FAKE');
@@ -19,11 +20,10 @@ void main() {
   runApp(
     TwApp(
       authService: fake
-          ? stub.InMemoryAuthService()
+          ? stub.InMemoryAuthService(user: samples.sampleUser)
           : BackendAuthService(authApi: ApiClientAdapter(twApiClient), newWindow: openLoginWindow),
       vehicleRepo: fake
-          ? (stub.InMemoryVehicleRepo()
-              ..vehicles.addAll(Map.fromEntries(stub.vehicles.map((it) => MapEntry(it.id, it)))))
+          ? stub.InMemoryVehicleRepo(initialVehicles: samples.sampleVehicles)
           : BackendVehicleRepo(twApiClient),
     ),
   );
