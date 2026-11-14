@@ -165,6 +165,14 @@ void main() {
 
           expect(findOperationScreen, findsOneWidget);
           expect(findServiceScreen, findsNothing);
+          expect(operations.vehicleNameText.data, equals(vehicle.name));
+          final localizations = MaterialLocalizations.of(
+            tester.element(operations.findServiceDateText),
+          );
+          expect(
+            operations.serviceDateText.data,
+            equals(localizations.formatShortDate(service.date)),
+          );
           for (final operation in samples.sampleOperations) {
             expect(
               operations.findOperationCard(operation.id),

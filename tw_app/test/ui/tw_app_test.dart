@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:shared/model.dart';
 import 'package:tw_app/app/auth_service.dart';
 import 'package:tw_app/app/tw_app.dart';
@@ -77,6 +78,14 @@ void main() {
       await services.tapServiceCard(samples.fourRunnerTireService.id);
 
       expect(findOperationScreen, findsOneWidget);
+      expect(operations.vehicleNameText.data, equals(samples.fourRunner.name));
+      final localizations = MaterialLocalizations.of(
+        tester.element(operations.findServiceDateText),
+      );
+      expect(
+        operations.serviceDateText.data,
+        equals(localizations.formatShortDate(samples.fourRunnerTireService.date)),
+      );
       expect(operations.findOperationCard(samples.tireRotationOperation.id), findsOneWidget);
       expect(operations.findOperationCard(samples.oilChangeOperation.id), findsNothing);
       expect(operationRepo.listCalls, equals(1));

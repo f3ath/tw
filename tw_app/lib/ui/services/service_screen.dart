@@ -1,14 +1,14 @@
 import 'package:material_ui/material_ui.dart';
-import 'package:tw_app/app/repository_provider.dart';
 import 'package:shared/model.dart';
+import 'package:tw_app/app/repository_provider.dart';
 import 'package:tw_app/app/service_repo.dart';
-import 'package:tw_app/ui/operations/operation_screen.dart';
-import 'package:tw_app/ui/services/service_card.dart';
+import 'package:tw_app/ui/error_retry_view.dart';
 import 'package:tw_app/ui/list_view_model.dart';
 import 'package:tw_app/ui/loading_view.dart';
-import 'package:tw_app/ui/error_retry_view.dart';
-import 'package:tw_app/ui/services/service_form_screen.dart';
+import 'package:tw_app/ui/operations/operation_screen.dart';
+import 'package:tw_app/ui/services/service_card.dart';
 import 'package:tw_app/ui/services/service_delete_dialog.dart';
+import 'package:tw_app/ui/services/service_form_screen.dart';
 
 class const ServiceScreen({super.key, required final Vehicle vehicle}) extends StatefulWidget {
   static const addButtonKey = ValueKey('services-add-button');
@@ -17,6 +17,7 @@ class const ServiceScreen({super.key, required final Vehicle vehicle}) extends S
   static const emptyTextKey = ValueKey('services-empty-text');
   static const retryButtonKey = ValueKey('services-retry-button');
   static const deleteErrorSnackBarKey = ValueKey('service-delete-error-snackbar');
+
   static ValueKey<String> serviceKey(String id) => ValueKey('service-$id');
 
   @override
@@ -104,9 +105,11 @@ class _ServiceScreenState extends State<ServiceScreen> {
     }
   }
 
-  Future<void> _openOperations(Service service) =>
-      Navigator.of(context)
-          .push<void>(MaterialPageRoute(builder: (_) => OperationScreen(service: service)));
+  Future<void> _openOperations(Service service) => Navigator.of(context).push<void>(
+    MaterialPageRoute(
+      builder: (_) => OperationScreen(vehicle: widget.vehicle, service: service),
+    ),
+  );
 
   Future<void> _deleteService(Service service) async {
     final confirmed = await _confirmServiceDeletion(service);

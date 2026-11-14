@@ -7,7 +7,13 @@ import 'package:tw_app/ui/list_view_model.dart';
 import 'package:tw_app/ui/loading_view.dart';
 import 'package:tw_app/ui/error_retry_view.dart';
 
-class const OperationScreen({super.key, required final Service service}) extends StatefulWidget {
+class const OperationScreen({
+  super.key,
+  required final Vehicle vehicle,
+  required final Service service,
+}) extends StatefulWidget {
+  static const vehicleNameTextKey = ValueKey('operations-vehicle-name');
+  static const serviceDateTextKey = ValueKey('operations-service-date');
   static const loadingIndicatorKey = ValueKey('operations-loading-indicator');
   static const errorTextKey = ValueKey('operations-error-text');
   static const emptyTextKey = ValueKey('operations-empty-text');
@@ -41,12 +47,27 @@ class _OperationScreenState extends State<OperationScreen> {
     appBar: AppBar(
       title: Row(
         children: [
-          const Icon(Icons.checklist_outlined, size: 30),
+          const Icon(Icons.build_outlined, size: 30),
           const SizedBox(width: 10),
           Expanded(
-            child: Text(
-              'Operations · ${MaterialLocalizations.of(context).formatShortDate(widget.service.date)}',
-              overflow: TextOverflow.ellipsis,
+            child: Column(
+              mainAxisSize: .min,
+              crossAxisAlignment: .start,
+              children: [
+                Text(
+                  widget.vehicle.name,
+                  key: OperationScreen.vehicleNameTextKey,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                Text(
+                  MaterialLocalizations.of(context).formatShortDate(widget.service.date),
+                  key: OperationScreen.serviceDateTextKey,
+                  style: Theme.of(context).textTheme.bodyMedium,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
             ),
           ),
         ],

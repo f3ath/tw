@@ -42,6 +42,40 @@ class TestRobot(final WidgetTester tester) {
   Future<void> tapAlertDialogButton(String text) async {
     await tester.tap(find.descendant(of: find.byType(AlertDialog), matching: find.text(text)));
   }
+
+  Future<void> _enterText(Finder field, String value) async {
+    await tester.ensureVisible(field);
+    await tester.enterText(field, value);
+    await tester.pump();
+  }
+
+  Future<void> _tapSave(Finder button, {PumpMode pump = .frame}) async {
+    await tester.ensureVisible(button);
+    await tester.tap(button);
+    await pumpAfterAction(pump);
+  }
+
+  Future<void> _openDatePicker(Finder field, {bool ensureVisible = false}) async {
+    if (ensureVisible) await tester.ensureVisible(field);
+    await tester.tap(field);
+    await tester.pumpAndSettle();
+  }
+
+  Future<void> _selectDatePickerDay(
+    Finder field,
+    String day, {
+    required bool confirm,
+    bool ensureVisible = false,
+  }) async {
+    await _openDatePicker(field, ensureVisible: ensureVisible);
+    final dialog = find.byType(DatePickerDialog);
+    await tester.tap(find.descendant(of: dialog, matching: find.text(day)).hitTestable());
+    await tester.pumpAndSettle();
+    final labels = MaterialLocalizations.of(tester.element(dialog));
+    final label = confirm ? labels.okButtonLabel : labels.cancelButtonLabel;
+    await tester.tap(find.descendant(of: dialog, matching: find.text(label)));
+    await tester.pumpAndSettle();
+  }
 }
 
 class WelcomeRobot(super.tester) extends TestRobot {
@@ -142,43 +176,15 @@ class VehicleFormRobot(super.tester) extends TestRobot {
 
   String? get dateError => dateField.errorText;
 
-  Future<void> saveForm({PumpMode pump = .frame}) async {
-    await tester.ensureVisible(findSaveButton);
-    await tester.tap(findSaveButton);
-    await pumpAfterAction(pump);
-  }
+  Future<void> saveForm({PumpMode pump = .frame}) => _tapSave(findSaveButton, pump: pump);
 
-  Future<void> enterName(String name) async {
-    await tester.ensureVisible(findNameField);
-    await tester.enterText(findNameField, name);
-    await tester.pump();
-  }
+  Future<void> enterName(String name) => _enterText(findNameField, name);
 
-  Future<void> selectDayAndConfirm(String day) async {
-    await _openDatePickerAndSelectDay(day);
-    final labels = MaterialLocalizations.of(tester.element(findDatePickerDialog));
-    await _tapDatePickerButton(labels.okButtonLabel);
-  }
+  Future<void> selectDayAndConfirm(String day) =>
+      _selectDatePickerDay(findDateField, day, confirm: true);
 
-  Future<void> selectDayAndCancel(String day) async {
-    await _openDatePickerAndSelectDay(day);
-    final labels = MaterialLocalizations.of(tester.element(findDatePickerDialog));
-    await _tapDatePickerButton(labels.cancelButtonLabel);
-  }
-
-  Future<void> _openDatePickerAndSelectDay(String day) async {
-    await tester.tap(findDateField);
-    await tester.pumpAndSettle();
-    await tester.tap(
-      find.descendant(of: findDatePickerDialog, matching: find.text(day)).hitTestable(),
-    );
-    await tester.pumpAndSettle();
-  }
-
-  Future<void> _tapDatePickerButton(String label) async {
-    await tester.tap(find.descendant(of: findDatePickerDialog, matching: find.text(label)));
-    await tester.pumpAndSettle();
-  }
+  Future<void> selectDayAndCancel(String day) =>
+      _selectDatePickerDay(findDateField, day, confirm: false);
 
   Future<void> selectDistanceUnit(String name) async {
     await tester.tap(findDistanceUnitField);
@@ -252,24 +258,17 @@ class ScheduleFormRobot(super.tester) extends TestRobot {
   String? get distanceError => _error(ScheduleFormScreen.distanceFieldKey);
   String? get monthsError => _error(ScheduleFormScreen.monthsFieldKey);
 
-  Future<void> enterName(String value) => _enter(ScheduleFormScreen.nameFieldKey, value);
-  Future<void> enterDistance(String value) => _enter(ScheduleFormScreen.distanceFieldKey, value);
-  Future<void> enterMonths(String value) => _enter(ScheduleFormScreen.monthsFieldKey, value);
-  Future<void> enterDetails(String value) => _enter(ScheduleFormScreen.detailsFieldKey, value);
+  Future<void> enterName(String value) =>
+      _enterText(find.byKey(ScheduleFormScreen.nameFieldKey), value);
+  Future<void> enterDistance(String value) =>
+      _enterText(find.byKey(ScheduleFormScreen.distanceFieldKey), value);
+  Future<void> enterMonths(String value) =>
+      _enterText(find.byKey(ScheduleFormScreen.monthsFieldKey), value);
+  Future<void> enterDetails(String value) =>
+      _enterText(find.byKey(ScheduleFormScreen.detailsFieldKey), value);
 
-  Future<void> saveForm({PumpMode pump = .frame}) async {
-    final button = find.byKey(ScheduleFormScreen.saveButtonKey);
-    await tester.ensureVisible(button);
-    await tester.tap(button);
-    await pumpAfterAction(pump);
-  }
-
-  Future<void> _enter(Key key, String value) async {
-    final field = find.byKey(key);
-    await tester.ensureVisible(field);
-    await tester.enterText(field, value);
-    await tester.pump();
-  }
+  Future<void> saveForm({PumpMode pump = .frame}) =>
+      _tapSave(find.byKey(ScheduleFormScreen.saveButtonKey), pump: pump);
 
   String? _error(Key key) => tester.state<FormFieldState<String>>(find.byKey(key)).errorText;
 
@@ -349,6 +348,12 @@ class ServiceRobot(super.tester) extends TestRobot {
 }
 
 class OperationRobot(super.tester) extends TestRobot {
+  final findVehicleNameText = find.byKey(OperationScreen.vehicleNameTextKey);
+  final findServiceDateText = find.byKey(OperationScreen.serviceDateTextKey);
+
+  Text get vehicleNameText => tester.widget<Text>(findVehicleNameText);
+  Text get serviceDateText => tester.widget<Text>(findServiceDateText);
+
   Finder findOperationCard(String id) => find.byKey(OperationScreen.operationKey(id));
 
   Future<void> tapRetry({PumpMode pump = .frame}) async {
@@ -392,42 +397,18 @@ class ServiceFormRobot(super.tester) extends TestRobot {
     find.descendant(of: findOdometerField, matching: find.byType(TextField)),
   );
 
-  Future<void> enterOdometer(String value) => _enter(findOdometerField, value);
-  Future<void> enterDetails(String value) => _enter(findDetailsField, value);
+  Future<void> enterOdometer(String value) => _enterText(findOdometerField, value);
+  Future<void> enterDetails(String value) => _enterText(findDetailsField, value);
 
   Future<void> setDateValue(DateTime? value) async {
     dateField.didChange(value);
     await tester.pump();
   }
 
-  Future<void> _enter(Finder field, String value) async {
-    await tester.ensureVisible(field);
-    await tester.enterText(field, value);
-    await tester.pump();
-  }
+  Future<void> saveForm({PumpMode pump = .frame}) => _tapSave(findSaveButton, pump: pump);
 
-  Future<void> saveForm({PumpMode pump = .frame}) async {
-    await tester.ensureVisible(findSaveButton);
-    await tester.tap(findSaveButton);
-    await pumpAfterAction(pump);
-  }
+  Future<void> openDatePicker() => _openDatePicker(findDateField, ensureVisible: true);
 
-  Future<void> openDatePicker() async {
-    await tester.ensureVisible(findDateField);
-    await tester.tap(findDateField);
-    await tester.pumpAndSettle();
-  }
-
-  Future<void> selectDayAndConfirm(String day) async {
-    await openDatePicker();
-    await tester.tap(
-      find.descendant(of: findDatePickerDialog, matching: find.text(day)).hitTestable(),
-    );
-    await tester.pumpAndSettle();
-    final labels = MaterialLocalizations.of(tester.element(findDatePickerDialog));
-    await tester.tap(
-      find.descendant(of: findDatePickerDialog, matching: find.text(labels.okButtonLabel)),
-    );
-    await tester.pumpAndSettle();
-  }
+  Future<void> selectDayAndConfirm(String day) =>
+      _selectDatePickerDay(findDateField, day, confirm: true, ensureVisible: true);
 }

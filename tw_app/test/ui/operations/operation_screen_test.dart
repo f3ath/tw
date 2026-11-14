@@ -12,7 +12,14 @@ void main() {
   group('OperationScreen', () {
     for (final service in samples.sampleServices) {
       testWidgets('shows only ${service.id} operations after loading', (tester) async {
-        final harness = Harness(service: service, initialOperations: samples.sampleOperations);
+        final vehicle = samples.sampleVehicles.singleWhere(
+          (vehicle) => vehicle.id == service.vehicleId,
+        );
+        final harness = Harness(
+          vehicle: vehicle,
+          service: service,
+          initialOperations: samples.sampleOperations,
+        );
         final operations = OperationRobot(tester);
         final pending = harness.repo.pauseNextList();
         await harness.pumpScreen(tester);
@@ -21,7 +28,15 @@ void main() {
         expect(find.byKey(OperationScreen.emptyTextKey), findsNothing);
         expect(find.byType(ListTile), findsNothing);
         final localizations = MaterialLocalizations.of(tester.element(findOperationScreen));
-        expect(find.textContaining(localizations.formatShortDate(service.date)), findsOneWidget);
+        expect(operations.vehicleNameText.data, equals(vehicle.name));
+        expect(
+          operations.serviceDateText.data,
+          equals(localizations.formatShortDate(service.date)),
+        );
+        expect(
+          tester.getTopLeft(operations.findServiceDateText).dy,
+          greaterThanOrEqualTo(tester.getBottomLeft(operations.findVehicleNameText).dy),
+        );
 
         pending.complete();
         await tester.pumpAndSettle();
@@ -50,6 +65,7 @@ void main() {
         tester,
       ) async {
         final harness = Harness(
+          vehicle: samples.santaFe,
           service: samples.santaFeOilService,
           initialOperations: initialOperations,
         );
@@ -64,6 +80,7 @@ void main() {
 
     testWidgets('failed loading shows an error and can be retried', (tester) async {
       final harness = Harness(
+        vehicle: samples.santaFe,
         service: samples.santaFeOilService,
         initialOperations: samples.sampleOperations,
       );
@@ -99,6 +116,7 @@ void main() {
 
     testWidgets('rebuilding does not reload operations', (tester) async {
       final harness = Harness(
+        vehicle: samples.fourRunner,
         service: samples.fourRunnerTireService,
         initialOperations: samples.sampleOperations,
       );
@@ -115,7 +133,7 @@ void main() {
       testWidgets('can leave while a request later ${fails ? 'fails' : 'succeeds'}', (
         tester,
       ) async {
-        final harness = Harness(service: samples.santaFeOilService);
+        final harness = Harness(vehicle: samples.santaFe, service: samples.santaFeOilService);
         final pending = harness.repo.pauseNextList();
         await harness.pumpScreen(tester);
 
@@ -150,7 +168,11 @@ void expectOperationsVisible(WidgetTester tester, Iterable<Operation> operations
   }
 }
 
-class Harness({required final Service service, Iterable<Operation> initialOperations = const []}) {
+class Harness({
+  required final Vehicle vehicle,
+  required final Service service,
+  Iterable<Operation> initialOperations = const [],
+}) {
   final repo = InMemoryOperationRepo(initialOperations: initialOperations);
 
   Future<void> pumpScreen(WidgetTester tester) => tester.pumpWidget(
@@ -159,7 +181,9 @@ class Harness({required final Service service, Iterable<Operation> initialOperat
       scheduleRepo: InMemoryScheduleRepo(),
       serviceRepo: InMemoryServiceRepo(),
       operationRepo: repo,
-      child: MaterialApp(home: OperationScreen(service: service)),
+      child: MaterialApp(
+        home: OperationScreen(vehicle: vehicle, service: service),
+      ),
     ),
   );
 
