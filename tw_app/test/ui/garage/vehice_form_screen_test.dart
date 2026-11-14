@@ -11,6 +11,27 @@ import '../../robots.dart';
 void main() {
   group('VehicleFormScreen', () {
     group('New Vehicle', () {
+      testWidgets('can scroll to Save in a short viewport', (tester) async {
+        tester.view.physicalSize = const Size(400, 250);
+        tester.view.devicePixelRatio = 1;
+        addTearDown(tester.view.resetPhysicalSize);
+        addTearDown(tester.view.resetDevicePixelRatio);
+        await tester.pumpWidget(MaterialApp(home: VehicleFormScreen(repo: InMemoryVehicleRepo())));
+
+        final save = find.byKey(VehicleFormScreen.saveButtonKey);
+        await tester.scrollUntilVisible(
+          save,
+          100,
+          scrollable: find
+              .descendant(of: find.byType(ListView), matching: find.byType(Scrollable))
+              .first,
+        );
+        await tester.pumpAndSettle();
+
+        expect(save.hitTestable(), findsOneWidget);
+        expect(tester.takeException(), isNull);
+      });
+
       testWidgets('distance units are selectable', (WidgetTester tester) async {
         final form = VehicleFormRobot(tester);
         await tester.pumpWidget(MaterialApp(home: VehicleFormScreen(repo: InMemoryVehicleRepo())));
@@ -65,7 +86,9 @@ void main() {
         expect(form.dateError, isNotEmpty);
       });
 
-      testWidgets('shows snackbar on error', (WidgetTester tester) async {
+      testWidgets('disables fields while saving and restores them after failure', (
+        WidgetTester tester,
+      ) async {
         final form = VehicleFormRobot(tester);
         final repo = InMemoryVehicleRepo();
         final clock = ClockMock();
@@ -84,11 +107,35 @@ void main() {
         expect(form.nameError, isNull);
         expect(form.dateError, isNull);
         expect(form.saveButton.enabled, isFalse);
+        expect(tester.widget<TextFormField>(form.findNameField).enabled, isFalse);
+        expect(
+          tester
+              .widget<DropdownButtonFormField<DistanceUnit>>(form.findDistanceUnitField)
+              .onChanged,
+          isNull,
+        );
+        final dateInput = find.descendant(of: form.findDateField, matching: find.byType(TextField));
+        expect(tester.widget<TextField>(dateInput).enabled, isFalse);
+        await tester.tap(form.findDateField);
+        await tester.pump();
+        expect(form.findDatePickerDialog, findsNothing);
+        await form.saveForm(pump: .none);
 
         completer.completeError(Exception('Network error'));
         await tester.pump();
         expect(find.byKey(VehicleFormScreen.errorSnackBarKey), findsOneWidget);
         expect(form.saveButton.enabled, isTrue);
+        expect(tester.widget<TextFormField>(form.findNameField).enabled, isTrue);
+        expect(
+          tester
+              .widget<DropdownButtonFormField<DistanceUnit>>(form.findDistanceUnitField)
+              .onChanged,
+          isNotNull,
+        );
+        expect(tester.widget<TextField>(dateInput).enabled, isTrue);
+        expect(form.nameField.value, equals('   Ford T'));
+        expect(form.selectedDistanceUnit, equals(DistanceUnit.km));
+        expect(form.selectedDate, equals(DateTime(2009, 10, 13)));
       });
     });
     group('Editing', () {

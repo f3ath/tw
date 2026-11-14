@@ -31,16 +31,19 @@ class _VehicleFormScreenState extends State<VehicleFormScreen> {
   @override
   Widget build(BuildContext context) => Scaffold(
     appBar: AppBar(title: Text(_isEditing ? 'Edit Vehicle' : 'New Vehicle')),
-    body: Padding(
-      padding: .all(10),
+    body: SafeArea(
       child: Form(
         key: _formKey,
-        child: Column(
+        child: ListView(
+          padding: const EdgeInsets.all(10),
           children: [
             TextFormField(
               decoration: InputDecoration(labelText: 'Name'),
               key: VehicleFormScreen.nameFieldKey,
               initialValue: widget.vehicle?.name,
+              enabled: !_isSaving,
+              textCapitalization: TextCapitalization.sentences,
+              textInputAction: TextInputAction.next,
               validator: (val) {
                 if (val == null || val.trim().isEmpty) {
                   return 'Please name your vehicle';
@@ -51,6 +54,7 @@ class _VehicleFormScreenState extends State<VehicleFormScreen> {
                 _name = val!.trim();
               },
             ),
+            const SizedBox(height: 16),
             DropdownButtonFormField<DistanceUnit>(
               key: VehicleFormScreen.distanceUnitFieldKey,
               decoration: InputDecoration(labelText: 'Distance Unit'),
@@ -61,10 +65,11 @@ class _VehicleFormScreenState extends State<VehicleFormScreen> {
               onSaved: (val) {
                 _distanceUnit = val!;
               },
-              onChanged: _isEditing ? null : (_) {}, // enables the control
+              onChanged: _isEditing || _isSaving ? null : (_) {}, // enables the control
             ),
             DateFormField(
               key: VehicleFormScreen.dateFieldKey,
+              enabled: !_isSaving,
               format: _formatDate,
               firstDate: DateTime(1900),
               lastDate: DateTime(2100),
@@ -81,7 +86,7 @@ class _VehicleFormScreenState extends State<VehicleFormScreen> {
                 _manufactureDate = val;
               },
             ),
-
+            const SizedBox(height: 16),
             FilledButton(
               key: VehicleFormScreen.saveButtonKey,
               onPressed: _isSaving ? null : _saveForm,
@@ -94,6 +99,7 @@ class _VehicleFormScreenState extends State<VehicleFormScreen> {
   );
 
   Future<void> _saveForm() async {
+    if (_isSaving) return;
     final form = _formKey.currentState!;
     if (!form.validate()) return;
     form.save();

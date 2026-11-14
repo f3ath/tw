@@ -7,6 +7,7 @@ class const DateFormField({
   super.initialValue,
   super.validator,
   super.onSaved,
+  super.enabled,
   required final String Function(DateTime?) _format,
   required final DateTime _firstDate,
   required final DateTime _lastDate,
@@ -54,6 +55,7 @@ class _DateFormFieldState extends FormFieldState<DateTime> {
 
   Widget _buildInput() => TextField(
     controller: _controller,
+    enabled: widget.enabled,
     readOnly: true,
     onTap: () async {
       final selected = await showDatePicker(
@@ -62,7 +64,7 @@ class _DateFormFieldState extends FormFieldState<DateTime> {
         firstDate: widget._firstDate,
         lastDate: widget._lastDate,
       );
-      if (!mounted || selected == null) return;
+      if (!mounted || !widget.enabled || selected == null) return;
       didChange(selected);
     },
     decoration: (widget._decoration ?? const InputDecoration()).copyWith(errorText: errorText),
