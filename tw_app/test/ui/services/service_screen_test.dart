@@ -4,7 +4,6 @@ import 'package:shared/model.dart';
 import 'package:tw_app/testing/samples.dart' as samples;
 import 'package:tw_app/testing/stub.dart';
 import 'package:tw_app/ui/services/service_screen.dart';
-import 'package:tw_app/ui/services/service_form_screen.dart';
 
 import '../../robots.dart';
 
@@ -84,6 +83,7 @@ void main() {
       ) async {
         final harness = Harness(vehicle: vehicle, initialServices: samples.sampleServices);
         final services = ServiceRobot(tester);
+        final form = ServiceFormRobot(tester);
         await harness.pumpLoadedScreen(tester);
 
         await services.tapNewService();
@@ -91,15 +91,8 @@ void main() {
         expect(findServiceFormScreen, findsOneWidget);
         expect(findServiceScreen, findsNothing);
         expect(find.text(vehicle.name), findsOneWidget);
-        final odometer = tester.widget<TextField>(
-          find.descendant(
-            of: find.byKey(ServiceFormScreen.odometerFieldKey),
-            matching: find.byType(TextField),
-          ),
-        );
-        expect(odometer.decoration?.suffixText, equals(vehicle.distanceUnit.name));
-        final save = tester.widget<FilledButton>(find.byKey(ServiceFormScreen.saveButtonKey));
-        expect(save.enabled, isFalse);
+        expect(form.distanceUnitLabel, equals(vehicle.distanceUnit.name));
+        expect(form.saveButton.enabled, isTrue);
 
         await tester.pageBack();
         await tester.pumpAndSettle();
@@ -113,6 +106,29 @@ void main() {
         expect(harness.repo.listCalls, equals(1));
       });
     }
+
+    testWidgets('successful creation refreshes the selected vehicle history', (tester) async {
+      final harness = Harness(vehicle: samples.santaFe, initialServices: samples.sampleServices);
+      final services = ServiceRobot(tester);
+      final form = ServiceFormRobot(tester);
+      await harness.pumpLoadedScreen(tester);
+      await services.tapNewService();
+      await form.enterOdometer('123456');
+      await form.enterDetails('New service');
+
+      await form.saveForm(pump: .settle);
+
+      expect(findServiceFormScreen, findsNothing);
+      expect(findServiceScreen, findsOneWidget);
+      expect(harness.repo.listCalls, equals(2));
+      final created = harness.repo.services.values.singleWhere(
+        (service) => service.details == 'New service',
+      );
+      expect(created.vehicleId, equals(samples.santaFe.id));
+      expect(created.odometer, equals(123456));
+      expectServicesVisible(tester, [samples.santaFeOilService, created]);
+      expect(services.findServiceCard(samples.fourRunnerTireService.id), findsNothing);
+    });
 
     for (final fails in [false, true]) {
       testWidgets('can leave while a request later ${fails ? 'fails' : 'succeeds'}', (

@@ -95,8 +95,11 @@ class _ServiceScreenState extends State<ServiceScreen> {
   );
 
   Future<void> _openServiceForm() async {
-    final refresh = await Navigator.of(context)
-        .push<bool>(MaterialPageRoute(builder: (_) => ServiceFormScreen(vehicle: widget.vehicle)));
+    final refresh = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+        builder: (_) => ServiceFormScreen(vehicle: widget.vehicle, repo: widget.repo),
+      ),
+    );
     if (refresh == true && mounted) await _model.load();
   }
 }

@@ -1,13 +1,12 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:material_ui/material_ui.dart';
-import 'package:mocktail/mocktail.dart';
 import 'package:shared/model.dart';
 import 'package:tw_app/testing/stub.dart' as stub;
 import 'package:tw_app/testing/samples.dart' as samples;
-import 'package:tw_app/time/clock.dart';
 import 'package:tw_app/ui/garage/garage_screen.dart';
 import 'package:tw_app/ui/garage/vehicle_delete_dialog.dart';
 
+import '../../../lib/testing/fixed_clock.dart';
 import '../../robots.dart';
 
 void main() {
@@ -307,19 +306,13 @@ void expectVehiclesVisible(List<Vehicle> vehicles) {
   }
 }
 
-class ClockMock extends Mock implements Clock;
-
 class Harness({Iterable<Vehicle>? initialVehicles}) {
   final repo = stub.InMemoryVehicleRepo(
     initialVehicles: initialVehicles ?? [samples.santaFe, samples.fourRunner],
   );
   final scheduleRepo = stub.InMemoryScheduleRepo();
   final serviceRepo = stub.InMemoryServiceRepo();
-  final clock = ClockMock();
-
-  this {
-    when(() => clock.now()).thenReturn(DateTime(2009, 10, 15));
-  }
+  final clock = FixedClock(DateTime(2009, 10, 15));
 
   Future<void> pumpLoadedScreen(WidgetTester tester, {String userName = 'John Doe'}) async {
     await pumpScreen(tester, userName: userName);

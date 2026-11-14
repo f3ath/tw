@@ -1,12 +1,11 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:material_ui/material_ui.dart';
-import 'package:mocktail/mocktail.dart';
 import 'package:shared/model.dart';
 import 'package:tw_app/testing/samples.dart' as samples;
 import 'package:tw_app/testing/stub.dart';
-import 'package:tw_app/time/clock.dart';
 import 'package:tw_app/ui/garage/vehicle_form_screen.dart';
 
+import '../../../lib/testing/fixed_clock.dart';
 import '../../robots.dart';
 
 void main() {
@@ -249,17 +248,11 @@ void main() {
   });
 }
 
-class ClockMock extends Mock implements Clock;
-
 class Harness({final Vehicle? vehicle, Iterable<Vehicle> initialVehicles = const []}) {
   final repo = InMemoryVehicleRepo(initialVehicles: initialVehicles);
-  final clock = ClockMock();
+  final clock = FixedClock(DateTime(2009, 10, 15));
   final _navigatorKey = GlobalKey<NavigatorState>();
   late Future<bool?> result;
-
-  this {
-    when(() => clock.now()).thenReturn(DateTime(2009, 10, 15));
-  }
 
   Future<void> pumpForm(WidgetTester tester) async {
     await tester.pumpWidget(MaterialApp(navigatorKey: _navigatorKey, home: const Scaffold()));

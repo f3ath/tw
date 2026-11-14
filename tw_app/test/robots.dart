@@ -283,3 +283,78 @@ class ServiceRobot(super.tester) extends TestRobot {
     await pumpAfterAction(pump);
   }
 }
+
+class ServiceFormRobot(super.tester) extends TestRobot {
+  final findDateField = find.byKey(ServiceFormScreen.dateFieldKey);
+  final findOdometerField = find.byKey(ServiceFormScreen.odometerFieldKey);
+  final findDetailsField = find.byKey(ServiceFormScreen.detailsFieldKey);
+  final findSaveButton = find.byKey(ServiceFormScreen.saveButtonKey);
+  final findDatePickerDialog = find.byType(DatePickerDialog);
+  final findSaveError = find.byKey(ServiceFormScreen.errorSnackBarKey);
+
+  FilledButton get saveButton => tester.widget<FilledButton>(findSaveButton);
+  DatePickerDialog get datePicker => tester.widget<DatePickerDialog>(findDatePickerDialog);
+
+  FormFieldState<DateTime> get dateField => tester.state<FormFieldState<DateTime>>(findDateField);
+  FormFieldState<String> get odometerField =>
+      tester.state<FormFieldState<String>>(findOdometerField);
+  FormFieldState<String> get detailsField => tester.state<FormFieldState<String>>(findDetailsField);
+
+  DateTime? get selectedDate => dateField.value;
+  String? get odometer => odometerField.value;
+  String? get details => detailsField.value;
+  String? get dateError => dateField.errorText;
+  String? get odometerError => odometerField.errorText;
+
+  bool get dateEnabled => _dateInput.enabled ?? true;
+  bool get odometerEnabled => tester.widget<TextFormField>(findOdometerField).enabled;
+  bool get detailsEnabled => tester.widget<TextFormField>(findDetailsField).enabled;
+  String? get distanceUnitLabel => _odometerInput.decoration?.suffixText;
+
+  TextField get _dateInput => tester.widget<TextField>(
+    find.descendant(of: findDateField, matching: find.byType(TextField)),
+  );
+
+  TextField get _odometerInput => tester.widget<TextField>(
+    find.descendant(of: findOdometerField, matching: find.byType(TextField)),
+  );
+
+  Future<void> enterOdometer(String value) => _enter(findOdometerField, value);
+  Future<void> enterDetails(String value) => _enter(findDetailsField, value);
+
+  Future<void> setDateValue(DateTime? value) async {
+    dateField.didChange(value);
+    await tester.pump();
+  }
+
+  Future<void> _enter(Finder field, String value) async {
+    await tester.ensureVisible(field);
+    await tester.enterText(field, value);
+    await tester.pump();
+  }
+
+  Future<void> saveForm({PumpMode pump = .frame}) async {
+    await tester.ensureVisible(findSaveButton);
+    await tester.tap(findSaveButton);
+    await pumpAfterAction(pump);
+  }
+
+  Future<void> openDatePicker() async {
+    await tester.ensureVisible(findDateField);
+    await tester.tap(findDateField);
+    await tester.pumpAndSettle();
+  }
+
+  Future<void> selectDayAndConfirm(String day) async {
+    await openDatePicker();
+    await tester.tap(
+      find.descendant(of: findDatePickerDialog, matching: find.text(day)).hitTestable(),
+    );
+    await tester.pumpAndSettle();
+    final labels = MaterialLocalizations.of(tester.element(findDatePickerDialog));
+    await tester.tap(
+      find.descendant(of: findDatePickerDialog, matching: find.text(labels.okButtonLabel)),
+    );
+    await tester.pumpAndSettle();
+  }
+}
