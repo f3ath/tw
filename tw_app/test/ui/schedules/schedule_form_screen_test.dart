@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:material_ui/material_ui.dart';
+import 'package:tw_app/app/repository_provider.dart';
 import 'package:shared/model.dart';
 import 'package:tw_app/testing/samples.dart' as samples;
 import 'package:tw_app/testing/stub.dart';
@@ -283,10 +284,18 @@ class Harness({
   late Future<bool?> result;
 
   Future<void> pumpForm(WidgetTester tester) async {
-    await tester.pumpWidget(MaterialApp(navigatorKey: _navigatorKey, home: const Scaffold()));
+    await tester.pumpWidget(
+      RepositoryProvider(
+        vehicleRepo: InMemoryVehicleRepo(),
+        scheduleRepo: repo,
+        serviceRepo: InMemoryServiceRepo(),
+        operationRepo: InMemoryOperationRepo(),
+        child: MaterialApp(navigatorKey: _navigatorKey, home: const Scaffold()),
+      ),
+    );
     result = _navigatorKey.currentState!.push<bool>(
       MaterialPageRoute(
-        builder: (_) => ScheduleFormScreen(vehicle: vehicle, repo: repo, schedule: schedule),
+        builder: (_) => ScheduleFormScreen(vehicle: vehicle, schedule: schedule),
       ),
     );
     await tester.pumpAndSettle();

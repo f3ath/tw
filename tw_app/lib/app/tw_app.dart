@@ -3,6 +3,7 @@ import 'package:tw_app/app/auth_service.dart';
 import 'package:tw_app/app/vehicle_repo.dart';
 import 'package:tw_app/app/schedule_repo.dart';
 import 'package:tw_app/app/service_repo.dart';
+import 'package:tw_app/app/repository_provider.dart';
 import 'package:tw_app/app/operation_repo.dart';
 import 'package:shared/model.dart';
 import 'package:tw_app/ui/garage/garage_screen.dart';
@@ -26,19 +27,18 @@ class _TwAppState() extends State<TwApp> {
   @override
   Widget build(BuildContext context) {
     final user = _user;
-    return MaterialApp(
-      title: 'Torque Wrench',
-      theme: ThemeData(colorScheme: .fromSeed(seedColor: Colors.deepPurple)),
-      home: user != null
-          ? GarageScreen(
-              onLogout: logout,
-              userName: user.name,
-              vehicleRepo: widget.vehicleRepo,
-              scheduleRepo: widget.scheduleRepo,
-              serviceRepo: widget.serviceRepo,
-              operationRepo: widget.operationRepo,
-            )
-          : WelcomeScreen(onLogin: login),
+    return RepositoryProvider(
+      vehicleRepo: widget.vehicleRepo,
+      scheduleRepo: widget.scheduleRepo,
+      serviceRepo: widget.serviceRepo,
+      operationRepo: widget.operationRepo,
+      child: MaterialApp(
+        title: 'Torque Wrench',
+        theme: ThemeData(colorScheme: .fromSeed(seedColor: Colors.deepPurple)),
+        home: user != null
+            ? GarageScreen(onLogout: logout, userName: user.name)
+            : WelcomeScreen(onLogin: login),
+      ),
     );
   }
 

@@ -1,4 +1,5 @@
 import 'package:material_ui/material_ui.dart';
+import 'package:tw_app/app/repository_provider.dart';
 import 'package:shared/model.dart';
 import 'package:tw_app/ui/schedules/schedule_delete_dialog.dart';
 import 'package:tw_app/app/schedule_repo.dart';
@@ -8,11 +9,7 @@ import 'package:tw_app/ui/error_retry_view.dart';
 import 'package:tw_app/ui/schedules/schedule_card.dart';
 import 'package:tw_app/ui/schedules/schedule_form_screen.dart';
 
-class const ScheduleScreen({
-  super.key,
-  required final Vehicle vehicle,
-  required final ScheduleRepo repo,
-}) extends StatefulWidget {
+class const ScheduleScreen({super.key, required final Vehicle vehicle}) extends StatefulWidget {
   static const addButtonKey = ValueKey('schedules-add-button');
   static const loadingIndicatorKey = ValueKey('schedules-loading-indicator');
   static const errorTextKey = ValueKey('schedules-error-text');
@@ -26,12 +23,14 @@ class const ScheduleScreen({
 }
 
 class _ScheduleScreenState extends State<ScheduleScreen> {
+  late final ScheduleRepo _repo;
   late final ListViewModel<Schedule> _model;
 
   @override
   void initState() {
     super.initState();
-    _model = ListViewModel<Schedule>(fetch: () => widget.repo.list(widget.vehicle.id));
+    _repo = RepositoryProvider.read(context).scheduleRepo;
+    _model = ListViewModel<Schedule>(fetch: () => _repo.list(widget.vehicle.id));
     _model.load();
   }
 
@@ -105,7 +104,7 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
     final confirmed = await _confirmScheduleDeletion(schedule);
     if (!confirmed || !mounted) return;
     try {
-      await widget.repo.delete(schedule.id);
+      await _repo.delete(schedule.id);
     } on Exception {
       if (mounted) {
         ScaffoldMessenger.of(context)
@@ -132,8 +131,7 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
   Future<void> _openScheduleForm({Schedule? schedule}) async {
     final refresh = await Navigator.of(context).push<bool>(
       MaterialPageRoute(
-        builder: (_) =>
-            ScheduleFormScreen(vehicle: widget.vehicle, repo: widget.repo, schedule: schedule),
+        builder: (_) => ScheduleFormScreen(vehicle: widget.vehicle, schedule: schedule),
       ),
     );
     if (refresh == true && mounted) await _model.load();

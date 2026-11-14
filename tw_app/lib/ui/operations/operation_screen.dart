@@ -1,4 +1,5 @@
 import 'package:material_ui/material_ui.dart';
+import 'package:tw_app/app/repository_provider.dart';
 import 'package:shared/model.dart';
 import 'package:tw_app/app/operation_repo.dart';
 import 'package:tw_app/ui/operations/operation_card.dart';
@@ -6,11 +7,7 @@ import 'package:tw_app/ui/list_view_model.dart';
 import 'package:tw_app/ui/loading_view.dart';
 import 'package:tw_app/ui/error_retry_view.dart';
 
-class const OperationScreen({
-  super.key,
-  required final Service service,
-  required final OperationRepo repo,
-}) extends StatefulWidget {
+class const OperationScreen({super.key, required final Service service}) extends StatefulWidget {
   static const loadingIndicatorKey = ValueKey('operations-loading-indicator');
   static const errorTextKey = ValueKey('operations-error-text');
   static const emptyTextKey = ValueKey('operations-empty-text');
@@ -22,12 +19,14 @@ class const OperationScreen({
 }
 
 class _OperationScreenState extends State<OperationScreen> {
+  late final OperationRepo _repo;
   late final ListViewModel<Operation> _model;
 
   @override
   void initState() {
     super.initState();
-    _model = ListViewModel<Operation>(fetch: () => widget.repo.list(widget.service.id));
+    _repo = RepositoryProvider.read(context).operationRepo;
+    _model = ListViewModel<Operation>(fetch: () => _repo.list(widget.service.id));
     _model.load();
   }
 

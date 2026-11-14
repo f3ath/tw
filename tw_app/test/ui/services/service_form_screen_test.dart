@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:material_ui/material_ui.dart';
+import 'package:tw_app/app/repository_provider.dart';
 import 'package:shared/model.dart';
 import 'package:tw_app/testing/fixed_clock.dart';
 import 'package:tw_app/testing/samples.dart' as samples;
@@ -342,12 +343,19 @@ class Harness({
   late Future<bool?> result;
 
   Future<void> pumpForm(WidgetTester tester) async {
-    await tester.pumpWidget(MaterialApp(navigatorKey: _navigatorKey, home: const Scaffold()));
+    await tester.pumpWidget(
+      RepositoryProvider(
+        vehicleRepo: InMemoryVehicleRepo(),
+        scheduleRepo: InMemoryScheduleRepo(),
+        serviceRepo: repo,
+        operationRepo: InMemoryOperationRepo(),
+        child: MaterialApp(navigatorKey: _navigatorKey, home: const Scaffold()),
+      ),
+    );
     result = _navigatorKey.currentState!.push<bool>(
       MaterialPageRoute(
         builder: (_) => ServiceFormScreen(
           vehicle: vehicle ?? samples.santaFe,
-          repo: repo,
           service: service,
           clock: FixedClock(DateTime(2026, 11, 28, 15, 30)),
         ),

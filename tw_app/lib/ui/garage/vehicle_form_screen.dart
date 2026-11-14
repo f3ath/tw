@@ -1,4 +1,5 @@
 import 'package:material_ui/material_ui.dart';
+import 'package:tw_app/app/repository_provider.dart';
 import 'package:shared/model.dart';
 import 'package:tw_app/app/vehicle_repo.dart';
 import 'package:tw_app/time/clock.dart';
@@ -6,7 +7,6 @@ import 'package:tw_app/ui/form/date_form_field.dart';
 
 class const VehicleFormScreen({
   super.key,
-  required final VehicleRepo repo,
   final Clock clock = const Clock(),
   final Vehicle? vehicle,
 }) extends StatefulWidget {
@@ -20,6 +20,7 @@ class const VehicleFormScreen({
 }
 
 class _VehicleFormScreenState extends State<VehicleFormScreen> {
+  late final VehicleRepo _repo = RepositoryProvider.read(context).vehicleRepo;
   final _formKey = GlobalKey<FormState>();
   DistanceUnit _distanceUnit = .mi;
   DateTime? _manufactureDate;
@@ -130,9 +131,9 @@ class _VehicleFormScreenState extends State<VehicleFormScreen> {
   Future<void> _persistVehicle() async {
     final vehicle = widget.vehicle;
     if (vehicle != null) {
-      await widget.repo.update(vehicle.id, name: _name, manufactureDate: _manufactureDate!);
+      await _repo.update(vehicle.id, name: _name, manufactureDate: _manufactureDate!);
     } else {
-      await widget.repo.create(
+      await _repo.create(
         name: _name,
         manufactureDate: _manufactureDate!,
         distanceUnit: _distanceUnit,

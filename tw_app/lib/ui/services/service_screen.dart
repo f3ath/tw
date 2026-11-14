@@ -1,7 +1,7 @@
 import 'package:material_ui/material_ui.dart';
+import 'package:tw_app/app/repository_provider.dart';
 import 'package:shared/model.dart';
 import 'package:tw_app/app/service_repo.dart';
-import 'package:tw_app/app/operation_repo.dart';
 import 'package:tw_app/ui/operations/operation_screen.dart';
 import 'package:tw_app/ui/services/service_card.dart';
 import 'package:tw_app/ui/list_view_model.dart';
@@ -10,12 +10,7 @@ import 'package:tw_app/ui/error_retry_view.dart';
 import 'package:tw_app/ui/services/service_form_screen.dart';
 import 'package:tw_app/ui/services/service_delete_dialog.dart';
 
-class const ServiceScreen({
-  super.key,
-  required final Vehicle vehicle,
-  required final ServiceRepo repo,
-  required final OperationRepo operationRepo,
-}) extends StatefulWidget {
+class const ServiceScreen({super.key, required final Vehicle vehicle}) extends StatefulWidget {
   static const addButtonKey = ValueKey('services-add-button');
   static const loadingIndicatorKey = ValueKey('services-loading-indicator');
   static const errorTextKey = ValueKey('services-error-text');
@@ -29,12 +24,14 @@ class const ServiceScreen({
 }
 
 class _ServiceScreenState extends State<ServiceScreen> {
+  late final ServiceRepo _repo;
   late final ListViewModel<Service> _model;
 
   @override
   void initState() {
     super.initState();
-    _model = ListViewModel<Service>(fetch: () => widget.repo.list(widget.vehicle.id));
+    _repo = RepositoryProvider.read(context).serviceRepo;
+    _model = ListViewModel<Service>(fetch: () => _repo.list(widget.vehicle.id));
     _model.load();
   }
 
@@ -107,17 +104,15 @@ class _ServiceScreenState extends State<ServiceScreen> {
     }
   }
 
-  Future<void> _openOperations(Service service) => Navigator.of(context).push<void>(
-    MaterialPageRoute(
-      builder: (_) => OperationScreen(service: service, repo: widget.operationRepo),
-    ),
-  );
+  Future<void> _openOperations(Service service) =>
+      Navigator.of(context)
+          .push<void>(MaterialPageRoute(builder: (_) => OperationScreen(service: service)));
 
   Future<void> _deleteService(Service service) async {
     final confirmed = await _confirmServiceDeletion(service);
     if (!confirmed || !mounted) return;
     try {
-      await widget.repo.delete(service.id);
+      await _repo.delete(service.id);
     } on Exception {
       if (mounted) {
         ScaffoldMessenger.of(context)
@@ -147,8 +142,7 @@ class _ServiceScreenState extends State<ServiceScreen> {
   Future<void> _openServiceForm({Service? service}) async {
     final refresh = await Navigator.of(context).push<bool>(
       MaterialPageRoute(
-        builder: (_) =>
-            ServiceFormScreen(vehicle: widget.vehicle, repo: widget.repo, service: service),
+        builder: (_) => ServiceFormScreen(vehicle: widget.vehicle, service: service),
       ),
     );
     if (refresh == true && mounted) await _model.load();

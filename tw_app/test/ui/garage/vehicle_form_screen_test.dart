@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:material_ui/material_ui.dart';
+import 'package:tw_app/app/repository_provider.dart';
 import 'package:tw_app/testing/fixed_clock.dart';
 import 'package:shared/model.dart';
 import 'package:tw_app/testing/samples.dart' as samples;
@@ -255,10 +256,18 @@ class Harness({final Vehicle? vehicle, Iterable<Vehicle> initialVehicles = const
   late Future<bool?> result;
 
   Future<void> pumpForm(WidgetTester tester) async {
-    await tester.pumpWidget(MaterialApp(navigatorKey: _navigatorKey, home: const Scaffold()));
+    await tester.pumpWidget(
+      RepositoryProvider(
+        vehicleRepo: repo,
+        scheduleRepo: InMemoryScheduleRepo(),
+        serviceRepo: InMemoryServiceRepo(),
+        operationRepo: InMemoryOperationRepo(),
+        child: MaterialApp(navigatorKey: _navigatorKey, home: const Scaffold()),
+      ),
+    );
     result = _navigatorKey.currentState!.push<bool>(
       MaterialPageRoute(
-        builder: (_) => VehicleFormScreen(vehicle: vehicle, repo: repo, clock: clock),
+        builder: (_) => VehicleFormScreen(vehicle: vehicle, clock: clock),
       ),
     );
     await tester.pumpAndSettle();

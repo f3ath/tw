@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:material_ui/material_ui.dart';
+import 'package:tw_app/app/repository_provider.dart';
 import 'package:shared/model.dart';
 import 'package:tw_app/testing/samples.dart' as samples;
 import 'package:tw_app/testing/stub.dart';
@@ -522,8 +523,12 @@ class Harness({
   final operationRepo = InMemoryOperationRepo(initialOperations: initialOperations);
 
   Future<void> pumpScreen(WidgetTester tester) => tester.pumpWidget(
-    MaterialApp(
-      home: ServiceScreen(vehicle: vehicle, repo: repo, operationRepo: operationRepo),
+    RepositoryProvider(
+      vehicleRepo: InMemoryVehicleRepo(),
+      scheduleRepo: InMemoryScheduleRepo(),
+      serviceRepo: repo,
+      operationRepo: operationRepo,
+      child: MaterialApp(home: ServiceScreen(vehicle: vehicle)),
     ),
   );
 

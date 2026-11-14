@@ -1,4 +1,5 @@
 import 'package:material_ui/material_ui.dart';
+import 'package:tw_app/app/repository_provider.dart';
 import 'package:shared/model.dart';
 import 'package:tw_app/app/service_repo.dart';
 import 'package:tw_app/time/clock.dart';
@@ -7,7 +8,6 @@ import 'package:tw_app/ui/form/date_form_field.dart';
 class const ServiceFormScreen({
   super.key,
   required final Vehicle vehicle,
-  required final ServiceRepo repo,
   final Service? service,
   final Clock clock = const Clock(),
 }) extends StatefulWidget {
@@ -22,6 +22,7 @@ class const ServiceFormScreen({
 }
 
 class _ServiceFormScreenState extends State<ServiceFormScreen> {
+  late final ServiceRepo _repo = RepositoryProvider.read(context).serviceRepo;
   final _formKey = GlobalKey<FormState>();
   late DateTime _date;
   late int _odometer;
@@ -115,14 +116,9 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
   Future<void> _persistService() async {
     final service = widget.service;
     if (service == null) {
-      await widget.repo.create(
-        widget.vehicle.id,
-        date: _date,
-        odometer: _odometer,
-        details: _details,
-      );
+      await _repo.create(widget.vehicle.id, date: _date, odometer: _odometer, details: _details);
     } else {
-      await widget.repo.update(service.id, date: _date, odometer: _odometer, details: _details);
+      await _repo.update(service.id, date: _date, odometer: _odometer, details: _details);
     }
   }
 }

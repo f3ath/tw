@@ -1,10 +1,8 @@
 import 'package:material_ui/material_ui.dart';
+import 'package:tw_app/app/repository_provider.dart';
 import 'package:shared/model.dart';
 import 'package:tw_app/ui/garage/vehicle_delete_dialog.dart';
 import 'package:tw_app/app/vehicle_repo.dart';
-import 'package:tw_app/app/schedule_repo.dart';
-import 'package:tw_app/app/service_repo.dart';
-import 'package:tw_app/app/operation_repo.dart';
 import 'package:tw_app/time/clock.dart';
 import 'package:tw_app/ui/list_view_model.dart';
 import 'package:tw_app/ui/loading_view.dart';
@@ -19,10 +17,6 @@ class const GarageScreen({
   super.key,
   required final Future<void> Function() onLogout,
   required final String userName,
-  required final VehicleRepo vehicleRepo,
-  required final ScheduleRepo scheduleRepo,
-  required final ServiceRepo serviceRepo,
-  required final OperationRepo operationRepo,
   final Clock clock = const Clock(),
 }) extends StatefulWidget {
   static ValueKey<String> vehicleCardKey(String vehicleId) => ValueKey('vehicle-$vehicleId');
@@ -41,12 +35,14 @@ class const GarageScreen({
 }
 
 class _GarageScreenState extends State<GarageScreen> {
+  late final VehicleRepo _repo;
   late final ListViewModel<Vehicle> _model;
 
   @override
   void initState() {
     super.initState();
-    _model = ListViewModel<Vehicle>(fetch: widget.vehicleRepo.list);
+    _repo = RepositoryProvider.read(context).vehicleRepo;
+    _model = ListViewModel<Vehicle>(fetch: _repo.list);
     _model.load();
   }
 
@@ -112,8 +108,7 @@ class _GarageScreenState extends State<GarageScreen> {
   Future<void> _openVehicleForm({Vehicle? vehicle}) async {
     final refresh = await Navigator.of(context).push<bool>(
       MaterialPageRoute(
-        builder: (_) =>
-            VehicleFormScreen(repo: widget.vehicleRepo, clock: widget.clock, vehicle: vehicle),
+        builder: (_) => VehicleFormScreen(clock: widget.clock, vehicle: vehicle),
       ),
     );
     if (refresh == true && mounted) await _model.load();
@@ -147,27 +142,18 @@ class _GarageScreenState extends State<GarageScreen> {
     }
   }
 
-  Future<void> _openSchedules(Vehicle vehicle) => Navigator.of(context).push<void>(
-    MaterialPageRoute(
-      builder: (_) => ScheduleScreen(vehicle: vehicle, repo: widget.scheduleRepo),
-    ),
-  );
+  Future<void> _openSchedules(Vehicle vehicle) =>
+      Navigator.of(context)
+          .push<void>(MaterialPageRoute(builder: (_) => ScheduleScreen(vehicle: vehicle)));
 
-  Future<void> _openServices(Vehicle vehicle) => Navigator.of(context).push<void>(
-    MaterialPageRoute(
-      builder: (_) => ServiceScreen(
-        vehicle: vehicle,
-        repo: widget.serviceRepo,
-        operationRepo: widget.operationRepo,
-      ),
-    ),
-  );
+  Future<void> _openServices(Vehicle vehicle) =>
+      Navigator.of(context)
+          .push<void>(MaterialPageRoute(builder: (_) => ServiceScreen(vehicle: vehicle)));
 
   Future<void> _openServiceForm(Vehicle vehicle) async {
     await Navigator.of(context).push<bool>(
       MaterialPageRoute(
-        builder: (_) =>
-            ServiceFormScreen(vehicle: vehicle, repo: widget.serviceRepo, clock: widget.clock),
+        builder: (_) => ServiceFormScreen(vehicle: vehicle, clock: widget.clock),
       ),
     );
   }
@@ -179,7 +165,7 @@ class _GarageScreenState extends State<GarageScreen> {
     );
     if (confirmed != true || !mounted) return false;
     try {
-      await widget.vehicleRepo.delete(v.id);
+      await _repo.delete(v.id);
     } on Exception {
       if (mounted) {
         ScaffoldMessenger.of(context)

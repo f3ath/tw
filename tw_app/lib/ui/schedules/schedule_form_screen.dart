@@ -1,11 +1,11 @@
 import 'package:material_ui/material_ui.dart';
+import 'package:tw_app/app/repository_provider.dart';
 import 'package:shared/model.dart';
 import 'package:tw_app/app/schedule_repo.dart';
 
 class const ScheduleFormScreen({
   super.key,
   required final Vehicle vehicle,
-  required final ScheduleRepo repo,
   final Schedule? schedule,
 }) extends StatefulWidget {
   static const nameFieldKey = ValueKey('schedule-name-field');
@@ -21,6 +21,7 @@ class const ScheduleFormScreen({
 }
 
 class _ScheduleFormScreenState extends State<ScheduleFormScreen> {
+  late final ScheduleRepo _repo = RepositoryProvider.read(context).scheduleRepo;
   final _formKey = GlobalKey<FormState>();
   late final _distanceController = TextEditingController(
     text: widget.schedule?.intervalDistance?.toString(),
@@ -145,7 +146,7 @@ class _ScheduleFormScreenState extends State<ScheduleFormScreen> {
   Future<void> _persistSchedule() async {
     final schedule = widget.schedule;
     if (schedule == null) {
-      await widget.repo.create(
+      await _repo.create(
         widget.vehicle.id,
         name: _name,
         intervalDistance: _intervalDistance,
@@ -153,7 +154,7 @@ class _ScheduleFormScreenState extends State<ScheduleFormScreen> {
         details: _details,
       );
     } else {
-      await widget.repo.update(
+      await _repo.update(
         schedule.id,
         name: _name,
         intervalDistance: _intervalDistance,

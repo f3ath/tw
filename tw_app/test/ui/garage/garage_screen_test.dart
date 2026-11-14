@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:material_ui/material_ui.dart';
+import 'package:tw_app/app/repository_provider.dart';
 import 'package:tw_app/testing/fixed_clock.dart';
 import 'package:shared/model.dart';
 import 'package:tw_app/testing/stub.dart' as stub;
@@ -385,15 +386,13 @@ class Harness({Iterable<Vehicle>? initialVehicles}) {
 
   Future<void> pumpScreen(WidgetTester tester, {String userName = 'John Doe'}) async {
     await tester.pumpWidget(
-      MaterialApp(
-        home: GarageScreen(
-          onLogout: () async {},
-          userName: userName,
-          vehicleRepo: repo,
-          scheduleRepo: scheduleRepo,
-          serviceRepo: serviceRepo,
-          operationRepo: operationRepo,
-          clock: clock,
+      RepositoryProvider(
+        vehicleRepo: repo,
+        scheduleRepo: scheduleRepo,
+        serviceRepo: serviceRepo,
+        operationRepo: operationRepo,
+        child: MaterialApp(
+          home: GarageScreen(onLogout: () async {}, userName: userName, clock: clock),
         ),
       ),
     );
