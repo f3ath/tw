@@ -48,11 +48,11 @@ Offline mode, synchronization, and advanced network behavior such as atomicity a
 - GarageScreen owns/disposes GarageViewModel. VehicleCard owns card/menu rendering and emits actions; navigation, deletion feedback, and refresh remain in the screen. GarageScreen.vehicleCardKey supplies list-item identity.
 - Deletion refreshes after both success and exceptions because a lost response can leave the outcome uncertain. Exceptions show “Could not confirm deletion. Refreshing...”. Cancellation skips deletion and refresh. Manage schedules opens ScheduleScreen for the selected vehicle; Back returns without reloading the garage. Its title shows the schedules icon and vehicle name. Due-services content is a placeholder.
 - VehicleFormScreen shares create/edit validation and submission/error handling, with persistence extracted into a private method. Both forms use SafeArea with a ListView, 10-pixel padding, and a 16-pixel gap before Save. VehicleFormScreen disables name/unit/date inputs while saving and guards repeat submissions, matching schedule submission behavior. DateFormField provides typed date selection and supports enabled/disabled state.
-- TestRobot contains shared utilities; WelcomeRobot, GarageRobot, and VehicleFormRobot own screen-specific interactions. PumpMode selects none/frame/settle. Menu and dropdown finders target typed, hit-testable entries.
+- TestRobot contains shared utilities; WelcomeRobot, GarageRobot, and VehicleFormRobot own screen-specific interactions. Robot APIs use tapNewVehicle/tapNewSchedule, findVehicleCard/findScheduleCard, and tapRetry. New-form navigation defaults to PumpMode.settle; submission/retry defaults to frame, and text entry pumps one frame. Date/menu/dropdown transitions settle. PumpMode selects none/frame/settle. Menu and dropdown finders target typed, hit-testable entries.
 - ScheduleRepo.list(vehicleId) is wired through main → TwApp → GarageScreen → ScheduleScreen. BackendScheduleRepo delegates to TwApiClient; ScheduleViewModel owns loading/error/list state and is disposed with the screen. Rows show schedule names and optional details, with loading, error/retry, and empty states.
 - InMemoryScheduleRepo defaults to empty, accepts initialSchedules, filters by vehicle ID, counts list calls, and supports one-request pauseNextList and pauseNextCreate gates. ScheduleRepo.create(vehicleId, ...) is implemented by both adapters, returning Future<void>; the backend delegates to TwApiClient.createSchedule. The fake generates unique IDs without overwriting seeds. Sample schedules seed the fake backend and tests. Widget tests cover vehicle filtering, loading, empty results, retry, rebuild behavior, pending-request disposal, and garage navigation.
 - InMemoryVehicleRepo defaults to empty and accepts initialVehicles. pauseNextList/Create/Delete gates affect one request each. Sample users/vehicles live in lib/testing/samples.dart; the test harness and fake-backend setup seed explicitly.
-- Latest verification: all **59 tw_app tests pass**; static analysis is clean. Builds and real authentication were not reverified during repository naming cleanup.
+- Latest verification: all **64 tw_app tests pass**; static analysis is clean. Builds and real authentication were not reverified during test organization cleanup.
 
 ## Next exercise
 
@@ -64,7 +64,7 @@ Recommended next: implement confirmed schedule deletion.
 - Enable the existing menu item, confirm before deletion, and reconcile the list after successful or uncertain outcomes.
 - Cover cancellation, deletion/list refresh, and failure feedback with stable keys in widget behavior tests. Do not add dedicated InMemory repository tests.
 
-Remaining vehicle-test gaps include edit failure/retry and deletion that succeeds server-side before the response fails. Both in-memory repositories use incrementing ID counters and skip existing IDs.
+Vehicle form tests now live in test/ui/garage/vehicle_form_screen_test.dart with a direct route harness that captures results. They cover isolated validation, creation values, pending-field disabling, creation failure/retry, edit identity/unit preservation, and edit failure/retry. Garage tests retain navigation and list refresh. InMemoryVehicleRepo supports pauseNextUpdate for application behavior tests. A remaining vehicle-test gap is deletion that succeeds server-side before the response fails. Both in-memory repositories use incrementing ID counters and skip existing IDs.
 
 ## Next iteration — deferred work
 

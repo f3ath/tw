@@ -23,6 +23,7 @@ class InMemoryVehicleRepo({Iterable<Vehicle> initialVehicles = const []}) implem
 
   Future<void>? _nextList;
   Future<void>? _nextCreate;
+  Future<void>? _nextUpdate;
   Future<void>? _nextDelete;
 
   Completer<void> pauseNextList() {
@@ -35,6 +36,12 @@ class InMemoryVehicleRepo({Iterable<Vehicle> initialVehicles = const []}) implem
     final c = Completer<void>();
     _nextCreate = c.future;
     return c;
+  }
+
+  Completer<void> pauseNextUpdate() {
+    final completer = Completer<void>();
+    _nextUpdate = completer.future;
+    return completer;
   }
 
   Completer<void> pauseNextDelete() {
@@ -71,6 +78,9 @@ class InMemoryVehicleRepo({Iterable<Vehicle> initialVehicles = const []}) implem
 
   @override
   Future<void> update(String id, {required String name, required DateTime manufactureDate}) async {
+    final pending = _nextUpdate;
+    _nextUpdate = null;
+    await pending;
     final v = vehicles[id];
     if (v == null) {
       throw StateError('Vehicle not found');

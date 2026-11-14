@@ -6,7 +6,7 @@ import 'package:tw_app/ui/garage/vehicle_card.dart';
 import 'package:tw_app/ui/schedules/schedule_screen.dart';
 import 'package:tw_app/ui/schedules/schedule_card.dart';
 import 'package:tw_app/ui/schedules/schedule_form_screen.dart';
-import 'package:tw_app/ui/vehicles/vehicle_form_screen.dart';
+import 'package:tw_app/ui/garage/vehicle_form_screen.dart';
 import 'package:tw_app/ui/welcome/welcome_screen.dart';
 
 final findWelcomeScreen = find.byType(WelcomeScreen);
@@ -58,10 +58,15 @@ class GarageRobot(super.tester) extends TestRobot {
     await pumpAfterAction(pump);
   }
 
-  final findAddNewVehicleButton = find.byKey(GarageScreen.addButtonKey);
+  final findNewVehicleButton = find.byKey(GarageScreen.addButtonKey);
 
-  Future<void> tapAddNewVehicleButton({PumpMode pump = .frame}) async {
-    await tester.tap(findAddNewVehicleButton);
+  Future<void> tapNewVehicle({PumpMode pump = .settle}) async {
+    await tester.tap(findNewVehicleButton);
+    await pumpAfterAction(pump);
+  }
+
+  Future<void> tapRetry({PumpMode pump = .frame}) async {
+    await tester.tap(find.byKey(GarageScreen.retryButtonKey));
     await pumpAfterAction(pump);
   }
 
@@ -112,18 +117,22 @@ class VehicleFormRobot(super.tester) extends TestRobot {
 
   FormFieldState<DateTime> get dateField => tester.state<FormFieldState<DateTime>>(findDateField);
 
+  String? get name => nameField.value;
+
   String? get nameError => nameField.errorText;
 
   String? get dateError => dateField.errorText;
 
   Future<void> saveForm({PumpMode pump = .frame}) async {
+    await tester.ensureVisible(findSaveButton);
     await tester.tap(findSaveButton);
     await pumpAfterAction(pump);
   }
 
   Future<void> enterName(String name) async {
+    await tester.ensureVisible(findNameField);
     await tester.enterText(findNameField, name);
-    await tester.pumpAndSettle();
+    await tester.pump();
   }
 
   Future<void> selectDayAndConfirm(String day) async {
@@ -165,8 +174,12 @@ class VehicleFormRobot(super.tester) extends TestRobot {
 }
 
 class ScheduleRobot(super.tester) extends TestRobot {
+  final findNewScheduleButton = find.byKey(ScheduleScreen.addButtonKey);
+
+  Finder findScheduleMenu(String id) => find.byKey(ScheduleCard.menuKey(id));
+
   Future<void> tapScheduleMenu(String id) async {
-    await tester.tap(find.byKey(ScheduleCard.menuKey(id)));
+    await tester.tap(findScheduleMenu(id));
     await tester.pumpAndSettle();
   }
 
@@ -184,11 +197,11 @@ class ScheduleRobot(super.tester) extends TestRobot {
   }
 
   Future<void> tapNewSchedule({PumpMode pump = .settle}) async {
-    await tester.tap(find.byKey(ScheduleScreen.addButtonKey));
+    await tester.tap(findNewScheduleButton);
     await pumpAfterAction(pump);
   }
 
-  Finder findSchedule(String id) => find.byKey(ScheduleScreen.scheduleKey(id));
+  Finder findScheduleCard(String id) => find.byKey(ScheduleScreen.scheduleKey(id));
 
   Future<void> tapRetry({PumpMode pump = .frame}) async {
     await tester.tap(find.byKey(ScheduleScreen.retryButtonKey));

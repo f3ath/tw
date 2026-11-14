@@ -6,7 +6,7 @@ import 'package:tw_app/time/clock.dart';
 import 'package:tw_app/ui/garage/garage_view_model.dart';
 import 'package:tw_app/ui/garage/vehicle_card.dart';
 import 'package:tw_app/ui/schedules/schedule_screen.dart';
-import 'package:tw_app/ui/vehicles/vehicle_form_screen.dart';
+import 'package:tw_app/ui/garage/vehicle_form_screen.dart';
 
 class const GarageScreen({
   super.key,
