@@ -5,6 +5,7 @@ import 'package:shared/model.dart';
 import 'package:tw_app/app/auth_service.dart';
 import 'package:tw_app/app/tw_app.dart';
 import 'package:tw_app/testing/stub.dart';
+import 'package:tw_app/testing/samples.dart' as samples;
 
 import '../robots.dart';
 
@@ -24,6 +25,7 @@ void main() {
           vehicleRepo: InMemoryVehicleRepo(),
           scheduleRepo: InMemoryScheduleRepo(),
           serviceRepo: InMemoryServiceRepo(),
+          operationRepo: InMemoryOperationRepo(),
         ),
       );
 
@@ -48,6 +50,47 @@ void main() {
 
       expect(findWelcomeScreen, findsOneWidget);
       expect(findGarageScreen, findsNothing);
+    });
+
+    testWidgets('passes the operation repository from login through garage and service history', (
+      tester,
+    ) async {
+      final vehicleRepo = InMemoryVehicleRepo(initialVehicles: samples.sampleVehicles);
+      final serviceRepo = InMemoryServiceRepo(initialServices: samples.sampleServices);
+      final operationRepo = InMemoryOperationRepo(initialOperations: samples.sampleOperations);
+      final welcome = WelcomeRobot(tester);
+      final garage = GarageRobot(tester);
+      final services = ServiceRobot(tester);
+      final operations = OperationRobot(tester);
+      await tester.pumpWidget(
+        TwApp(
+          authService: InMemoryAuthService(user: samples.sampleUser),
+          vehicleRepo: vehicleRepo,
+          scheduleRepo: InMemoryScheduleRepo(),
+          serviceRepo: serviceRepo,
+          operationRepo: operationRepo,
+        ),
+      );
+      await welcome.tapLoginButton(pump: .settle);
+      await garage.tapVehicleMenuServices(samples.fourRunner.id);
+
+      await services.tapServiceCard(samples.fourRunnerTireService.id);
+
+      expect(findOperationScreen, findsOneWidget);
+      expect(operations.findOperationCard(samples.tireRotationOperation.id), findsOneWidget);
+      expect(operations.findOperationCard(samples.oilChangeOperation.id), findsNothing);
+      expect(operationRepo.listCalls, equals(1));
+
+      await tester.pageBack();
+      await tester.pumpAndSettle();
+
+      expect(findServiceScreen, findsOneWidget);
+      expect(serviceRepo.listCalls, equals(1));
+      await tester.pageBack();
+      await tester.pumpAndSettle();
+
+      expect(findGarageScreen, findsOneWidget);
+      expect(vehicleRepo.listCalls, equals(1));
     });
   });
 }

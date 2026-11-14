@@ -14,6 +14,7 @@ class const ServiceCard({
     final localizations = MaterialLocalizations.of(context);
     return Card(
       child: ListTile(
+        onTap: () => onAction(ServiceAction.operations),
         title: Text(localizations.formatShortDate(service.date)),
         trailing: PopupMenuButton<ServiceAction>(
           key: ServiceCard.menuKey(service.id),
@@ -56,4 +57,4 @@ class const ServiceCard({
   }
 }
 
-enum ServiceAction { edit, delete }
+enum ServiceAction { operations, edit, delete }

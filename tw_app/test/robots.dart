@@ -296,6 +296,13 @@ class ServiceRobot(super.tester) extends TestRobot {
 
   Finder findServiceCard(String id) => find.byKey(ServiceScreen.serviceKey(id));
 
+  Future<void> tapServiceCard(String id, {PumpMode pump = .settle}) async {
+    final card = findServiceCard(id);
+    await tester.ensureVisible(card);
+    await tester.tap(card);
+    await pumpAfterAction(pump);
+  }
+
   Finder findServiceMenu(String id) => find.byKey(ServiceCard.menuKey(id));
 
   Future<void> tapServiceMenu(String id) async {

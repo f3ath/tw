@@ -10,6 +10,7 @@ import 'package:tw_app/data/auth/login_window/open_login_window.dart';
 import 'package:tw_app/data/backend_schedule_repo.dart';
 import 'package:tw_app/data/backend_service_repo.dart';
 import 'package:tw_app/data/backend_vehicle_repo.dart';
+import 'package:tw_app/data/backend_operation_repo.dart';
 import 'package:tw_app/testing/samples.dart' as samples;
 import 'package:tw_app/testing/stub.dart' as stub;
 
@@ -25,6 +26,7 @@ void main() {
             authService: stub.InMemoryAuthService(user: samples.sampleUser),
             scheduleRepo: stub.InMemoryScheduleRepo(initialSchedules: samples.sampleSchedules),
             serviceRepo: stub.InMemoryServiceRepo(initialServices: samples.sampleServices),
+            operationRepo: stub.InMemoryOperationRepo(initialOperations: samples.sampleOperations),
             vehicleRepo: stub.InMemoryVehicleRepo(initialVehicles: samples.sampleVehicles),
           )
         : TwApp(
@@ -34,6 +36,7 @@ void main() {
             ),
             scheduleRepo: BackendScheduleRepo(twApiClient),
             serviceRepo: BackendServiceRepo(twApiClient),
+            operationRepo: BackendOperationRepo(twApiClient),
             vehicleRepo: BackendVehicleRepo(twApiClient),
           ),
   );

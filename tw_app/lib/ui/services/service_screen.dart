@@ -1,6 +1,8 @@
 import 'package:material_ui/material_ui.dart';
 import 'package:shared/model.dart';
 import 'package:tw_app/app/service_repo.dart';
+import 'package:tw_app/app/operation_repo.dart';
+import 'package:tw_app/ui/operations/operation_screen.dart';
 import 'package:tw_app/ui/services/service_card.dart';
 import 'package:tw_app/ui/services/service_view_model.dart';
 import 'package:tw_app/ui/services/service_form_screen.dart';
@@ -10,6 +12,7 @@ class const ServiceScreen({
   super.key,
   required final Vehicle vehicle,
   required final ServiceRepo repo,
+  required final OperationRepo operationRepo,
 }) extends StatefulWidget {
   static const addButtonKey = ValueKey('services-add-button');
   static const loadingIndicatorKey = ValueKey('services-loading-indicator');
@@ -99,6 +102,9 @@ class _ServiceScreenState extends State<ServiceScreen> {
 
   Future<void> _handleServiceAction(ServiceAction action, Service service) async {
     switch (action) {
+      case .operations:
+        await _openOperations(service);
+        return;
       case .edit:
         await _openServiceForm(service: service);
         return;
@@ -107,6 +113,12 @@ class _ServiceScreenState extends State<ServiceScreen> {
         return;
     }
   }
+
+  Future<void> _openOperations(Service service) => Navigator.of(context).push<void>(
+    MaterialPageRoute(
+      builder: (_) => OperationScreen(service: service, repo: widget.operationRepo),
+    ),
+  );
 
   Future<void> _deleteService(Service service) async {
     final confirmed = await _confirmServiceDeletion(service);

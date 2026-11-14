@@ -4,6 +4,7 @@ import 'package:tw_app/ui/garage/vehicle_delete_dialog.dart';
 import 'package:tw_app/app/vehicle_repo.dart';
 import 'package:tw_app/app/schedule_repo.dart';
 import 'package:tw_app/app/service_repo.dart';
+import 'package:tw_app/app/operation_repo.dart';
 import 'package:tw_app/time/clock.dart';
 import 'package:tw_app/ui/garage/garage_view_model.dart';
 import 'package:tw_app/ui/garage/vehicle_card.dart';
@@ -19,6 +20,7 @@ class const GarageScreen({
   required final VehicleRepo repo,
   required final ScheduleRepo scheduleRepo,
   required final ServiceRepo serviceRepo,
+  required final OperationRepo operationRepo,
   final Clock clock = const Clock(),
 }) extends StatefulWidget {
   static ValueKey<String> vehicleCardKey(String vehicleId) => ValueKey('vehicle-$vehicleId');
@@ -157,7 +159,11 @@ class _GarageScreenState extends State<GarageScreen> {
 
   Future<void> _openServices(Vehicle vehicle) => Navigator.of(context).push<void>(
     MaterialPageRoute(
-      builder: (_) => ServiceScreen(vehicle: vehicle, repo: widget.serviceRepo),
+      builder: (_) => ServiceScreen(
+        vehicle: vehicle,
+        repo: widget.serviceRepo,
+        operationRepo: widget.operationRepo,
+      ),
     ),
   );
 

@@ -3,6 +3,7 @@ import 'package:tw_app/app/auth_service.dart';
 import 'package:tw_app/app/vehicle_repo.dart';
 import 'package:tw_app/app/schedule_repo.dart';
 import 'package:tw_app/app/service_repo.dart';
+import 'package:tw_app/app/operation_repo.dart';
 import 'package:shared/model.dart';
 import 'package:tw_app/ui/garage/garage_screen.dart';
 import 'package:tw_app/ui/welcome/welcome_screen.dart';
@@ -13,6 +14,7 @@ class const TwApp({
   required final VehicleRepo vehicleRepo,
   required final ScheduleRepo scheduleRepo,
   required final ServiceRepo serviceRepo,
+  required final OperationRepo operationRepo,
 }) extends StatefulWidget {
   @override
   State<TwApp> createState() => _TwAppState();
@@ -34,6 +36,7 @@ class _TwAppState() extends State<TwApp> {
               repo: widget.vehicleRepo,
               scheduleRepo: widget.scheduleRepo,
               serviceRepo: widget.serviceRepo,
+              operationRepo: widget.operationRepo,
             )
           : WelcomeScreen(onLogin: login),
     );

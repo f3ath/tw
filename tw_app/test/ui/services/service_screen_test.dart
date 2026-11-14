@@ -130,6 +130,62 @@ void main() {
       expect(services.findServiceCard(samples.fourRunnerTireService.id), findsNothing);
     });
 
+    group('Operations', () {
+      for (final service in samples.sampleServices) {
+        testWidgets('tapping ${service.id} opens its operations and Back preserves history', (
+          tester,
+        ) async {
+          final vehicle = samples.sampleVehicles.singleWhere(
+            (vehicle) => vehicle.id == service.vehicleId,
+          );
+          final otherService = Service(
+            'other-service',
+            vehicleId: vehicle.id,
+            date: DateTime(2020),
+            odometer: 1000,
+            details: 'Other service',
+          );
+          final otherOperation = Operation(
+            'other-operation',
+            serviceId: otherService.id,
+            name: 'Other work',
+            details: '',
+          );
+          final harness = Harness(
+            vehicle: vehicle,
+            initialServices: [otherService, ...samples.sampleServices],
+            initialOperations: [otherOperation, ...samples.sampleOperations],
+          );
+          final services = ServiceRobot(tester);
+          final operations = OperationRobot(tester);
+          await harness.pumpLoadedScreen(tester);
+
+          await services.tapServiceCard(service.id);
+
+          expect(findOperationScreen, findsOneWidget);
+          expect(findServiceScreen, findsNothing);
+          for (final operation in samples.sampleOperations) {
+            expect(
+              operations.findOperationCard(operation.id),
+              operation.serviceId == service.id ? findsOneWidget : findsNothing,
+            );
+          }
+          expect(operations.findOperationCard(otherOperation.id), findsNothing);
+          expect(harness.operationRepo.listCalls, equals(1));
+          expect(harness.repo.listCalls, equals(1));
+
+          await tester.pageBack();
+          await tester.pumpAndSettle();
+
+          expect(findOperationScreen, findsNothing);
+          expect(findServiceScreen, findsOneWidget);
+          expectServicesVisible(tester, [otherService, service]);
+          expect(harness.repo.listCalls, equals(1));
+          expect(harness.operationRepo.listCalls, equals(1));
+        });
+      }
+    });
+
     group('Editing', () {
       final inspection = Service(
         'inspection',
@@ -457,12 +513,17 @@ void expectServicesVisible(WidgetTester tester, List<Service> services) {
   }
 }
 
-class Harness({required final Vehicle vehicle, Iterable<Service> initialServices = const []}) {
+class Harness({
+  required final Vehicle vehicle,
+  Iterable<Service> initialServices = const [],
+  Iterable<Operation> initialOperations = const [],
+}) {
   final repo = InMemoryServiceRepo(initialServices: initialServices);
+  final operationRepo = InMemoryOperationRepo(initialOperations: initialOperations);
 
   Future<void> pumpScreen(WidgetTester tester) => tester.pumpWidget(
     MaterialApp(
-      home: ServiceScreen(vehicle: vehicle, repo: repo),
+      home: ServiceScreen(vehicle: vehicle, repo: repo, operationRepo: operationRepo),
     ),
   );
 

@@ -375,6 +375,7 @@ class Harness({Iterable<Vehicle>? initialVehicles}) {
   );
   final scheduleRepo = stub.InMemoryScheduleRepo();
   final serviceRepo = stub.InMemoryServiceRepo();
+  final operationRepo = stub.InMemoryOperationRepo();
   final clock = FixedClock(DateTime(2009, 10, 15));
 
   Future<void> pumpLoadedScreen(WidgetTester tester, {String userName = 'John Doe'}) async {
@@ -391,6 +392,7 @@ class Harness({Iterable<Vehicle>? initialVehicles}) {
           repo: repo,
           scheduleRepo: scheduleRepo,
           serviceRepo: serviceRepo,
+          operationRepo: operationRepo,
           clock: clock,
         ),
       ),
