@@ -1,3 +1,4 @@
+import 'package:app/ui/delete_and_refresh.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:app/app/repository_provider.dart';
 import 'package:app/app/vehicle_service.dart';
@@ -131,21 +132,12 @@ class _OperationScreenState extends State<OperationScreen> {
         ) ??
         false;
     if (!confirmed || !mounted) return;
-    try {
-      await _repo.delete(operation.id);
-    } on Exception {
-      if (mounted) {
-        ScaffoldMessenger.of(context)
-          ..hideCurrentSnackBar()
-          ..showSnackBar(
-            const SnackBar(
-              key: OperationScreen.deleteErrorSnackBarKey,
-              content: Text('Could not confirm deletion. Refreshing...'),
-            ),
-          );
-      }
-    }
-    if (mounted) await _model.load();
+    await deleteAndRefresh(
+      context: context,
+      delete: () => _repo.delete(operation.id),
+      refresh: _model.load,
+      errorSnackBarKey: OperationScreen.deleteErrorSnackBarKey,
+    );
   }
 
   Future<void> _openOperationForm({Operation? operation}) async {

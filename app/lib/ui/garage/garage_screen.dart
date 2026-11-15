@@ -1,3 +1,4 @@
+import 'package:app/ui/delete_and_refresh.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:app/app/repository_provider.dart';
 import 'package:app/app/vehicle_service.dart';
@@ -129,8 +130,7 @@ class _GarageScreenState extends State<GarageScreen> {
         await _openVehicleForm(vehicle: v);
         return;
       case .delete:
-        final refresh = await _deleteVehicle(v);
-        if (refresh == true && mounted) await _model.load();
+        await _deleteVehicle(v);
         return;
       case .services:
         await _openServices(v);
@@ -168,26 +168,17 @@ class _GarageScreenState extends State<GarageScreen> {
     );
   }
 
-  Future<bool?> _deleteVehicle(Vehicle v) async {
+  Future<void> _deleteVehicle(Vehicle v) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (_) => VehicleDeleteDialog(key: VehicleDeleteDialog.confirmationKey, vehicle: v),
     );
-    if (confirmed != true || !mounted) return false;
-    try {
-      await _repo.delete(v.id);
-    } on Exception {
-      if (mounted) {
-        ScaffoldMessenger.of(context)
-          ..hideCurrentSnackBar()
-          ..showSnackBar(
-            const SnackBar(
-              key: GarageScreen.deleteErrorSnackBarKey,
-              content: Text('Could not confirm deletion. Refreshing...'),
-            ),
-          );
-      }
-    }
-    return true;
+    if (confirmed != true || !mounted) return;
+    await deleteAndRefresh(
+      context: context,
+      delete: () => _repo.delete(v.id),
+      refresh: _model.load,
+      errorSnackBarKey: GarageScreen.deleteErrorSnackBarKey,
+    );
   }
 }

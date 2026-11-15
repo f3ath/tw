@@ -1,3 +1,4 @@
+import 'package:app/ui/delete_and_refresh.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:app/app/repository_provider.dart';
 import 'package:shared/model.dart';
@@ -103,21 +104,12 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
   Future<void> _deleteSchedule(Schedule schedule) async {
     final confirmed = await _confirmScheduleDeletion(schedule);
     if (!confirmed || !mounted) return;
-    try {
-      await _repo.delete(schedule.id);
-    } on Exception {
-      if (mounted) {
-        ScaffoldMessenger.of(context)
-          ..hideCurrentSnackBar()
-          ..showSnackBar(
-            const SnackBar(
-              key: ScheduleScreen.deleteErrorSnackBarKey,
-              content: Text('Could not confirm deletion. Refreshing...'),
-            ),
-          );
-      }
-    }
-    if (mounted) await _model.load();
+    await deleteAndRefresh(
+      context: context,
+      delete: () => _repo.delete(schedule.id),
+      refresh: _model.load,
+      errorSnackBarKey: ScheduleScreen.deleteErrorSnackBarKey,
+    );
   }
 
   Future<bool> _confirmScheduleDeletion(Schedule schedule) async =>

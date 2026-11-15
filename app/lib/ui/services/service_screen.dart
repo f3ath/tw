@@ -1,3 +1,4 @@
+import 'package:app/ui/delete_and_refresh.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:shared/model.dart';
 import 'package:app/app/repository_provider.dart';
@@ -117,21 +118,12 @@ class _ServiceScreenState extends State<ServiceScreen> {
   Future<void> _deleteService(Service service) async {
     final confirmed = await _confirmServiceDeletion(service);
     if (!confirmed || !mounted) return;
-    try {
-      await _repo.delete(service.id);
-    } on Exception {
-      if (mounted) {
-        ScaffoldMessenger.of(context)
-          ..hideCurrentSnackBar()
-          ..showSnackBar(
-            const SnackBar(
-              key: ServiceScreen.deleteErrorSnackBarKey,
-              content: Text('Could not confirm deletion. Refreshing...'),
-            ),
-          );
-      }
-    }
-    if (mounted) await _model.load();
+    await deleteAndRefresh(
+      context: context,
+      delete: () => _repo.delete(service.id),
+      refresh: _model.load,
+      errorSnackBarKey: ServiceScreen.deleteErrorSnackBarKey,
+    );
   }
 
   Future<bool> _confirmServiceDeletion(Service service) async =>
