@@ -1,11 +1,10 @@
 import 'package:material_ui/material_ui.dart';
-import 'package:shared/model.dart';
+import 'package:tw_app/app/vehicle_schedule.dart';
 import 'package:tw_app/ui/schedules/schedule_interval.dart';
 
 class const ScheduleAutocompleteItem({
   super.key,
-  required final Schedule schedule,
-  required final DistanceUnit distanceUnit,
+  required final VehicleSchedule vehicleSchedule,
   required final bool highlighted,
   required final VoidCallback onTap,
 }) extends StatelessWidget {
@@ -16,9 +15,10 @@ class const ScheduleAutocompleteItem({
         if (context.mounted) Scrollable.ensureVisible(context, alignment: 0.5);
       });
     }
+    final schedule = vehicleSchedule.schedule;
     final interval = formatScheduleInterval(
       schedule,
-      distanceUnit,
+      vehicleSchedule.vehicle.distanceUnit,
       MaterialLocalizations.of(context),
     );
     return ListTile(

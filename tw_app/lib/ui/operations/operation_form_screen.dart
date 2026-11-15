@@ -7,10 +7,14 @@ import 'package:tw_app/ui/schedules/schedule_summary.dart';
 import 'package:tw_app/app/operation_repo.dart';
 import 'package:tw_app/app/repository_provider.dart';
 import 'package:tw_app/app/vehicle_service.dart';
+import 'package:tw_app/app/vehicle_schedule.dart';
 import 'package:tw_app/ui/form/form_submission_controller.dart';
 
-class const OperationFormScreen({super.key, required final VehicleService vehicleService})
-    extends StatefulWidget {
+class const OperationFormScreen({
+  super.key,
+  required final VehicleService vehicleService,
+  final Operation? operation,
+}) extends StatefulWidget {
   static const nameFieldKey = ValueKey('operation-name-field');
   static const detailsFieldKey = ValueKey('operation-details-field');
   static const saveButtonKey = ValueKey('operation-save-button');
@@ -29,10 +33,18 @@ class _OperationFormScreenState extends State<OperationFormScreen> {
   late final ListViewModel<Schedule> _schedules;
   late Future<void> _scheduleLoad;
   late final _changes = Listenable.merge([_submission, _schedules]);
-  final _nameController = TextEditingController();
-  final _detailsController = TextEditingController();
+  late final _nameController = TextEditingController(text: widget.operation?.name);
+  late final _detailsController = TextEditingController(text: widget.operation?.details);
   final _nameFocus = FocusNode();
-  Schedule? _selectedSchedule;
+  late String? _scheduleId = widget.operation?.scheduleId;
+
+  Schedule? get _selectedSchedule {
+    for (final schedule in _schedules.items) {
+      if (schedule.id == _scheduleId) return schedule;
+    }
+    return null;
+  }
+
   final _formKey = GlobalKey<FormState>();
   final _submission = FormSubmissionController();
   var _name = '';
@@ -62,7 +74,7 @@ class _OperationFormScreenState extends State<OperationFormScreen> {
   Widget build(BuildContext context) => ListenableBuilder(
     listenable: _changes,
     builder: (context, _) => Scaffold(
-      appBar: AppBar(title: const Text('New Operation')),
+      appBar: AppBar(title: Text(widget.operation == null ? 'New Operation' : 'Edit Operation')),
       body: SafeArea(
         child: Form(
           key: _formKey,
@@ -117,9 +129,11 @@ class _OperationFormScreenState extends State<OperationFormScreen> {
                       onFieldSubmitted: (_) => onFieldSubmitted(),
                       decoration: InputDecoration(
                         labelText: 'Name',
-                        helperText: _selectedSchedule == null
+                        helperText: _scheduleId == null
                             ? 'Choose a schedule or enter custom work'
-                            : 'Linked to schedule. Edit the name for custom work.',
+                            : widget.operation == null
+                            ? 'Linked to schedule. Edit the name for custom work.'
+                            : 'Linked to schedule.',
                       ),
                       textCapitalization: TextCapitalization.sentences,
                       textInputAction: TextInputAction.next,
@@ -127,8 +141,10 @@ class _OperationFormScreenState extends State<OperationFormScreen> {
               ),
               if (_selectedSchedule != null)
                 ScheduleSummary(
-                  schedule: _selectedSchedule!,
-                  distanceUnit: widget.vehicleService.vehicle.distanceUnit,
+                  vehicleSchedule: VehicleSchedule(
+                    vehicle: widget.vehicleService.vehicle,
+                    schedule: _selectedSchedule!,
+                  ),
                 ),
               TextFormField(
                 key: OperationFormScreen.detailsFieldKey,
@@ -169,8 +185,10 @@ class _OperationFormScreenState extends State<OperationFormScreen> {
             children: [
               for (final (index, schedule) in options.indexed)
                 ScheduleAutocompleteItem(
-                  schedule: schedule,
-                  distanceUnit: widget.vehicleService.vehicle.distanceUnit,
+                  vehicleSchedule: VehicleSchedule(
+                    vehicle: widget.vehicleService.vehicle,
+                    schedule: schedule,
+                  ),
                   highlighted: index == highlightedIndex,
                   onTap: () => onSelected(schedule),
                 ),
@@ -220,17 +238,22 @@ class _OperationFormScreenState extends State<OperationFormScreen> {
   void _selectSchedule(Schedule schedule) {
     if (_submission.isSubmitting) return;
     setState(() {
-      _selectedSchedule = schedule;
+      _scheduleId = schedule.id;
     });
   }
 
   void _nameChanged(String value) {
+    if (widget.operation != null) return;
     if (_selectedSchedule != null && value != _selectedSchedule!.name) {
-      setState(() => _selectedSchedule = null);
+      setState(() => _scheduleId = null);
     }
   }
 
   Future<void> _persistOperation() {
+    final operation = widget.operation;
+    if (operation != null) {
+      return _repo.update(operation.id, name: _name, details: _details, scheduleId: _scheduleId);
+    }
     final schedule = _selectedSchedule;
     if (schedule != null) {
       return _repo.createFromSchedule(

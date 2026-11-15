@@ -14,6 +14,8 @@ import 'package:tw_app/ui/services/service_form_screen.dart';
 import 'package:tw_app/ui/services/service_card.dart';
 import 'package:tw_app/ui/services/service_delete_dialog.dart';
 import 'package:tw_app/ui/operations/operation_screen.dart';
+import 'package:tw_app/ui/operations/operation_card.dart';
+import 'package:tw_app/ui/operations/operation_delete_dialog.dart';
 import 'package:tw_app/ui/operations/operation_form_screen.dart';
 import 'package:tw_app/ui/schedules/schedule_autocomplete_item.dart';
 import 'package:tw_app/ui/schedules/schedule_summary.dart';
@@ -362,6 +364,43 @@ class OperationRobot(super.tester) extends TestRobot {
     await pumpAfterAction(pump);
   }
 
+  final findDeleteConfirmation = find.byKey(OperationDeleteDialog.confirmationKey);
+  final findDeleteError = find.byKey(OperationScreen.deleteErrorSnackBarKey);
+
+  Future<void> tapOperationMenuEdit(String id) => _tapOperationMenuAction(id, .edit);
+  Future<void> tapOperationMenuDelete(String id) => _tapOperationMenuAction(id, .delete);
+
+  Future<void> _tapOperationMenuAction(String id, OperationAction action) async {
+    final menu = find.byKey(OperationCard.menuKey(id));
+    await tester.ensureVisible(menu);
+    await tester.tap(menu);
+    await tester.pumpAndSettle();
+    await tester.tap(
+      find
+          .byWidgetPredicate(
+            (widget) => widget is PopupMenuItem<OperationAction> && widget.value == action,
+            description: 'operation menu item for ${action.name}',
+          )
+          .hitTestable(),
+    );
+    await tester.pumpAndSettle();
+  }
+
+  Future<void> confirmOperationDeletion({PumpMode pump = .settle}) async {
+    await tester.tap(find.byKey(OperationDeleteDialog.deleteButtonKey));
+    await pumpAfterAction(pump);
+  }
+
+  Future<void> cancelOperationDeletion() async {
+    await tester.tap(find.byKey(OperationDeleteDialog.cancelButtonKey));
+    await tester.pumpAndSettle();
+  }
+
+  Future<void> dismissOperationDeletion() async {
+    await tester.binding.handlePopRoute();
+    await tester.pumpAndSettle();
+  }
+
   Service get selectedService =>
       tester.widget<OperationScreen>(findOperationScreen).vehicleService.service;
   final findVehicleNameText = find.byKey(OperationScreen.vehicleNameTextKey);
@@ -419,7 +458,7 @@ class OperationFormRobot(super.tester) extends TestRobot {
   final findSuggestionsError = find.byKey(OperationFormScreen.suggestionsErrorKey);
 
   Finder findScheduleSuggestion(String id) => find.byWidgetPredicate(
-    (widget) => widget is ScheduleAutocompleteItem && widget.schedule.id == id,
+    (widget) => widget is ScheduleAutocompleteItem && widget.vehicleSchedule.schedule.id == id,
   );
 
   Finder findSummaryText(String text) =>

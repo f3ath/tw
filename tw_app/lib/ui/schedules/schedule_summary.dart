@@ -1,17 +1,15 @@
 import 'package:material_ui/material_ui.dart';
-import 'package:shared/model.dart';
+import 'package:tw_app/app/vehicle_schedule.dart';
 import 'package:tw_app/ui/schedules/schedule_interval.dart';
 
-class const ScheduleSummary({
-  super.key,
-  required final Schedule schedule,
-  required final DistanceUnit distanceUnit,
-}) extends StatelessWidget {
+class const ScheduleSummary({super.key, required final VehicleSchedule vehicleSchedule})
+    extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
+    final schedule = vehicleSchedule.schedule;
     final interval = formatScheduleInterval(
       schedule,
-      distanceUnit,
+      vehicleSchedule.vehicle.distanceUnit,
       MaterialLocalizations.of(context),
     );
     if (interval.isEmpty && schedule.details.isEmpty) return const SizedBox.shrink();

@@ -4,6 +4,7 @@ import 'package:tw_app/app/vehicle_service.dart';
 import 'package:shared/model.dart';
 import 'package:tw_app/app/operation_repo.dart';
 import 'package:tw_app/ui/operations/operation_card.dart';
+import 'package:tw_app/ui/operations/operation_delete_dialog.dart';
 import 'package:tw_app/ui/operations/operation_form_screen.dart';
 import 'package:tw_app/ui/list_view_model.dart';
 import 'package:tw_app/ui/loading_view.dart';
@@ -17,6 +18,7 @@ class const OperationScreen({super.key, required final VehicleService vehicleSer
   static const errorTextKey = ValueKey('operations-error-text');
   static const emptyTextKey = ValueKey('operations-empty-text');
   static const retryButtonKey = ValueKey('operations-retry-button');
+  static const deleteErrorSnackBarKey = ValueKey('operation-delete-error-snackbar');
   static const addButtonKey = ValueKey('operations-add-button');
   static ValueKey<String> operationKey(String id) => ValueKey('operation-$id');
 
@@ -101,16 +103,57 @@ class _OperationScreenState extends State<OperationScreen> {
       key: OperationScreen.addButtonKey,
       icon: const Icon(Icons.add),
       label: const Text('New Operation'),
-      onPressed: _openOperationForm,
+      onPressed: () => _openOperationForm(),
     ),
   );
 
-  OperationCard _buildOperationCard(Operation operation) =>
-      OperationCard(key: OperationScreen.operationKey(operation.id), operation: operation);
+  OperationCard _buildOperationCard(Operation operation) => OperationCard(
+    key: OperationScreen.operationKey(operation.id),
+    operation: operation,
+    onAction: (action) {
+      switch (action) {
+        case OperationAction.edit:
+          _openOperationForm(operation: operation);
+        case OperationAction.delete:
+          _deleteOperation(operation);
+      }
+    },
+  );
 
-  Future<void> _openOperationForm() async {
+  Future<void> _deleteOperation(Operation operation) async {
+    final confirmed =
+        await showDialog<bool>(
+          context: context,
+          builder: (_) => OperationDeleteDialog(
+            key: OperationDeleteDialog.confirmationKey,
+            operation: operation,
+          ),
+        ) ??
+        false;
+    if (!confirmed || !mounted) return;
+    try {
+      await _repo.delete(operation.id);
+    } on Exception {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+          ..hideCurrentSnackBar()
+          ..showSnackBar(
+            const SnackBar(
+              key: OperationScreen.deleteErrorSnackBarKey,
+              content: Text('Could not confirm deletion. Refreshing...'),
+            ),
+          );
+      }
+    }
+    if (mounted) await _model.load();
+  }
+
+  Future<void> _openOperationForm({Operation? operation}) async {
     final refresh = await Navigator.of(context).push<bool>(
-      MaterialPageRoute(builder: (_) => OperationFormScreen(vehicleService: widget.vehicleService)),
+      MaterialPageRoute(
+        builder: (_) =>
+            OperationFormScreen(vehicleService: widget.vehicleService, operation: operation),
+      ),
     );
     if (refresh == true && mounted) await _model.load();
   }

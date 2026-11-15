@@ -148,7 +148,9 @@ void main() {
       expect(find.text(samples.oilChange.details), findsNothing);
     });
 
-    testWidgets('linked work keeps operation details after schedule editing', (tester) async {
+    testWidgets('linked work keeps its own name and details after schedule editing', (
+      tester,
+    ) async {
       final harness = Harness(
         vehicle: samples.santaFe,
         service: samples.santaFeOilService,
@@ -168,13 +170,230 @@ void main() {
 
       final operations = OperationRobot(tester);
       final card = operations.findOperationCard(samples.oilChangeOperation.id);
-      expect(find.descendant(of: card, matching: find.text('Updated oil change')), findsOneWidget);
+      expect(find.descendant(of: card, matching: find.text('Updated oil change')), findsNothing);
       expect(
         find.descendant(of: card, matching: find.text(samples.oilChangeOperation.details)),
         findsOneWidget,
       );
-      expect(find.descendant(of: card, matching: find.text(schedule.name)), findsNothing);
+      expect(find.descendant(of: card, matching: find.text(schedule.name)), findsOneWidget);
       expectOperationsVisible(tester, [samples.brakeInspectionOperation]);
+    });
+
+    group('Edit Operation', () {
+      for (final original in [samples.oilChangeOperation, samples.brakeInspectionOperation]) {
+        testWidgets('edits ${original.id} and refreshes without changing its association', (
+          tester,
+        ) async {
+          final harness = Harness(
+            vehicle: samples.santaFe,
+            service: samples.santaFeOilService,
+            initialOperations: samples.sampleOperations,
+          );
+          final operations = OperationRobot(tester);
+          final form = OperationFormRobot(tester);
+          await harness.pumpLoadedScreen(tester);
+          await operations.tapOperationMenuEdit(original.id);
+          expect(find.text('Edit Operation'), findsOneWidget);
+          expect(form.name, equals(original.name));
+          expect(form.details, equals(original.details));
+          await form.enterName('  Updated work  ');
+          await form.enterDetails('  Updated notes  ');
+          await form.saveForm(pump: .settle);
+          final updated = harness.repo.operations[original.id]!;
+          expect(updated.name, equals('Updated work'));
+          expect(updated.details, equals('Updated notes'));
+          expect(updated.scheduleId, equals(original.scheduleId));
+          expect(updated.serviceId, equals(original.serviceId));
+          expect(harness.repo.operations, hasLength(samples.sampleOperations.length));
+          expect(
+            harness.repo.operations[samples.tireRotationOperation.id],
+            same(samples.tireRotationOperation),
+          );
+          expect(harness.repo.listCalls, equals(2));
+          expectOperationsVisible(tester, [updated]);
+        });
+      }
+
+      testWidgets('editing can link custom work to a schedule without copying its details', (
+        tester,
+      ) async {
+        final original = samples.brakeInspectionOperation;
+        final harness = Harness(
+          vehicle: samples.santaFe,
+          service: samples.santaFeOilService,
+          initialOperations: [original],
+        );
+        final operations = OperationRobot(tester);
+        final form = OperationFormRobot(tester);
+        await harness.pumpLoadedScreen(tester);
+        await operations.tapOperationMenuEdit(original.id);
+        await form.enterName('');
+        await tester.pumpAndSettle();
+        await form.selectSchedule(samples.oilChange.id);
+        await form.enterDetails('Independent operation notes');
+        await form.saveForm(pump: .settle);
+        final updated = harness.repo.operations[original.id]!;
+        expect(updated.scheduleId, equals(samples.oilChange.id));
+        expect(updated.details, equals('Independent operation notes'));
+        expect(harness.repo.listCalls, equals(2));
+      });
+
+      for (final fails in [false, true]) {
+        testWidgets(
+          'Back during an update that later ${fails ? 'fails' : 'succeeds'} skips refresh',
+          (tester) async {
+            final original = samples.oilChangeOperation;
+            final harness = Harness(
+              vehicle: samples.santaFe,
+              service: samples.santaFeOilService,
+              initialOperations: [original],
+            );
+            final operations = OperationRobot(tester);
+            final form = OperationFormRobot(tester);
+            await harness.pumpLoadedScreen(tester);
+            await operations.tapOperationMenuEdit(original.id);
+            await form.enterDetails('Pending update');
+            final pending = harness.repo.pauseNextUpdate();
+            await form.saveForm();
+            await tester.pageBack();
+            await tester.pumpAndSettle();
+            if (fails) {
+              pending.completeError(Exception('Network error'));
+            } else {
+              pending.complete();
+            }
+            await tester.pumpAndSettle();
+            expect(harness.repo.listCalls, equals(1));
+            expect(tester.takeException(), isNull);
+            expect(form.findSaveError, findsNothing);
+          },
+        );
+      }
+
+      testWidgets('Back from editing skips refresh', (tester) async {
+        final original = samples.oilChangeOperation;
+        final harness = Harness(
+          vehicle: samples.santaFe,
+          service: samples.santaFeOilService,
+          initialOperations: [original],
+        );
+        final operations = OperationRobot(tester);
+        await harness.pumpLoadedScreen(tester);
+        await operations.tapOperationMenuEdit(original.id);
+        await OperationFormRobot(tester).enterDetails('Unsaved');
+        await tester.pageBack();
+        await tester.pumpAndSettle();
+        expect(harness.repo.listCalls, equals(1));
+        expect(harness.repo.operations[original.id], same(original));
+      });
+
+      testWidgets(
+        'validation and failed update retain inputs for retry and refresh only on success',
+        (tester) async {
+          final original = samples.oilChangeOperation;
+          final harness = Harness(
+            vehicle: samples.santaFe,
+            service: samples.santaFeOilService,
+            initialOperations: [original],
+          );
+          final operations = OperationRobot(tester);
+          final form = OperationFormRobot(tester);
+          await harness.pumpLoadedScreen(tester);
+          await operations.tapOperationMenuEdit(original.id);
+          await form.enterName('   ');
+          await form.saveForm();
+          expect(form.nameError, isNotEmpty);
+          await form.enterName('  Renamed oil work  ');
+          await form.enterDetails('   ');
+          final pending = harness.repo.pauseNextUpdate();
+          await form.saveForm(pump: .none);
+          await form.saveForm();
+          expect(form.saveButton.enabled, isFalse);
+          expect(form.nameEnabled, isFalse);
+          expect(form.detailsEnabled, isFalse);
+          expect(harness.repo.operations[original.id], same(original));
+          pending.completeError(Exception('Network error'));
+          await tester.pumpAndSettle();
+          expect(form.findSaveError, findsOneWidget);
+          expect(form.name, equals('  Renamed oil work  '));
+          expect(harness.repo.listCalls, equals(1));
+          await form.saveForm(pump: .settle);
+          expect(harness.repo.listCalls, equals(2));
+          expect(harness.repo.operations[original.id]!.details, isEmpty);
+          expect(harness.repo.operations[original.id]!.scheduleId, equals(original.scheduleId));
+        },
+      );
+    });
+
+    group('Delete Operation', () {
+      for (final dismiss in [false, true]) {
+        testWidgets(
+          '${dismiss ? 'dismissing' : 'cancelling'} confirmation skips deletion and refresh',
+          (tester) async {
+            final harness = Harness(
+              vehicle: samples.santaFe,
+              service: samples.santaFeOilService,
+              initialOperations: [samples.oilChangeOperation],
+            );
+            final operations = OperationRobot(tester);
+            await harness.pumpLoadedScreen(tester);
+            await operations.tapOperationMenuDelete(samples.oilChangeOperation.id);
+            expect(operations.findDeleteConfirmation, findsOneWidget);
+            expect(
+              find.text('Delete "${samples.oilChangeOperation.name}"? This cannot be undone.'),
+              findsOneWidget,
+            );
+            if (dismiss) {
+              await operations.dismissOperationDeletion();
+            } else {
+              await operations.cancelOperationDeletion();
+            }
+            expect(harness.repo.operations, hasLength(1));
+            expect(harness.repo.listCalls, equals(1));
+          },
+        );
+      }
+
+      for (final fails in [false, true]) {
+        testWidgets(
+          'confirmed deletion ${fails ? 'failure reconciles the list' : 'refreshes to empty'}',
+          (tester) async {
+            final original = samples.oilChangeOperation;
+            final harness = Harness(
+              vehicle: samples.santaFe,
+              service: samples.santaFeOilService,
+              initialOperations: [original, samples.tireRotationOperation],
+            );
+            final operations = OperationRobot(tester);
+            await harness.pumpLoadedScreen(tester);
+            await operations.tapOperationMenuDelete(original.id);
+            final pending = harness.repo.pauseNextDelete();
+            await operations.confirmOperationDeletion(pump: .frame);
+            expect(harness.repo.listCalls, equals(1));
+            expect(harness.repo.operations[original.id], same(original));
+            final refresh = harness.repo.pauseNextList();
+            if (fails) {
+              pending.completeError(Exception('Network error'));
+            } else {
+              pending.complete();
+            }
+            await tester.pump();
+            expect(harness.repo.listCalls, equals(2));
+            expect(operations.findDeleteError, fails ? findsOneWidget : findsNothing);
+            refresh.complete();
+            await tester.pumpAndSettle();
+            expect(
+              harness.repo.operations[samples.tireRotationOperation.id],
+              same(samples.tireRotationOperation),
+            );
+            expect(
+              operations.findOperationCard(original.id),
+              fails ? findsOneWidget : findsNothing,
+            );
+            expect(find.byKey(OperationScreen.emptyTextKey), fails ? findsNothing : findsOneWidget);
+          },
+        );
+      }
     });
 
     group('New Operation', () {

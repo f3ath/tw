@@ -250,20 +250,23 @@ class InMemoryOperationRepo({
   var listCalls = 0;
   final _listGate = RequestGate();
   final _createGate = RequestGate();
+  final _updateGate = RequestGate();
+  final _deleteGate = RequestGate();
   var _nextId = 0;
 
   Completer<void> pauseNextList() => _listGate.pause();
 
   Completer<void> pauseNextCreate() => _createGate.pause();
 
+  Completer<void> pauseNextUpdate() => _updateGate.pause();
+
+  Completer<void> pauseNextDelete() => _deleteGate.pause();
+
   @override
   Future<List<Operation>> list(String serviceId) async {
     listCalls++;
     await _listGate.wait();
-    return operations.values
-        .where((operation) => operation.serviceId == serviceId)
-        .map(_resolveSchedule)
-        .toList();
+    return operations.values.where((operation) => operation.serviceId == serviceId).toList();
   }
 
   @override
@@ -295,16 +298,47 @@ class InMemoryOperationRepo({
     _addOperation(serviceId, name: schedule.name, details: details, scheduleId: schedule.id);
   }
 
-  Operation _resolveSchedule(Operation operation) {
-    final schedule = _scheduleRepo.schedules[operation.scheduleId];
-    if (schedule == null) return operation;
-    return Operation(
-      operation.id,
-      serviceId: operation.serviceId,
-      scheduleId: operation.scheduleId,
-      name: schedule.name,
-      details: operation.details,
+  @override
+  Future<void> update(
+    String operationId, {
+    required String name,
+    required String details,
+    required String? scheduleId,
+  }) async {
+    await _updateGate.wait();
+    final original = operations[operationId];
+    if (original == null) throw Exception('Operation not found');
+    if (scheduleId != null) {
+      final service = _serviceRepo.services[original.serviceId];
+      final schedule = _scheduleRepo.schedules[scheduleId];
+      if (service == null || schedule == null || schedule.vehicleId != service.vehicleId) {
+        throw Exception('Invalid schedule');
+      }
+      if (schedule.isArchived && scheduleId != original.scheduleId) {
+        throw Exception('Schedule is archived');
+      }
+      if (operations.values.any(
+        (operation) =>
+            operation.id != operationId &&
+            operation.serviceId == original.serviceId &&
+            operation.scheduleId == scheduleId,
+      )) {
+        throw Exception('Schedule already recorded in this service');
+      }
+    }
+    operations[operationId] = Operation(
+      original.id,
+      serviceId: original.serviceId,
+      scheduleId: scheduleId,
+      name: name,
+      details: details,
     );
+  }
+
+  @override
+  Future<void> delete(String operationId) async {
+    await _deleteGate.wait();
+    if (operations.remove(operationId) == null) throw Exception('Operation not found');
   }
 
   void _addOperation(
