@@ -104,22 +104,22 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
     final form = _formKey.currentState!;
     if (!form.validate()) return;
     form.save();
-    late Service savedService;
-    final saved = await _submission.submit(() async {
-      savedService = await _persistService();
-    });
+    final result = await _submission.submit(_persistService);
     if (!mounted) return;
-    if (saved) {
-      Navigator.of(context).pop(savedService);
-    } else if (_submission.hasError) {
-      ScaffoldMessenger.of(context)
-        ..hideCurrentSnackBar()
-        ..showSnackBar(
-          const SnackBar(
-            key: ServiceFormScreen.errorSnackBarKey,
-            content: Text('Save failed. Please try again.'),
-          ),
-        );
+    switch (result) {
+      case SubmissionSuccess(:final value):
+        Navigator.of(context).pop(value);
+      case SubmissionFailure():
+        ScaffoldMessenger.of(context)
+          ..hideCurrentSnackBar()
+          ..showSnackBar(
+            const SnackBar(
+              key: ServiceFormScreen.errorSnackBarKey,
+              content: Text('Save failed. Please try again.'),
+            ),
+          );
+      case SubmissionIgnored():
+        return;
     }
   }
 

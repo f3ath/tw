@@ -113,19 +113,22 @@ class _VehicleFormScreenState extends State<VehicleFormScreen> {
     final form = _formKey.currentState!;
     if (!form.validate()) return;
     form.save();
-    final saved = await _submission.submit(_persistVehicle);
+    final result = await _submission.submit(_persistVehicle);
     if (!mounted) return;
-    if (saved) {
-      Navigator.of(context).pop(true);
-    } else if (_submission.hasError) {
-      ScaffoldMessenger.of(context)
-        ..hideCurrentSnackBar()
-        ..showSnackBar(
-          const SnackBar(
-            key: VehicleFormScreen.errorSnackBarKey,
-            content: Text('Save failed. Please try again.'),
-          ),
-        );
+    switch (result) {
+      case SubmissionSuccess():
+        Navigator.of(context).pop(true);
+      case SubmissionFailure():
+        ScaffoldMessenger.of(context)
+          ..hideCurrentSnackBar()
+          ..showSnackBar(
+            const SnackBar(
+              key: VehicleFormScreen.errorSnackBarKey,
+              content: Text('Save failed. Please try again.'),
+            ),
+          );
+      case SubmissionIgnored():
+        return;
     }
   }
 

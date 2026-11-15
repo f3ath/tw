@@ -1,24 +1,27 @@
 import 'package:material_ui/material_ui.dart';
 
+sealed class const SubmissionResult<T>();
+
+final class const SubmissionSuccess<T>(final T value) extends SubmissionResult<T>;
+
+final class const SubmissionFailure<T>() extends SubmissionResult<T>;
+
+final class const SubmissionIgnored<T>() extends SubmissionResult<T>;
+
 class FormSubmissionController extends ChangeNotifier {
   var _isSubmitting = false;
-  var _hasError = false;
   var _isDisposed = false;
 
   bool get isSubmitting => _isSubmitting;
-  bool get hasError => _hasError;
 
-  Future<bool> submit(Future<void> Function() persist) async {
-    if (_isSubmitting || _isDisposed) return false;
+  Future<SubmissionResult<T>> submit<T>(Future<T> Function() persist) async {
+    if (_isSubmitting || _isDisposed) return SubmissionIgnored<T>();
     _isSubmitting = true;
-    _hasError = false;
     notifyListeners();
     try {
-      await persist();
-      return true;
+      return SubmissionSuccess(await persist());
     } on Exception {
-      _hasError = true;
-      return false;
+      return SubmissionFailure<T>();
     } finally {
       _isSubmitting = false;
       if (!_isDisposed) notifyListeners();

@@ -127,19 +127,22 @@ class _ScheduleFormScreenState extends State<ScheduleFormScreen> {
     final form = _formKey.currentState!;
     if (!form.validate()) return;
     form.save();
-    final saved = await _submission.submit(_persistSchedule);
+    final result = await _submission.submit(_persistSchedule);
     if (!mounted) return;
-    if (saved) {
-      Navigator.of(context).pop(true);
-    } else if (_submission.hasError) {
-      ScaffoldMessenger.of(context)
-        ..hideCurrentSnackBar()
-        ..showSnackBar(
-          const SnackBar(
-            key: ScheduleFormScreen.errorSnackBarKey,
-            content: Text('Save failed. Please try again.'),
-          ),
-        );
+    switch (result) {
+      case SubmissionSuccess():
+        Navigator.of(context).pop(true);
+      case SubmissionFailure():
+        ScaffoldMessenger.of(context)
+          ..hideCurrentSnackBar()
+          ..showSnackBar(
+            const SnackBar(
+              key: ScheduleFormScreen.errorSnackBarKey,
+              content: Text('Save failed. Please try again.'),
+            ),
+          );
+      case SubmissionIgnored():
+        return;
     }
   }
 

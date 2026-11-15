@@ -205,19 +205,22 @@ class _OperationFormScreenState extends State<OperationFormScreen> {
     if (!form.validate()) return;
     form.save();
     _nameFocus.unfocus();
-    final saved = await _submission.submit(_persistOperation);
+    final result = await _submission.submit(_persistOperation);
     if (!mounted) return;
-    if (saved) {
-      Navigator.of(context).pop(true);
-    } else if (_submission.hasError) {
-      ScaffoldMessenger.of(context)
-        ..hideCurrentSnackBar()
-        ..showSnackBar(
-          const SnackBar(
-            key: OperationFormScreen.errorSnackBarKey,
-            content: Text('Save failed. Please try again.'),
-          ),
-        );
+    switch (result) {
+      case SubmissionSuccess():
+        Navigator.of(context).pop(true);
+      case SubmissionFailure():
+        ScaffoldMessenger.of(context)
+          ..hideCurrentSnackBar()
+          ..showSnackBar(
+            const SnackBar(
+              key: OperationFormScreen.errorSnackBarKey,
+              content: Text('Save failed. Please try again.'),
+            ),
+          );
+      case SubmissionIgnored():
+        return;
     }
   }
 

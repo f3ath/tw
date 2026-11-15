@@ -1,38 +1,37 @@
+import 'package:app/app/app.dart';
+import 'package:app/data/auth/api_client_adapter.dart';
+import 'package:app/data/auth/backend_auth_service.dart';
+import 'package:app/data/auth/login_window/open_login_window.dart';
+import 'package:app/data/backend_operation_repo.dart';
+import 'package:app/data/backend_schedule_repo.dart';
+import 'package:app/data/backend_service_repo.dart';
+import 'package:app/data/backend_vehicle_repo.dart';
+import 'package:app/testing/samples.dart' as samples;
+import 'package:app/testing/stub.dart' as stub;
 import 'package:http/http.dart' as http;
 import 'package:http_interop_http/http_interop_http.dart';
 import 'package:json_api/routing.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:shared/api.dart';
-import 'package:app/app/app.dart';
-import 'package:app/data/auth/api_client_adapter.dart';
-import 'package:app/data/auth/backend_auth_service.dart';
-import 'package:app/data/auth/login_window/open_login_window.dart';
-import 'package:app/data/backend_schedule_repo.dart';
-import 'package:app/data/backend_service_repo.dart';
-import 'package:app/data/backend_vehicle_repo.dart';
-import 'package:app/data/backend_operation_repo.dart';
-import 'package:app/testing/samples.dart' as samples;
-import 'package:app/testing/stub.dart' as stub;
 
 void main() {
   const fake = bool.fromEnvironment('FAKE');
+  runApp(fake ? _fakeApp() : _realApp());
+}
+
+TwApp _realApp() {
   final uriDesign = StandardUriDesign(Uri.parse('http://localhost:8080/api/v0'));
   final handler = http.Client().sendInterop;
   final twApiClient = TwApiClient(uriDesign, handler);
-
-  runApp(
-    fake
-        ? _fakeApp()
-        : TwApp(
-            authService: BackendAuthService(
-              authApi: ApiClientAdapter(twApiClient),
-              newWindow: openLoginWindow,
-            ),
-            scheduleRepo: BackendScheduleRepo(twApiClient),
-            serviceRepo: BackendServiceRepo(twApiClient),
-            operationRepo: BackendOperationRepo(twApiClient),
-            vehicleRepo: BackendVehicleRepo(twApiClient),
-          ),
+  return TwApp(
+    authService: BackendAuthService(
+      authApi: ApiClientAdapter(twApiClient),
+      newWindow: openLoginWindow,
+    ),
+    scheduleRepo: BackendScheduleRepo(twApiClient),
+    serviceRepo: BackendServiceRepo(twApiClient),
+    operationRepo: BackendOperationRepo(twApiClient),
+    vehicleRepo: BackendVehicleRepo(twApiClient),
   );
 }
 
