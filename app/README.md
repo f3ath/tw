@@ -1,117 +1,90 @@
-# Torque Wrench — learning project
+# Torque Wrench App
 
-Session handover for `app/`. Read this before continuing; inspect current source for changes made between sessions.
+Flutter application for vehicle maintenance.
 
 ## Working agreement
 
-- The user is a professional Dart developer learning Flutter and mobile development.
-- Teach through small exercises: explain concepts and tradeoffs, define an observable checkpoint, then review the user's implementation.
-- The user writes application code. Do not implement features or provide complete solutions unless asked. Documentation updates are authorized.
-- Tests are the source of truth for behavior. Add meaningful tests alongside features, using controlled futures/time for asynchronous behavior. Prefer TDD where it makes sense.
-- Do not add dedicated tests for InMemory repositories. Use them as test doubles in application, view-model, and widget behavior tests.
-- Use `../app_proto/` as a reference, not a template to copy. Introduce abstractions through concrete needs.
-- Do not add widget previews; the user prefers to omit them.
+- Tests are the source of truth. Add meaningful behavior tests alongside features,
+  using controlled futures and clocks for asynchronous behavior; prefer TDD where useful.
+- Use in-memory repositories as test doubles in application and widget tests;
+  do not add dedicated tests for them or trivial backend adapters.
+- Introduce abstractions through concrete needs. Do not add widget previews.
 
-## Scope
+## Running locally
 
-Platform priority: **web → iOS → Android**; native Linux/macOS optional. Minimal Material UI, with web URLs/history, responsive layout, keyboard/mouse and touch support introduced as needed.
+Use the Flutter 3.50 / Dart 3.14 toolchain. From the repository root:
 
-First iteration:
+```sh
+cd app
+flutter pub get
+flutter run -d chrome --dart-define=FAKE=true
+```
 
-- Google login, session restoration, and logout.
-- Vehicle CRUD.
-- Schedule CRUD within vehicles.
-- Service CRUD with scheduled and custom operations.
-- Existing server and shared Dart API client.
-- Ordinary loading, validation, and request-error handling.
+Omit `cd app` if already in the app directory.
+Fake mode seeds users, vehicles, schedules, services, and operations without a server.
+For the real backend, omit `--dart-define=FAKE=true` and follow the
+[server setup](../server/README.md). The API URL is currently fixed at
+`http://localhost:8080/api/v0` in `lib/main.dart`.
 
-Logout must let the user leave the account independently of server revocation. The user accepts the current authentication implementation as sufficient for this iteration; do not block vehicle work on remaining auth work.
+Platform priority is web, then iOS, then Android; Linux/macOS support is optional.
+Web URLs/history, responsive layout, and keyboard/touch support are introduced as needed.
 
-Offline mode, synchronization, and advanced network behavior such as atomicity are out of scope.
+## Architecture
 
-## Architecture decisions
+- `lib/app/` contains semantic repository/authentication ports and validated
+  `VehicleService` / `VehicleSchedule` pairs. Models come from `shared/model.dart`.
+  Backend adapters in `lib/data/` translate ports into shared API-client calls.
+- `main.dart` separates real and fake composition. Real adapters share one
+  `TwApiClient`; fake operation repositories share the service and schedule stores.
+- `RepositoryProvider` sits above `MaterialApp` / Navigator. Screens read and retain
+  their repositories without listening for replacements. Rebuilding a screen does
+  not reload its list or replace its repository.
+- Screens own navigation, dialogs, and model disposal. Cards render resources and
+  emit typed actions. Import Material widgets from `package:material_ui/material_ui.dart`.
+- `ListViewModel<T>` takes a fetch callback and exposes immutable items plus loading
+  and error state. Only the latest load may update state or notify; stale completions
+  and completions after disposal are ignored. Loading after disposal is a no-op.
+- `FormSubmissionController` exposes `isSubmitting` and returns typed
+  `SubmissionSuccess<T>`, `SubmissionFailure<T>`, or `SubmissionIgnored<T>` results.
+  It guards duplicate/disposed submissions and suppresses notifications after disposal.
+  Forms handle results explicitly; the controller retains no error flag.
+- `deleteAndRefresh` shares deletion, error-snackbar, and mounted-refresh behavior
+  across all four list screens. Resource-specific confirmation dialogs remain in screens.
+- `LoadingView`, `ErrorRetryView`, `DateFormField`, and schedule interval widgets
+  share presentation. Stable screen-owned keys support widget tests.
+- Authentication selects login-window adapters through conditional exports. Web
+  reserves a popup before awaiting requests; native launches an external browser
+  and cannot observe or close that browser window. Cancellation is silent; other
+  login exceptions show generic feedback. Null user name/email maps to empty text;
+  URI validation remains deferred apart from the missing-completion-URI check.
 
-- Flutter 3.50 / Dart 3.14 toolchain. Import Material widgets from `package:material_ui/material_ui.dart` (standalone `material_ui` dependency), not the deprecated `package:flutter/material.dart`.
-- Use ports/adapters. Application logic and its tests depend on semantic ports, not HTTP messages or TwApiClient. Repository types use singular resource names (VehicleRepo, ScheduleRepo) and methods list/create/update/delete where supported; backend adapters translate to TwApiClient’s resource-specific method names.
-- Skip unit tests for trivial API adapters while TwApiClient evolves; retain application behavior tests.
-- Null-to-empty mapping for user name/email is deliberate. Exceptions cross ports unchanged for now.
-- URI validation is deferred; retain the adapter's missing-completion-URI check.
-- User-facing feedback belongs in presentation. Cancellation is handled silently; other login exceptions currently show a generic snackbar.
-- Select login-window adapters through conditional exports. Web reserves a popup synchronously before awaiting requests. Native launches an external browser, cannot observe closure, and cannot close it.
+## Testing and verification
 
-## Current state — 2026-11-13
+Widget tests use screen-specific robots from `test/robots.dart`, explicit repository
+fakes, and route harnesses that capture navigation results. `PumpMode` selects no
+pump, a frame, or settling; use frames for pending requests and settle completed
+transitions. `RequestGate` pauses one fake repository request, and `FixedClock`
+controls dates. `ListViewModel` unit tests use fetch callbacks and controlled futures,
+without repository fixtures.
 
-- `app/` is the active learning application; `app_proto/` is the reference prototype.
-- Authentication orchestrates login, polling, timeout/cancellation, and window cleanup through ports. TwApp retains the authenticated User and switches between welcome and garage; welcome handles pending, failure/retry, and cancellation. Session restoration remains planned.
-- main shares one TwApiClient between real authentication and vehicle adapters. Use `--dart-define=FAKE=true` for the development fakes. Models come from `shared/model.dart`.
-- Vehicle listing, creation, editing, and confirmed deletion are wired to the backend. Edit preserves the vehicle ID and locks distance units. Successful form submission returns a boolean refresh signal.
-- GarageScreen owns/disposes ListViewModel<Vehicle>. VehicleCard owns card/menu rendering and emits actions; navigation, deletion feedback, and refresh remain in the screen. GarageScreen.vehicleCardKey supplies list-item identity.
-- Deletion refreshes after both success and exceptions because a lost response can leave the outcome uncertain. Exceptions show “Could not confirm deletion. Refreshing...”. Cancellation skips deletion and refresh. Manage schedules opens ScheduleScreen for the selected vehicle; Back returns without reloading the garage. Its title shows the schedules icon and vehicle name. Due-services content is a placeholder.
-- VehicleFormScreen shares create/edit validation and submission/error handling, with persistence extracted into a private method. Both forms use SafeArea with a ListView, 10-pixel padding, and a 16-pixel gap before Save. VehicleFormScreen disables name/unit/date inputs while saving and guards repeat submissions, matching schedule submission behavior. DateFormField provides typed date selection and supports enabled/disabled state.
-- TestRobot owns shared private helpers for text entry, Save taps, and date-picker opening/day selection/confirmation or cancellation; WelcomeRobot, GarageRobot, and VehicleFormRobot own screen-specific interactions. Robot APIs use tapNewVehicle/tapNewSchedule, findVehicleCard/findScheduleCard, and tapRetry. New-form navigation defaults to PumpMode.settle; submission/retry defaults to frame, and text entry pumps one frame. Date/menu/dropdown transitions settle. PumpMode selects none/frame/settle. Menu and dropdown finders target typed, hit-testable entries. VehicleFormRobot, ScheduleFormRobot, and ServiceFormRobot keep descriptive public methods that delegate to the shared helpers. Text entry still ensures visibility and pumps one frame; Save keeps frame/none/settle semantics; date transitions settle and use localized button labels with hit-testable day selection. Existing date-field visibility behavior is retained (ServiceFormRobot scrolls into view; VehicleFormRobot taps directly).
-- ScheduleRepo.list(vehicleId) is supplied by main → TwApp → RepositoryProvider and read by ScheduleScreen. BackendScheduleRepo delegates to TwApiClient; ListViewModel<Schedule> owns loading/error/list state and is disposed with the screen. Rows show schedule names and optional details, with loading, error/retry, and empty states.
-- InMemoryScheduleRepo defaults to empty, accepts initialSchedules, filters by vehicle ID, counts list calls, and supports one-request pauseNextList and pauseNextCreate gates. ScheduleRepo.create(vehicleId, ...) is implemented by both adapters, returning Future<void>; the backend delegates to TwApiClient.createSchedule. The fake generates unique IDs without overwriting seeds. Sample schedules seed the fake backend and tests. Widget tests cover vehicle filtering, loading, empty results, retry, rebuild behavior, pending-request disposal, and garage navigation.
-- InMemoryVehicleRepo defaults to empty and accepts initialVehicles. pauseNextList/Create/Delete gates affect one request each. Sample users/vehicles live in lib/testing/samples.dart; the test harness and fake-backend setup seed explicitly.
-- Latest verification: all 209 app tests pass after introducing typed submission results. Static analysis and formatting checks are clean. The web build passed after the package rename; it was not rerun for these refactors.
+Coverage includes validation, targeting/filtering, navigation results, retry,
+duplicate submissions, reconciliation after deletion failures, disposal during
+pending requests, and overlapping list loads.
 
-## Next exercise
+Latest verification: all 209 app tests pass, static analysis is clean, and changed
+Dart files are formatted. The web build passed after the package rename; it has
+not been rerun for the subsequent refactors.
 
-Schedule creation is wired end to end. ScheduleFormScreen validates a nonblank name, positive whole-number intervals, and at least one interval, matching server rules. Optional blank intervals become null; name/details are trimmed. Save and fields are disabled while pending, exceptions show a keyed snackbar and retain inputs for retry, and success returns true so ScheduleScreen reloads. Back/cancellation does not reload. Edit opens prefilled fields and saves through ScheduleRepo.update(scheduleId, ...), sharing validation and submission feedback with creation. BackendScheduleRepo delegates to TwApiClient.updateSchedule; the in-memory implementation preserves ID, vehicle association, and archive state, and supports pauseNextUpdate(). Cleared intervals are sent as null, and cleared details as an empty string. Form widget tests in schedule_form_screen_test.dart cover submission results, validation, clearing either interval, and failure/retry without creating another schedule. Schedule-screen tests retain list/navigation behavior and a successful creation/list-refresh flow. Delete opens a keyed confirmation dialog naming the selected schedule. Cancel/dismiss maps to false and Delete to true. Confirmed deletion invokes ScheduleRepo.delete and reconciles the list after success or exceptions. Exceptions show a keyed “Could not confirm deletion. Refreshing...” snackbar; cancellation skips deletion and refresh. Mounted checks guard the post-dialog request and subsequent UI work.
+## Deferred work
 
-Schedule deletion and its widget coverage are complete for this iteration. Tests cover Cancel and dismissal without refresh, targeted deletion preserving other schedules, deleting the final schedule, and error feedback/reconciliation for both retained and already-deleted outcomes. VehicleDeleteDialog and ScheduleDeleteDialog own confirmation presentation and their static dialog/button keys. Screens invoke showDialog and retain repository deletion, error feedback, and refresh responsibilities. Key values are preserved. Stable keys identify state messages, confirmation dialogs, and buttons; dialog wording is not asserted.
+- Session restoration, authentication error handling, and retained-credential cleanup.
+  Local logout must remain independent of server revocation; the current auth flow
+  is accepted for this iteration and should not block maintenance features.
+- Cleanup policy for old server sessions, including failed revocations.
+- HTTP-client lifetime ownership and configurable backend URL.
+- Pull-to-refresh and long-name layout checks.
+- Vehicle deletion coverage for a committed deletion followed by a lost response.
 
-ServiceRepo.list(vehicleId) is implemented by BackendServiceRepo (delegating to TwApiClient.listServices) and InMemoryServiceRepo. The fake defaults to empty, accepts initialServices, filters by vehicle ID, counts list calls, and supports a one-request pauseNextList gate. ServiceScreen, ListViewModel<Service>, and ServiceCard now provide a standalone list UI with selected-vehicle loading, error/retry, empty state, and keyed cards. Cards show localized short dates (including year), grouped odometer readings in the vehicle’s unit, and optional details. ServiceRobot, a local test harness, and sample services support widget coverage for filtering, both units, retry, rebuild behavior, and disposal during pending success/failure. No previews were added. ServiceRepo is supplied by main → TwApp → RepositoryProvider and read by ServiceScreen and ServiceFormScreen. The vehicle menu’s Services action opens that vehicle’s history, and Back returns without reloading the garage. Fake mode seeds sampleServices; real mode shares the existing TwApiClient through BackendServiceRepo. Garage navigation tests cover both sample vehicles.
-
-ServiceFormScreen is a shared creation/editing form with date (initially clock.now()), odometer in the vehicle’s distance unit, and optional details. It uses DateFormField, stable field/button keys, and the same SafeArea/ListView layout as the other forms. The New Service floating button opens the form for the selected vehicle, following ScheduleScreen navigation. Back preserves the existing list without reloading. Validation requires a date and a nonnegative whole-number odometer (zero is valid). DateFormField owns the shared picker bounds, January 1, 1900 through January 1, 2100; forms do not supply their own bounds. The app has no seven-day future-date validation; the server still enforces its existing seven-day limit for services. Details remain optional and are trimmed into submission data without changing the entered text. An optional service prefills date, odometer, and details and changes the title to Edit Service. Save validates and creates or updates through ServiceRepo, with shared submission/error handling and a private persistence method. Date, odometer, details, and Save are disabled while pending; a guard prevents repeat submission before rebuild. Exceptions show a keyed snackbar and retain inputs for retry. Successful creation/editing returns Service through push<Service>/pop(savedService), and ServiceScreen reloads after a non-null result; Back returns null without refreshing. Creation returns the actual repository result; editing returns the saved fields with the original service/vehicle IDs after the existing void update succeeds. Mounted checks protect completion after leaving the form. Service-form tests use ServiceFormRobot for descriptive actions and state queries, with the same PumpMode defaults as existing form robots. A direct route harness captures results. lib/testing/fixed_clock.dart provides a configurable FixedClock shared by service-form, vehicle-form, and garage-screen tests; authentication timeout tests retain their advancing clock mock. Tests cover validation, submitted values, pending state, duplicate-save prevention, failure/retry, cancellation, and disposal during pending success/failure. The service-screen suite covers successful creation/list refresh. No previews were added.
-
-ServiceRepo.create(vehicleId, date:, odometer:, details:) returns Future<Service>. BackendServiceRepo returns the TwApiClient.createService result; InMemoryServiceRepo stores the supplied values with unique IDs that skip seeded entries and supports pauseNextCreate() for pending/failure scenarios. Creation is wired through ServiceScreen to ServiceFormScreen.
-
-ServiceRepo.update(serviceId, date:, odometer:, details:) returns Future<void>, with required details so an empty string explicitly clears them. BackendServiceRepo delegates to TwApiClient.updateService. InMemoryServiceRepo preserves service ID and vehicle association, throws StateError for missing IDs, and supports a one-request pauseNextUpdate() gate. ServiceCard now exposes a keyed typed menu with an Edit action; ServiceScreen opens the selected service in ServiceFormScreen and reloads history only after a true result. Back and failed saves do not refresh. ServiceRobot provides tapServiceMenuEdit with typed, hit-testable menu selection. Service-screen tests cover targeted prefilling/Back, updating one of several services with a paused refresh, and failed editing followed by successful retry across both distance units. Robot-based form tests cover both units, prefilled values, preserved identity/vehicle association, clearing details, pending fields and repeat submission, validation, cancellation, and update failure/retry.
-
-ServiceRepo.delete(serviceId) is implemented by BackendServiceRepo through TwApiClient.deleteService and by InMemoryServiceRepo through a one-request RequestGate, with pauseNextDelete() and deleteCalls. The service-card Delete action opens ServiceDeleteDialog, identifying the service by localized date and odometer/unit. The dialog owns stable confirmation/cancel/delete keys; ServiceScreen owns deletion, feedback, and list reconciliation. Cancel/dismiss skips deletion and refresh. Confirmed deletion reloads after success or exceptions; exceptions show the keyed “Could not confirm deletion. Refreshing...” snackbar. Mounted checks guard requests after confirmation and UI work after deletion. ServiceRobot provides typed menu selection and descriptive confirmation/cancellation/dismissal methods. Widget tests cover cancellation, dismissal, targeted deletion preserving other services, the final-service empty state, both retained and already-deleted failure outcomes, and disposal while deletion later succeeds/fails.
-
-VehicleCard has a visible keyed New Service button that emits VehicleAction.newService. GarageScreen owns navigation directly to ServiceFormScreen with the selected vehicle and shared Clock; the form reads ServiceRepo from RepositoryProvider. Successful shortcut creation pops the form with its created Service, then GarageScreen opens OperationScreen(vehicleService:) after a mounted check. Back from Operations returns directly to Garage without revisiting the form. Cancellation returns to Garage; failure stays on the form for retry. Vehicles are not reloaded while due-services content remains a placeholder. GarageRobot.tapVehicleNewService(id) targets the per-vehicle button; garage widget tests cover both distance units, cancellation without creation/refresh, direct Operations navigation using the exact created Service, Back to Garage, history visibility, and failure/retry without premature navigation.
-
-OperationRepo.list(serviceId) returns Future<List<Operation>>. BackendOperationRepo delegates to TwApiClient.listOperations. InMemoryOperationRepo defaults to empty, accepts initialOperations, filters by service ID, counts list calls, and supports pauseNextList() through RequestGate. OperationRepo is supplied by main → TwApp → RepositoryProvider and read by OperationScreen; intermediate screens no longer forward it. Real mode shares TwApiClient through BackendOperationRepo; fake mode explicitly seeds sampleOperations. No dedicated fake/adapter tests were added, following the working agreement.
-
-OperationScreen, ListViewModel<Operation>, and OperationCard provide a service-scoped list with keyed loading, error/retry, empty, and card states. OperationScreen receives a single VehicleService value from ServiceScreen or the garage shortcut. VehicleService (lib/app/vehicle_service.dart) is final with final Vehicle/Service fields and runtime constructor validation: mismatched service.vehicleId/vehicle.id throws ArgumentError. Matching IDs are accepted regardless of instance identity; the supplied instances are retained. Three unit tests cover valid pairs, rejection, and ID-based matching. Its app-bar title shows the vehicle name with the localized service date beneath it, retaining the operations icon and single-line ellipsis on both text rows. Header keys identify the name/date, and OperationRobot exposes descriptive header finders/getters. Screen and navigation tests verify both selected vehicles and service dates; operation loading remains scoped to service.id with no vehicle fetch. Cards show operation names and optional details for both scheduled and custom operations. The screen owns/disposes the view model, which loads once and suppresses notifications after disposal. OperationRobot, a local harness, and sampleOperations support widget tests covering selected-service filtering, optional details, empty results, retry, rebuild behavior, and disposal during pending success/failure. No previews were added. Tapping a service card’s ListTile emits ServiceAction.operations; ServiceScreen owns navigation to OperationScreen. Operations is not a menu item; Edit/Delete retain their menu behavior. ServiceRobot.tapServiceCard(id) ensures the card is visible and uses the standard PumpMode defaults. Back returns without reloading service history. Service-screen navigation tests target both sample services with another service of the same vehicle present, and a TwApp test verifies login → garage → service history → operations and Back without list reloads.
-
-OperationRepo.create(serviceId, name:, details:) returns Future<void>, with required name and details defaulting to an empty string. BackendOperationRepo delegates to TwApiClient.createOperation without a schedule ID. InMemoryOperationRepo preserves the supplied values, generates unique IDs that skip seeded entries, leaves scheduleId null, and supports pauseNextCreate() through RequestGate. OperationFormScreen now uses this create port; OperationScreen opens the form through its keyed New Operation floating action button.
-
-OperationFormScreen accepts VehicleService and displays the selected vehicle name and localized service date. It uses SafeArea/ListView with 10-pixel padding, a required nonblank name, optional details, and a 16-pixel gap before Save. Submission trims both values without rewriting the entered text, obtains OperationRepo from RepositoryProvider, and creates a custom operation for vehicleService.service.id. FormSubmissionController disables inputs/Save and guards duplicate submissions. Success returns true; exceptions retain inputs and show a keyed retry snackbar. Mounted checks and controller disposal protect pending completion after leaving. OperationFormRobot delegates text entry and Save to shared TestRobot helpers. Twenty direct-route widget tests cover validation, trimming, both service contexts, preserving seeded operations, blank details, pending state, retry, Back, disposal, and the autocomplete behavior described below. No previews were added.
-
-OperationScreen opens OperationFormScreen with the same VehicleService using push<bool>. A true result triggers list reload after a mounted check; Back/null and failed saves skip reload. OperationRobot.tapNewOperation uses the standard settle default. Six screen tests cover both service contexts, cancellation without refresh, saving with a paused list refresh and service filtering, creating the first operation, and failure/retry with refresh only after success.
-
-OperationRepo.createFromSchedule(serviceId, scheduleId:, details:) returns Future<void>, with details defaulting to an empty string. BackendOperationRepo delegates to TwApiClient.createOperation with the service/schedule IDs and independent operation details, omitting name so the server supplies the schedule name. InMemoryOperationRepo accepts optional shared InMemoryServiceRepo/InMemoryScheduleRepo dependencies (default empty), rejects missing parents, wrong-vehicle or archived schedules, and duplicate schedule links within a service using Exception so FormSubmissionController reports failure. Both creation methods consume pauseNextCreate(); validation happens after the gate. Different services may record the same schedule. Linked operations retain their own saved name and details when listing, matching the backend. The schedule name is copied only when creating from a schedule; details default to empty rather than copying schedule details. Later schedule edits do not rewrite either operation field. Custom and scheduled creation share ID allocation and skip seeded IDs. main’s _fakeApp composes shared fake dependencies so new services and schedule edits are visible to the operation adapter. Sample linked text now matches schedule text. Stale-choice failures and retry, reuse across services, and pending-request disposal are covered through OperationFormRobot widget interactions; the earlier standalone scheduled-submission controller harness was removed. Scheduled-creation and schedule-editing tests verify that operation name and details remain independent of subsequent schedule edits.
-
-OperationCard has an Edit/Delete popup menu with a keyed menu button and OperationAction callbacks. OperationScreen opens the prefilled OperationFormScreen for editing and refreshes only after a true result; Back skips refresh. OperationRepo.update accepts the operation ID, name, details, and explicit nullable schedule ID; BackendOperationRepo delegates to TwApiClient.updateOperation. The in-memory implementation preserves operation/service IDs, validates schedule ownership and uniqueness, and supports pauseNextUpdate through RequestGate. Deletion uses OperationDeleteDialog with the selected operation name and keyed Cancel/Delete buttons; cancellation or dismissal skips persistence and refresh. Confirmation invokes OperationRepo.delete and refreshes after success or exceptions, with a keyed error snackbar for uncertain failures. BackendOperationRepo delegates to TwApiClient.deleteOperation, and the fake supports pauseNextDelete. Robot-based tests cover both edit contexts, trimming and clearing details, retained links, changing a custom operation to scheduled work, validation, pending disabling, failure/retry, Back including pending completion, confirmation cancellation/dismissal, successful deletion to empty, and reconciliation after deletion failure.
-
-OperationFormScreen now combines custom and scheduled creation through Autocomplete<Schedule>. It loads the current vehicle’s schedules using ListViewModel and supplies active matching suggestions asynchronously. ScheduleSummary and ScheduleAutocompleteItem encapsulate the selected summary and suggestion row in ui/schedules. Both accept VehicleSchedule (app/vehicle_schedule.dart), a validated Vehicle/Schedule pair following VehicleService: mismatched vehicle IDs throw ArgumentError, and interval units come from the paired vehicle. Three unit tests cover matching pairs, mismatches, and matching by ID rather than instance identity. A custom optionsViewBuilder shows each schedule name above its intervals in a scrollable Material popup, with keyboard highlighting and highlighted-option scrolling. ScheduleCard and suggestions share formatScheduleInterval from ui/schedules/schedule_interval.dart, including localized distance values and the vehicle’s distance unit. Selecting an option retains its schedule ID and submits createFromSchedule with the trimmed operation details. The selected schedule’s formatted interval and nonempty details appear below the name field; editing the name clears the link and hides this summary. This display does not populate or change the operation’s Details field. The optional Details field remains editable for both scheduled and custom work, retaining its controller text when switching modes. Schedule details are never copied into the form or used as operation details. Editing the selected name clears the link and permits custom name/details submission; typing an identical name alone does not link a schedule. Owned text controllers preserve input during loading and retry; schedule loading has a progress indicator and retry feedback that does not block custom work. The existing New Operation route and success refresh are retained. Editing initializes both text controllers from the operation, retains its schedule link when renaming, and permits choosing another schedule. The selected link is retained even if suggestions fail to load. OperationFormRobot provides descriptive suggestion selection, summary lookup, keyboard navigation, and retry helpers. Form tests cover all vehicle suggestions with an empty name, scrolling to the last suggestion, case-insensitive filtering, keyboard selection, interval and details summaries, independent trimmed or blank operation details, editing away from a selection, identical typed names remaining custom, and schedule loading/submission failures with retry. Custom work remains available after schedule loading fails.
-
-The unused standalone schedule-selection screen and its robot were removed; scheduled work is selected through the operation form autocomplete. Operation editing and deletion are implemented.
-
-Vehicle form tests now live in test/ui/garage/vehicle_form_screen_test.dart with a direct route harness that captures results. They cover isolated validation, creation values, pending-field disabling, creation failure/retry, edit identity/unit preservation, and edit failure/retry. Garage tests retain navigation and list refresh. InMemoryVehicleRepo supports pauseNextUpdate for application behavior tests. A remaining vehicle-test gap is deletion that succeeds server-side before the response fails. Both in-memory repositories use incrementing ID counters and skip existing IDs.
-
-All in-memory repository pauseNext methods delegate to per-operation RequestGate instances in lib/testing/request_gate.dart. The helper consumes and clears the pending future before awaiting it, so only the next request pauses; errors propagate before reads/mutations. Named pause methods and call counters remain on the repositories.
-
-GarageScreen, ScheduleScreen, ServiceScreen, and OperationScreen use ListViewModel<T> from lib/ui/list_view_model.dart directly, providing repository fetch callbacks. It exposes items/isLoading/hasError/load(), copies loaded results into an unmodifiable list, clears errors on load, and suppresses completion notifications after disposal. Each screen owns model creation, initial loading, disposal, and its existing UI/navigation/mutation behavior. The four resource-specific view models were removed. Their existing screen tests remain; the garage view-model tests moved to test/ui/list_view_model_test.dart with an added immutable-results assertion.
-
-All four list screens use LoadingView and ErrorRetryView from lib/ui/. Existing screen-owned keys remain on the CircularProgressIndicator, error Text, and Retry FilledButton, preserving Robot/widget finder targets. ErrorRetryView accepts the message, keys, callback, and MainAxisSize (default min); GarageScreen supplies max to retain its previous error layout. Empty and list states remain in each screen. Existing screen tests cover loading and retry behavior without additional wrapper-specific tests.
-
-RepositoryProvider (lib/app/repository_provider.dart) is an InheritedWidget containing the four semantic repository ports. TwApp retains explicit repository constructor inputs for composition and places the scope above MaterialApp/Navigator, so all pushed routes share the provided instances. All four list screens and four forms obtain only their own repository through the non-listening read(context) lookup and retain that instance for their lifetime; list models still receive explicit fetch callbacks. Screen/form constructors retain domain data, Clock, and UI callbacks, with no repository forwarding. Test harnesses place scopes with explicit fakes above MaterialApp, including form route harnesses. Repository replacement during an existing screen’s lifetime is not reactive; rebuilding the same screen does not trigger another load.
-
-VehicleFormScreen, ScheduleFormScreen, ServiceFormScreen, and OperationFormScreen own/dispose a FormSubmissionController from lib/ui/form/form_submission_controller.dart and rebuild through ListenableBuilder. The controller owns isSubmitting, rejects duplicate or disposed submissions, catches Exception, and suppresses notifications after disposal. submit<T>(persist) returns SubmissionSuccess<T> with the persisted value, SubmissionFailure<T>, or SubmissionIgnored<T>. Forms handle these outcomes explicitly; the service form returns its saved Service directly without capturing it through a late variable. Forms retain the pre-validation pending guard, validation, Form.save, resource-specific persistence, keyed snackbars, mounted checks, and navigation results (true for vehicle/schedule/operation forms, Service for service forms). Existing field/button keys, pending disabling, entered values, and retry behavior are preserved. Controller tests use controlled completers; existing Robot-based form and navigation suites remain unchanged.
-
-## Next iteration — deferred work
-
-- Pull-to-refresh
-- Clean up old server sessions, including sessions left behind by failed revocation; define policy/mechanism then.
-- Finish auth lifecycle/error handling and retained-credential cleanup. Local logout currently clears displayed User before revocation, but failure handling and credential cleanup remain incomplete.
-- Resolve HTTP client lifetime ownership. AuthService and VehicleRepo ports now live in standalone files under lib/app/.
-- Revisit name-width constraints and long-name layout checks, explicitly deferred by the user.
-
-Offline mode, synchronization, and advanced network behavior are not committed next-iteration features.
-
-## Maintaining this handover
-
-Replace current-state and next-exercise notes as work progresses; do not append detailed session history. Record meaningful decisions, outstanding limitations, and the latest verification. Distinguish completed behavior from planned work and check source before repeating old review findings.
+Offline mode, synchronization, and advanced network behavior are out of scope.
+Keep this handover focused on current decisions, limitations, and verification;
+replace stale notes rather than appending session history.

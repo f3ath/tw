@@ -1,4 +1,15 @@
-# TW
+# Torque Wrench
+
+The repository contains the Flutter [app](app/README.md), the Dart
+[server](server/README.md), and the shared API client and models in `shared/`.
+
+Install dependencies in each package before running checks:
+
+```sh
+(cd app && flutter pub get)
+(cd shared && dart pub get)
+(cd server && dart pub get)
+```
 
 Run these commands from the repository root with Make, Dart, Flutter, and Docker
 installed:
@@ -12,8 +23,8 @@ make format-check  # Check formatting without changing files
 make db-stop       # Stop and remove the database containers
 ```
 
-Use `-app_proto`, `-shared`, or `-server` to select a package, for example
-`make test-app_proto`, `make analyze-shared`, or `make format-check-server`.
+Use `-app`, `-shared`, or `-server` to select a package, for example
+`make test-app`, `make analyze-shared`, or `make format-check-server`.
 The shared test target skips testing until a `shared/test` directory exists.
 
 Server tests require the database. Its storage uses tmpfs, so stopping it discards
