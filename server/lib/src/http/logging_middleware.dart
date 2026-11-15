@@ -9,7 +9,9 @@ Middleware newLoggingMiddleware(Log log, String Function() newId) => middleware(
     return null;
   },
   onResponse: (rs, rq) async {
-    final processingTime = DateTime.now().difference(rq.context['request_time']! as DateTime).inMilliseconds;
+    final processingTime = DateTime.now()
+        .difference(rq.context['request_time']! as DateTime)
+        .inMilliseconds;
     log.info('Rs:${rq.context['request_id']} $processingTime ms ${rs.statusCode}');
     return null;
   },
