@@ -90,7 +90,7 @@ void main() {
     final first = await harness.login();
     final email = (await first.fetchCurrentUser())!.email;
     final created = await first.createVehicle(name: 'Civic', manufactureDate: manufactured);
-    await first.deleteSession();
+    await first.deleteCurrentSession();
 
     final second = await harness.login(email: email);
     expect((await second.listVehicles()).single.id, created.id);

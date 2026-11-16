@@ -1,6 +1,9 @@
+import 'dart:io';
+
 import 'package:http_interop/http_interop.dart';
 import 'package:json_api/client.dart' show RequestFailure;
 import 'package:json_api/routing.dart';
+import 'package:server/src/log/sink_log.dart';
 import 'package:server/src/server/server.dart';
 import 'package:server/src/server/server_config.dart';
 import 'package:shared/api.dart';
@@ -22,11 +25,13 @@ class TestHarness() {
     instanceType: 'test',
   );
 
-  late final Server _server = Server(_config);
+  late final Server _server = Server(_config, log: SinkLog(stderr));
 
   Future<void> startServer() => _server.start();
 
   Future<void> stopServer() => _server.stop();
+
+  Handler get handler => _server.handler;
 
   TwApiClient newClient() => TwApiClient(StandardUriDesign(_config.baseUri), _server.handler);
 

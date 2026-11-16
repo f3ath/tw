@@ -1,7 +1,7 @@
 name: server
 
 environment:
-  sdk: ^3.13.0
+  sdk: ^3.14.0
 
 dependencies:
   shared:

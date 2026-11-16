@@ -1,72 +1,90 @@
-# TorqueWrench (TW)
+# Torque Wrench App
 
-Flutter Material 3 car-maintenance app backed by the TorqueWrench API. Read [ARCHITECTURE.md](ARCHITECTURE.md) for layer boundaries and concrete classes; [README-CODEX.md](README-CODEX.md) and [the UX specification](docs/ux/car-maintenance-ux-spec.md) define the handoff.
+Flutter application for vehicle maintenance.
 
-## Launch
+## Working agreement
 
-From this Flutter package directory, with Flutter/Dart supporting Dart 3.13.5 or later:
+- Tests are the source of truth. Add meaningful behavior tests alongside features,
+  using controlled futures and clocks for asynchronous behavior; prefer TDD where useful.
+- Use in-memory repositories as test doubles in application and widget tests;
+  do not add dedicated tests for them or trivial backend adapters.
+- Introduce abstractions through concrete needs. Do not add widget previews.
+
+## Running locally
+
+Use the Flutter 3.50 / Dart 3.14 toolchain. From the repository root:
 
 ```sh
+cd app
 flutter pub get
-flutter run -d chrome --web-port=8765
+flutter run -d chrome --dart-define=FAKE=true
 ```
 
-For a release web bundle:
+Omit `cd app` if already in the app directory.
+Fake mode seeds users, vehicles, schedules, services, and operations without a server.
+For the real backend, omit `--dart-define=FAKE=true` and follow the
+[server setup](../server/README.md). The API URL is currently fixed at
+`http://localhost:8080/api/v0` in `lib/main.dart`.
 
-```sh
-flutter build web
-python3 -m http.server 8765 --bind 127.0.0.1 --directory build/web
-```
+Platform priority is web, then iOS, then Android; Linux/macOS support is optional.
+Web URLs/history, responsive layout, and keyboard/touch support are introduced as needed.
 
-Open http://localhost:8765. Keep the same origin/port to reuse web storage. Native targets use the platform preferences store; run `flutter devices` to select an available target.
+## Architecture
 
-## Authentication and server configuration
+- `lib/app/` contains semantic repository/authentication ports and validated
+  `VehicleService` / `VehicleSchedule` pairs. Models come from `shared/model.dart`.
+  Backend adapters in `lib/data/` translate ports into shared API-client calls.
+- `main.dart` separates real and fake composition. Real adapters share one
+  `TwApiClient`; fake operation repositories share the service and schedule stores.
+- `RepositoryProvider` sits above `MaterialApp` / Navigator. Screens read and retain
+  their repositories without listening for replacements. Rebuilding a screen does
+  not reload its list or replace its repository.
+- Screens own navigation, dialogs, and model disposal. Cards render resources and
+  emit typed actions. Import Material widgets from `package:material_ui/material_ui.dart`.
+- `ListViewModel<T>` takes a fetch callback and exposes immutable items plus loading
+  and error state. Only the latest load may update state or notify; stale completions
+  and completions after disposal are ignored. Loading after disposal is a no-op.
+- `FormSubmissionController` exposes `isSubmitting` and returns typed
+  `SubmissionSuccess<T>`, `SubmissionFailure<T>`, or `SubmissionIgnored<T>` results.
+  It guards duplicate/disposed submissions and suppresses notifications after disposal.
+  Forms handle results explicitly; the controller retains no error flag.
+- `deleteAndRefresh` shares deletion, error-snackbar, and mounted-refresh behavior
+  across all four list screens. Resource-specific confirmation dialogs remain in screens.
+- `LoadingView`, `ErrorRetryView`, `DateFormField`, and schedule interval widgets
+  share presentation. Stable screen-owned keys support widget tests.
+- Authentication selects login-window adapters through conditional exports. Web
+  reserves a popup before awaiting requests; native launches an external browser
+  and cannot observe or close that browser window. Cancellation is silent; other
+  login exceptions show generic feedback. Null user name/email maps to empty text;
+  URI validation remains deferred apart from the missing-completion-URI check.
 
-Continue with Google creates a session through `TwApiClient`, opens the server-provided Google authorization URL, and polls for the authenticated user. On web, sign-in opens a popup; on native platforms it opens the system browser. Complete Google sign-in there and return to the app. Sign-in expires after five minutes. Web popup cancellation is detected automatically.
+## Testing and verification
 
-The default Server address is `http://localhost:8080/api/v0`. Settings saves the complete API base URL locally; login and session restore use that saved value. The previous `http://localhost:8080` default migrates automatically to include `/api/v0`. Start the server with its Google OAuth credentials and registered callback URL before signing in. A physical device needs a reachable server hostname instead of its own localhost. Web hosting and the API must also permit the browser's HTTP/CORS policy.
+Widget tests use screen-specific robots from `test/robots.dart`, explicit repository
+fakes, and route harnesses that capture navigation results. `PumpMode` selects no
+pump, a frame, or settling; use frames for pending requests and settle completed
+transitions. `RequestGate` pauses one fake repository request, and `FixedClock`
+controls dates. `ListViewModel` unit tests use fetch callbacks and controlled futures,
+without repository fixtures.
 
-Session ID, bearer key, and original server URL persist in platform preferences. App startup validates the saved session with the server; revoked sessions return to sign-in, while connection failures offer Retry. Changing the configured server never sends an old server's bearer to the new server. Sign out revokes the session at its original server before removing the saved session and local account cache; failed requests retain the session for retry.
+Coverage includes validation, targeting/filtering, navigation results, retry,
+duplicate submissions, reconciliation after deletion failures, disposal during
+pending requests, and overlapping list loads.
 
-## Maintenance data
+Latest verification: all 209 app tests pass, static analysis is clean, and changed
+Dart files are formatted. The web build passed after the package rename; it has
+not been rerun for the subsequent refactors.
 
-Vehicles, schedules, services and operations use the authenticated `TwApiClient` through `ApiMaintenanceRepository` and `ApiMaintenanceService`. New accounts start empty. The server assigns record IDs; successful saves use those IDs for navigation. Scheduled operation names/details follow their schedules; custom operations have editable names/details. Service dates may be up to seven calendar days ahead.
+## Deferred work
 
-The app caches the complete garage by server URL and user ID. A failed maintenance fetch can display the saved snapshot and its original as-of time; writes remain disabled until a successful refresh. Session restoration still requires server validation. The Estimated reading currently equals the latest actual reading; due status is calculated locally.
+- Session restoration, authentication error handling, and retained-credential cleanup.
+  Local logout must remain independent of server revocation; the current auth flow
+  is accepted for this iteration and should not block maintenance features.
+- Cleanup policy for old server sessions, including failed revocations.
+- HTTP-client lifetime ownership and configurable backend URL.
+- Pull-to-refresh and long-name layout checks.
+- Vehicle deletion coverage for a committed deletion followed by a lost response.
 
-Add/edit vehicles and items, log/edit/delete services (including zero-operation mileage updates), archive/restore items, browse linked history, edit Settings, and sign out through the account menu. Units are fixed at vehicle creation. A month is 30 days. The garage previews three due items, with the remainder opening Due. The bottom bar always contains exactly Vehicles and Settings in the signed-in shell.
-
-Hash routes support `/vehicle/<id>?tab=0|1|2`, `/item/<id>`, `/service/<id>` and `/settings`, for example `http://localhost:8765/#/vehicle/runner`. Authentication restores the requested saved-record route; inaccessible IDs show Not found. Forms retain their saved parent URL on refresh; unsaved drafts survive navigation guards and temporary reauthentication only in the running process.
-
-## Sign-out and development fixtures
-
-Sign out revokes the session and clears the current account's local cache. Server records remain available after signing in again. Settings survives sign out. Clear site/application storage to reset local preferences.
-
-`LocalMaintenanceRepository`, simulated authentication and failure controls remain available for isolated tests. The default composition uses the real API and does not seed demo data or enable simulated offline/save failures. Ctrl+Alt+E opens the reauthentication screen while retaining the running form.
-
-## Scoped checks
-
-```sh
-dart format lib test
-flutter analyze
-flutter test
-flutter build web
-```
-
-The API-backed repository test expects a running server at `localhost:8080` configured with `INSTANCE_TYPE=test` (TestOAuth). It creates a unique test account, completes the test callback, exercises forms and CRUD through the real client, and removes its vehicles during cleanup. It also covers session restore, cached reads during a connection failure, session expiry, retained drafts, and sign-out without deleting server records. Widget and policy tests retain injected fakes for deterministic layout and validation checks.
-
-Dependency tests confine API, browser and storage dependencies to Services; model-only shared imports are allowed outside Services. API saves are sequential across endpoints. Partial-save recovery and server-enforced conditional writes remain future work. Current edit checks compare refreshed records with the form's original snapshot; they cannot prevent a concurrent write between the check and save.
-
-## Native build compatibility
-
-`shared_preferences_foundation` is explicitly pinned to 2.5.7. Version 2.6.0's generated Swift failed to compile with this host's Xcode 16.0; the 2.5.7 implementation builds with the same repository/Service API. Keep this constraint until upgrading and rechecking the Apple toolchain.
-
-```sh
-flutter build macos --release
-flutter run -d macos --release
-flutter build apk --debug
-flutter build apk --release
-flutter build ios --release --no-codesign
-```
-
-The macOS release build and Android debug/release APK builds passed on this host. Gradle installed the configured Android NDK, CMake, platform and build tools using the existing SDK licenses. No Android emulator/device was connected, so Android runtime behavior is unverified. After installing iOS 18, the unsigned iOS release build passed (`build/ios/iphoneos/Runner.app`). The app also built and launched on the iPhone 16 Pro iOS 18.0 simulator; mock sign-in, due navigation and a mileage-only save were verified through the live UI. A Flutter hot restart restored the session and saved 91,700-mile reading. Signing is still required for physical-device deployment; no signed device/archive validation was performed. Windows/Linux require their respective build hosts and were not built here.
+Offline mode, synchronization, and advanced network behavior are out of scope.
+Keep this handover focused on current decisions, limitations, and verification;
+replace stale notes rather than appending session history.

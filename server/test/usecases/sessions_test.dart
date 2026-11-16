@@ -1,3 +1,4 @@
+import 'package:http_interop/http_interop.dart';
 import 'package:test/test.dart';
 import 'package:uuid/uuid.dart';
 
@@ -14,9 +15,24 @@ void main() {
     await harness.stopServer();
   });
 
-  test('sessions require authentication', () async {
+  test('listing sessions requires authentication', () async {
     final client = harness.newClient();
     await expectLater(client.listSessions(), throwsStatusCode(401));
+  });
+
+  test('current session require authentication', () async {
+    expect(
+      await harness.handler(
+        Request('GET', Uri(path: '/api/v0/sessions/current'), Body.empty(), Headers()),
+      ),
+      isA<Response>().having((it) => it.statusCode, 'Status', equals(401)),
+    );
+    expect(
+      await harness.handler(
+        Request('GET', Uri(path: '/api/v0/sessions/current/user'), Body.empty(), Headers()),
+      ),
+      isA<Response>().having((it) => it.statusCode, 'Status', equals(401)),
+    );
   });
 
   test('pending sessions have no user and cannot list sessions', () async {
@@ -39,7 +55,7 @@ void main() {
       unorderedEquals([session1.id, session2.id]),
     );
 
-    await client2.deleteSession();
+    await client2.deleteCurrentSession();
     await expectLater(client2.listSessions(), throwsStatusCode(401));
     expect((await client1.listSessions()).single.id, session1.id);
   });

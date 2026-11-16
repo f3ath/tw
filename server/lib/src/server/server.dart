@@ -1,4 +1,5 @@
 import 'package:http_interop/http_interop.dart';
+import 'package:http_interop_middleware/http_interop_middleware.dart';
 import 'package:json_api/document.dart';
 import 'package:json_api/routing.dart';
 import 'package:json_api/server.dart';
@@ -23,9 +24,9 @@ import 'package:server/src/log/log.dart';
 import 'package:server/src/schedules/schedules_controller.dart';
 import 'package:server/src/schedules/schedules_dao.dart';
 import 'package:server/src/server/server_config.dart';
-import 'package:server/src/services/services_controller.dart';
 import 'package:server/src/services/operations_controller.dart';
 import 'package:server/src/services/operations_dao.dart';
+import 'package:server/src/services/services_controller.dart';
 import 'package:server/src/services/services_dao.dart';
 import 'package:server/src/users/users_dao.dart';
 import 'package:server/src/vehicles/vehicles_controller.dart';
@@ -52,7 +53,7 @@ class Server(
       redirectUri: _config.baseUri.replace(path: _googleOAuthCallbackPath).toString(),
     ),
   });
-  late final _handler = newLoggingMiddleware(_log, const Uuid().v4)(
+  late final _handler = newLoggingMiddleware(_log, () => const Uuid().v4().split('-').last)(
     routingHandler(_routes, _catchAll),
   );
   var _isReady = false;
@@ -126,18 +127,25 @@ class Server(
       },
     );
     final errorHandlingMiddleware = errorConverter(
-      onError: (e, t) async {
-        _log.error('ERROR', error: e, stackTrace: t);
-        return internalServerError(
-          OutboundErrorDocument([ErrorObject(title: 'Internal Server Error')]),
+      onError: (e, t) async =>
+          internalServerError(OutboundErrorDocument([ErrorObject(title: 'Internal Server Error')])),
+    );
+
+    final errorLoggingMiddleware = middleware(
+      onError: (error, stackTrace, rq) async {
+        _log.error(
+          'Request ${rq.context['request_id']} failed!',
+          error: error,
+          stackTrace: stackTrace,
         );
+        return null;
       },
     );
 
     _routes.addAll([
       Route(
         matches: (rq) => rq.uri.path.startsWith(_config.baseUri.path),
-        handler: errorHandlingMiddleware(corsMiddleware(jsonApiHandler)),
+        handler: errorHandlingMiddleware(corsMiddleware(errorLoggingMiddleware(jsonApiHandler))),
       ),
       Route(
         matches: (rq) => rq.uri.path == _googleOAuthCallbackPath,

@@ -1,4 +1,15 @@
-# TW
+# Torque Wrench
+
+The repository contains the Flutter [app](app/README.md), the Dart
+[server](server/README.md), and the shared API client and models in `shared/`.
+
+Install dependencies in each package before running checks:
+
+```sh
+(cd app && flutter pub get)
+(cd shared && dart pub get)
+(cd server && dart pub get)
+```
 
 Run these commands from the repository root with Make, Dart, Flutter, and Docker
 installed:

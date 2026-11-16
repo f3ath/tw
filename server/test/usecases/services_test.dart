@@ -137,7 +137,7 @@ void main() {
   test('services persist across sessions for the same account', () async {
     final created = await createService();
     final email = (await client.fetchCurrentUser())!.email;
-    await client.deleteSession();
+    await client.deleteCurrentSession();
     final restored = await harness.login(email: email);
     final listed = (await restored.listServices(vehicle.id)).single;
     expect(listed.id, created.id);
