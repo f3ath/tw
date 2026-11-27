@@ -1,8 +1,10 @@
 import 'package:postgres/postgres.dart';
 import 'package:server/src/db/database.dart';
+import 'package:server/src/db/duplicate_id.dart';
+import 'package:server/src/services/services_dao.dart';
 import 'package:shared/time.dart';
 
-class SchedulesDAO(final Database _database, {final Clock _clock = systemClock}) {
+class SchedulesDAO(final Database _database, {final Now _now = DateTime.now}) {
   Future<ScheduleRecord?> create({
     required String id,
     required String vehicleId,
@@ -12,35 +14,52 @@ class SchedulesDAO(final Database _database, {final Clock _clock = systemClock})
     required String details,
     bool isArchived = false,
   }) async {
-    final schedule = ScheduleRecord(
-      id: id,
-      vehicleId: vehicleId,
-      name: name,
-      intervalDistance: intervalDistance,
-      intervalMonths: intervalMonths,
-      details: details,
-      isArchived: isArchived,
-    );
-    final rows = await _database.execute(
-      Sql.named('''
-INSERT INTO schedules (id, owner_id, vehicle_id, name, interval_distance, interval_months, details, is_archived, created_at, updated_at)
-SELECT @id:uuid, owner_id, id, @name:text, @interval_distance:int4, @interval_months:int4, @details:text, @is_archived:boolean, @now:timestamp, @now:timestamp
+    final Result rows;
+    try {
+      rows = await _database.execute(
+        Sql.named('''
+INSERT INTO schedules (id, vehicle_id, name, interval_distance, interval_months, details, is_archived, created_at, updated_at)
+SELECT @id:uuid, id, @name:text, @interval_distance:int4, @interval_months:int4, @details:text, @is_archived:boolean, @now:timestamp, @now:timestamp
 FROM vehicles
-WHERE id = @vehicle_id:uuid 
-RETURNING id
+WHERE id = @vehicle_id:uuid
+RETURNING id, vehicle_id, name, interval_distance, interval_months, details, is_archived
 '''),
-      parameters: {...schedule.toMap(), 'now': _clock()},
-    );
-    return rows.isEmpty ? null : schedule;
+        parameters: {
+          'id': id,
+          'vehicle_id': vehicleId,
+          'name': name,
+          'interval_distance': intervalDistance,
+          'interval_months': intervalMonths,
+          'details': details,
+          'is_archived': isArchived,
+          'now': _now(),
+        },
+      );
+    } on UniqueViolationException {
+      throw DuplicateId();
+    }
+    return rows.isEmpty ? null : ScheduleRecord.fromMap(rows.single.toColumnMap());
   }
 
   Future<List<ScheduleRecord>> fetchByVehicleId({required String vehicleId}) async {
     final rows = await _database.execute(
       Sql.named('''
-SELECT *
-FROM schedules
-WHERE vehicle_id = @vehicle_id:uuid
-ORDER BY created_at
+SELECT schedule.id, schedule.vehicle_id, schedule.name, schedule.interval_distance,
+       schedule.interval_months, schedule.details, schedule.is_archived,
+       performed.id AS performed_id, performed.vehicle_id AS performed_vehicle_id,
+       performed.date AS performed_date,
+       performed.odometer AS performed_odometer, performed.details AS performed_details
+FROM schedules AS schedule
+LEFT JOIN LATERAL (
+    SELECT service.id, service.vehicle_id, service.date, service.odometer, service.details
+    FROM service_operations AS operation
+    JOIN services AS service ON service.id = operation.service_id
+    WHERE operation.schedule_id = schedule.id
+    ORDER BY service.date DESC, service.odometer DESC, service.created_at DESC, service.id DESC
+    LIMIT 1
+) AS performed ON TRUE
+WHERE schedule.vehicle_id = @vehicle_id:uuid
+ORDER BY schedule.created_at
 '''),
       parameters: {'vehicle_id': vehicleId},
     );
@@ -50,7 +69,7 @@ ORDER BY created_at
   Future<ScheduleRecord?> fetchById({required String id}) async {
     final rows = await _database.execute(
       Sql.named('''
-SELECT *
+SELECT id, vehicle_id, name, interval_distance, interval_months, details, is_archived
 FROM schedules
 WHERE id = @id:uuid
 '''),
@@ -62,7 +81,7 @@ WHERE id = @id:uuid
   Future<List<ScheduleRecord>> fetchAll() async {
     final rows = await _database.execute(
       Sql.named('''
-SELECT *
+SELECT id, vehicle_id, name, interval_distance, interval_months, details, is_archived
 FROM schedules
 ORDER BY created_at
 '''),
@@ -88,7 +107,7 @@ SET name = @name:text,
     is_archived = @is_archived:boolean,
     updated_at = @now:timestamp
 WHERE id = @id:uuid
-RETURNING *
+RETURNING id, vehicle_id, name, interval_distance, interval_months, details, is_archived
 '''),
       parameters: {
         'id': id,
@@ -97,7 +116,7 @@ RETURNING *
         'interval_months': intervalMonths,
         'details': details,
         'is_archived': isArchived,
-        'now': _clock(),
+        'now': _now(),
       },
     );
     if (rows.isEmpty) {
@@ -127,6 +146,7 @@ class const ScheduleRecord({
   required final int? intervalMonths,
   required final String details,
   final bool isArchived = false,
+  final ServiceRecord? lastPerformed,
 }) {
   static ScheduleRecord fromMap(Map<String, dynamic> map) => ScheduleRecord(
     id: map['id'] as String,
@@ -136,6 +156,9 @@ class const ScheduleRecord({
     intervalMonths: map['interval_months'] as int?,
     details: map['details'] as String,
     isArchived: map['is_archived'] as bool,
+    lastPerformed: map['performed_id'] == null
+        ? null
+        : ServiceRecord.fromMap(map, prefix: 'performed_'),
   );
 
   Map<String, dynamic> toMap() => {

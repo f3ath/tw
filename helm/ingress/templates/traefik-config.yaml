@@ -1,0 +1,12 @@
+{{- if .Values.traefik.enabled }}
+apiVersion: helm.cattle.io/v1
+kind: HelmChartConfig
+metadata:
+  name: traefik
+  namespace: kube-system
+spec:
+  valuesContent: |-
+    ports:
+      web:
+        exposedPort: {{ .Values.traefik.webPort }}
+{{- end }}

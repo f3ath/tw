@@ -1,20 +1,21 @@
 import 'package:postgres/postgres.dart';
 import 'package:server/src/db/database.dart';
+import 'package:shared/resource_id.dart';
 import 'package:shared/time.dart';
-import 'package:uuid/uuid.dart';
 
-class SessionsDAO(final Database database, {Clock clock = systemClock}) {
-  final _clock = clock;
-  static const _uuid = Uuid();
-
+class SessionsDAO(final Database database, {final Now _now = DateTime.now}) {
   Future<SessionRecord> create({required String tokenHash}) async {
-    final session = SessionRecord(id: _uuid.v4(), nonce: _uuid.v4(), tokenHash: tokenHash);
+    final session = SessionRecord(
+      id: ResourceId.generate(),
+      nonce: ResourceId.generate(),
+      tokenHash: tokenHash,
+    );
     await database.execute(
       Sql.named('''
 INSERT INTO sessions (id, token_hash, nonce, user_id, created_at, updated_at)
 VALUES (@id:uuid, @token_hash:text, @nonce:text, @user_id:uuid, @now:timestamp, @now:timestamp)
 '''),
-      parameters: {...session.toMap(), 'now': _clock()},
+      parameters: {...session.toMap(), 'now': _now()},
     );
     return session;
   }
@@ -79,7 +80,7 @@ SET user_id = @user_id:uuid, nonce = NULL, updated_at = @now:timestamp
 WHERE nonce = @nonce:text
 RETURNING id, token_hash, nonce, user_id
 '''),
-      parameters: {'nonce': nonce, 'user_id': userId, 'now': _clock()},
+      parameters: {'nonce': nonce, 'user_id': userId, 'now': _now()},
     );
     if (rows.isEmpty) return null;
     return SessionRecord.fromMap(rows.single.toColumnMap());
@@ -92,7 +93,7 @@ DELETE FROM sessions
 WHERE user_id IS NULL
   AND created_at < @cutoff:timestamp
 '''),
-      parameters: {'cutoff': _clock().subtract(maxAge)},
+      parameters: {'cutoff': _now().subtract(maxAge)},
     );
   }
 

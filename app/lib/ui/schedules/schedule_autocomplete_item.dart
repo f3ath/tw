@@ -18,7 +18,7 @@ class const ScheduleAutocompleteItem({
     final schedule = vehicleSchedule.schedule;
     final interval = formatScheduleInterval(
       schedule,
-      vehicleSchedule.vehicle.distanceUnit,
+      vehicleSchedule.vehicle.mileageUnit,
       MaterialLocalizations.of(context),
     );
     return ListTile(

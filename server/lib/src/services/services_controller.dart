@@ -3,6 +3,7 @@ import 'package:json_api/document.dart';
 import 'package:json_api/routing.dart';
 import 'package:json_api/server.dart';
 import 'package:server/src/auth/request_ext.dart';
+import 'package:server/src/db/duplicate_id.dart';
 import 'package:server/src/db/invalid_record.dart';
 import 'package:server/src/json_api/base_controller.dart';
 import 'package:server/src/services/service_resource.dart';
@@ -10,39 +11,41 @@ import 'package:server/src/services/operations_dao.dart';
 import 'package:server/src/services/operation_resource.dart';
 import 'package:server/src/services/services_dao.dart';
 import 'package:server/src/validation/date.dart';
+import 'package:shared/resource_id.dart';
 import 'package:shared/time.dart';
-import 'package:uuid/uuid.dart';
 
 class ServicesController(
   final ServicesTDAOProvider _ownedServices,
   final OperationsDAOProvider _ownedOperations,
   final UriBuilder _uriFor, {
-  final Clock _clock = systemClock,
+  final Now _now = DateTime.now,
 }) extends BaseController {
-  static const _uuid = Uuid();
-
   @override
   Future<Response> createResource(
     Request request,
     CollectionTarget target,
     NewResource newResource,
   ) async {
-    final resource = newResource.toResource(_uuid.v4);
+    final resource = newResource.toResource(ResourceId.generate);
     final input = _parseInput(resource.attributes);
     if (input == null) return badRequest();
     final vehicle = resource.one('vehicle');
     if (vehicle == null || vehicle.isEmpty) return badRequest();
+    final vehicleId = vehicle.single.id;
+    if (!ResourceId.isValid(vehicleId)) return badRequest();
     final ServiceRecord? service;
     try {
       service = await _ownedServices(request.userId).create(
         id: resource.id,
-        vehicleId: vehicle.single.id,
+        vehicleId: vehicleId,
         date: input.date,
         odometer: input.odometer,
         details: input.details ?? '',
       );
     } on InvalidRecord {
       return badRequest();
+    } on DuplicateId {
+      return conflict();
     }
     if (service == null) return notFound();
 
@@ -87,8 +90,10 @@ class ServicesController(
     return noContent();
   }
 
-  ({DateTime date, int odometer, String? details})? _parseInput(Map<String, dynamic> attributes) {
-    final date = parseDate(attributes['date'], clock: _clock, maxDaysInFuture: 7);
+  ({CalendarDate date, int odometer, String? details})? _parseInput(
+    Map<String, dynamic> attributes,
+  ) {
+    final date = parseDate(attributes['date'], now: _now, maxDaysInFuture: 7);
     final odometer = attributes['odometer'];
     final details = attributes['details'];
     if (date == null || odometer is! int || odometer < 0 || details != null && details is! String) {

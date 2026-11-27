@@ -1,18 +1,20 @@
 import 'package:shared/model.dart';
+import 'package:shared/time.dart';
 
 abstract interface class ServiceRepo {
   Future<List<Service>> list(String vehicleId);
 
   Future<Service> create(
     String vehicleId, {
-    required DateTime date,
+    required String id,
+    required CalendarDate date,
     required int odometer,
     String details = '',
   });
 
   Future<void> update(
     String serviceId, {
-    required DateTime date,
+    required CalendarDate date,
     required int odometer,
     required String details,
   });

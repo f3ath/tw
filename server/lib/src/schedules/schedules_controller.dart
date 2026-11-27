@@ -3,19 +3,18 @@ import 'package:json_api/document.dart';
 import 'package:json_api/routing.dart';
 import 'package:json_api/server.dart';
 import 'package:server/src/auth/request_ext.dart';
+import 'package:server/src/db/duplicate_id.dart';
 import 'package:server/src/json_api/base_controller.dart';
 import 'package:server/src/schedules/schedule_resource.dart';
 import 'package:server/src/schedules/schedules_dao.dart';
-import 'package:uuid/uuid.dart';
+import 'package:shared/resource_id.dart';
 
 class SchedulesController(final SchedulesTDAOProvider _ownedSchedules, final UriBuilder _uriFor)
     extends BaseController {
-  static const _uuid = Uuid();
-
   @override
   Future<Response> fetchCollection(Request request, CollectionTarget target) async {
     final all = await _ownedSchedules(request.userId).fetchAll();
-    return ok(OutboundDataDocument.collection(all.map(ScheduleResource.new)));
+    return ok(ScheduleResource.collection(all));
   }
 
   @override
@@ -24,26 +23,33 @@ class SchedulesController(final SchedulesTDAOProvider _ownedSchedules, final Uri
     CollectionTarget target,
     NewResource newResource,
   ) async {
-    final resource = newResource.toResource(_uuid.v4);
+    final resource = newResource.toResource(ResourceId.generate);
     final attributes = {'details': '', 'is_archived': false, ...resource.attributes};
     if (!_isValid(attributes)) return badRequest();
     final vehicle = resource.one('vehicle');
     if (vehicle == null || vehicle.isEmpty) {
       return badRequest();
     }
-    final schedule = await _ownedSchedules(request.userId).create(
-      id: resource.id,
-      vehicleId: vehicle.single.id,
-      name: attributes['name'] as String,
-      intervalDistance: attributes['interval_distance'] as int?,
-      intervalMonths: attributes['interval_months'] as int?,
-      details: attributes['details'] as String,
-      isArchived: attributes['is_archived'] as bool,
-    );
+    final vehicleId = vehicle.single.id;
+    if (!ResourceId.isValid(vehicleId)) return badRequest();
+    final ScheduleRecord? schedule;
+    try {
+      schedule = await _ownedSchedules(request.userId).create(
+        id: resource.id,
+        vehicleId: vehicleId,
+        name: attributes['name'] as String,
+        intervalDistance: attributes['interval_distance'] as int?,
+        intervalMonths: attributes['interval_months'] as int?,
+        details: attributes['details'] as String,
+        isArchived: attributes['is_archived'] as bool,
+      );
+    } on DuplicateId {
+      return conflict();
+    }
     if (schedule == null) return notFound();
 
     return created(
-      OutboundDataDocument.resource(ScheduleResource(schedule)),
+      ScheduleResource.document(schedule),
       _uriFor(ResourceTarget(target.type, schedule.id)).toString(),
     );
   }
@@ -66,7 +72,7 @@ class SchedulesController(final SchedulesTDAOProvider _ownedSchedules, final Uri
     );
     if (schedule == null) return notFound();
 
-    return ok(OutboundDataDocument.resource(ScheduleResource(schedule)));
+    return ok(ScheduleResource.document(schedule));
   }
 
   @override

@@ -5,7 +5,8 @@ import 'package:shared/model.dart';
 import 'package:app/testing/samples.dart' as samples;
 import 'package:app/testing/stub.dart';
 import 'package:app/ui/schedules/schedule_screen.dart';
-import 'package:app/ui/schedules/schedule_delete_dialog.dart';
+import 'package:app/ui/delete_confirmation_dialog.dart';
+import 'package:app/ui/schedules/schedule_form_screen.dart';
 
 import '../../robots.dart';
 
@@ -183,6 +184,53 @@ void main() {
       expect(find.text(samples.tireRotation.name), findsNothing);
     });
 
+    testWidgets('a conflict after a lost response keeps the draft and refreshes the list', (
+      tester,
+    ) async {
+      final harness = Harness(vehicle: samples.santaFe, initialSchedules: [samples.tireRotation]);
+      await harness.pumpLoadedScreen(tester);
+      await ScheduleRobot(tester).tapNewSchedule();
+      final form = ScheduleFormRobot(tester);
+      await form.fill(name: 'Inspection', distance: '', months: '6', details: 'Check brakes');
+      final pending = harness.repo.pauseNextCreate();
+      await form.saveForm();
+
+      final id = harness.repo.createIds.single;
+      final saved = Schedule(
+        id: id,
+        vehicleId: samples.santaFe.id,
+        name: 'Inspection',
+        intervalDistance: null,
+        intervalMonths: 6,
+        details: 'Check brakes',
+      );
+      harness.repo.schedules[id] = saved;
+      pending.completeError(Exception('Response lost'));
+      await tester.pumpAndSettle();
+      expect(harness.repo.listCalls, 1);
+
+      await form.saveForm(pump: .settle);
+
+      expect(findScheduleFormScreen, findsOneWidget);
+      expect(find.byKey(ScheduleFormScreen.errorSnackBarKey), findsOneWidget);
+      expect(
+        find.text('This schedule may already be saved. Go back to check the schedule list.'),
+        findsOneWidget,
+      );
+      expect(form.name, 'Inspection');
+      expect(form.intervalMonths, '6');
+      expect(form.details, 'Check brakes');
+      expect(form.saveButton.enabled, isTrue);
+      expect(harness.repo.createIds, [id, id]);
+      expect(harness.repo.listCalls, 2);
+
+      await tester.pageBack();
+      await tester.pumpAndSettle();
+      expectSchedulesVisible([saved]);
+      expect(find.text(samples.tireRotation.name), findsNothing);
+      expect(harness.repo.listCalls, 2);
+    });
+
     testWidgets('Delete opens confirmation and Cancel preserves the list', (tester) async {
       final inspection = Schedule(
         id: 'inspection',
@@ -201,11 +249,11 @@ void main() {
 
       await schedules.tapScheduleMenuDelete(inspection.id);
 
-      final dialog = find.byKey(ScheduleDeleteDialog.confirmationKey);
+      final dialog = find.byKey(DeleteConfirmationDialog.confirmationKey);
       expect(dialog, findsOneWidget);
       expect(harness.repo.schedules, hasLength(2));
 
-      await tester.tap(find.byKey(ScheduleDeleteDialog.cancelButtonKey));
+      await tester.tap(find.byKey(DeleteConfirmationDialog.cancelButtonKey));
       await tester.pumpAndSettle();
 
       expect(dialog, findsNothing);
@@ -225,7 +273,7 @@ void main() {
       await tester.binding.handlePopRoute();
       await tester.pumpAndSettle();
 
-      expect(find.byKey(ScheduleDeleteDialog.confirmationKey), findsNothing);
+      expect(find.byKey(DeleteConfirmationDialog.confirmationKey), findsNothing);
       expectSchedulesVisible([samples.oilChange]);
       expect(harness.repo.schedules[samples.oilChange.id], same(samples.oilChange));
       expect(harness.repo.listCalls, equals(1));
@@ -248,7 +296,7 @@ void main() {
       final pending = harness.repo.pauseNextDelete();
       await harness.pumpLoadedScreen(tester);
       await schedules.tapScheduleMenuDelete(inspection.id);
-      await tester.tap(find.byKey(ScheduleDeleteDialog.deleteButtonKey));
+      await tester.tap(find.byKey(DeleteConfirmationDialog.deleteButtonKey));
       await tester.pump();
 
       expect(harness.repo.schedules, hasLength(3));
@@ -271,10 +319,10 @@ void main() {
       await harness.pumpLoadedScreen(tester);
       await ScheduleRobot(tester).tapScheduleMenuDelete(samples.oilChange.id);
 
-      await tester.tap(find.byKey(ScheduleDeleteDialog.deleteButtonKey));
+      await tester.tap(find.byKey(DeleteConfirmationDialog.deleteButtonKey));
       await tester.pumpAndSettle();
 
-      expect(find.byKey(ScheduleDeleteDialog.confirmationKey), findsNothing);
+      expect(find.byKey(DeleteConfirmationDialog.confirmationKey), findsNothing);
       expect(findScheduleScreen, findsOneWidget);
       expect(harness.repo.schedules, isEmpty);
       expect(find.byKey(ScheduleScreen.scheduleKey(samples.oilChange.id)), findsNothing);
@@ -294,7 +342,7 @@ void main() {
         final pending = harness.repo.pauseNextDelete();
         await harness.pumpLoadedScreen(tester);
         await schedules.tapScheduleMenuDelete(samples.oilChange.id);
-        await tester.tap(find.byKey(ScheduleDeleteDialog.deleteButtonKey));
+        await tester.tap(find.byKey(DeleteConfirmationDialog.deleteButtonKey));
         await tester.pump();
         expect(harness.repo.listCalls, equals(1));
 

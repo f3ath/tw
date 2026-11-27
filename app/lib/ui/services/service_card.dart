@@ -1,10 +1,11 @@
+import 'package:app/ui/operations/service_info_text.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:shared/model.dart';
 
 class const ServiceCard({
   super.key,
   required final Service service,
-  required final DistanceUnit distanceUnit,
+  required final MileageUnit mileageUnit,
   required final ValueChanged<ServiceAction> onAction,
 }) extends StatelessWidget {
   static ValueKey<String> menuKey(String serviceId) => ValueKey('service-menu-$serviceId');
@@ -14,11 +15,13 @@ class const ServiceCard({
     final localizations = MaterialLocalizations.of(context);
     return Card(
       child: ListTile(
+        titleAlignment: ListTileTitleAlignment.top,
         onTap: () => onAction(ServiceAction.operations),
-        title: Text(localizations.formatShortDate(service.date)),
+        title: ServiceInfoText(service: service, mileageUnit: mileageUnit),
         trailing: PopupMenuButton<ServiceAction>(
           key: ServiceCard.menuKey(service.id),
-          tooltip: 'Manage service on ${localizations.formatShortDate(service.date)}',
+          tooltip:
+              'Manage service on ${localizations.formatShortDate(service.date.toLocalDateTime())}',
           icon: const Icon(Icons.more_vert),
           onSelected: onAction,
           itemBuilder: (_) => const [
@@ -45,13 +48,29 @@ class const ServiceCard({
             ),
           ],
         ),
-        subtitle: Column(
-          crossAxisAlignment: .start,
-          children: [
-            Text('${localizations.formatDecimal(service.odometer)} ${distanceUnit.name}'),
-            if (service.details.isNotEmpty) Text(service.details),
-          ],
-        ),
+        subtitle: service.details.isEmpty && service.operations.isEmpty
+            ? null
+            : Column(
+                crossAxisAlignment: .start,
+                children: [
+                  if (service.details.isNotEmpty)
+                    Padding(padding: const EdgeInsets.only(top: 4), child: Text(service.details)),
+                  if (service.operations.isNotEmpty) ...[
+                    for (final operation in service.operations)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 4),
+                        child: Row(
+                          crossAxisAlignment: .start,
+                          children: [
+                            const Text('•'),
+                            const SizedBox(width: 8),
+                            Expanded(child: Text(operation.name)),
+                          ],
+                        ),
+                      ),
+                  ],
+                ],
+              ),
       ),
     );
   }

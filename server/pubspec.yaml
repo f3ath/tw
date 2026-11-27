@@ -17,7 +17,6 @@ dependencies:
   migrant: ^0.3.0
   migrant_db_postgresql: ^0.3.0
   migrant_source_fs: ^0.1.1
-  uuid: ^4.2.0
   googleapis_auth: ^2.3.4
   http: ^1.6.0
   dotenv: ^4.2.0

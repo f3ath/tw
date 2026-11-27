@@ -2,20 +2,23 @@ import 'package:material_ui/material_ui.dart';
 import 'package:app/ui/form/form_submission_controller.dart';
 import 'package:app/app/repository_provider.dart';
 import 'package:shared/model.dart';
+import 'package:shared/resource_id.dart';
 import 'package:app/app/vehicle_repo.dart';
-import 'package:app/time/clock.dart';
+import 'package:app/app/create_conflict.dart';
 import 'package:app/ui/form/date_form_field.dart';
+import 'package:shared/time.dart';
 
 class const VehicleFormScreen({
   super.key,
-  final Clock clock = const Clock(),
+  final Now now = DateTime.now,
   final Vehicle? vehicle,
+  final VoidCallback? onCreateConflict,
 }) extends StatefulWidget {
   @override
   State<VehicleFormScreen> createState() => _VehicleFormScreenState();
   static const errorSnackBarKey = ValueKey('vehicle-save-error-snackbar');
   static const nameFieldKey = ValueKey('vehicle-name-field');
-  static const distanceUnitFieldKey = ValueKey('vehicle-distance-unit-field');
+  static const mileageUnitFieldKey = ValueKey('vehicle-mileage-unit-field');
   static const dateFieldKey = ValueKey('vehicle-date-field');
   static const saveButtonKey = ValueKey('vehicle-save-button');
 }
@@ -23,10 +26,11 @@ class const VehicleFormScreen({
 class _VehicleFormScreenState extends State<VehicleFormScreen> {
   late final VehicleRepo _repo = RepositoryProvider.read(context).vehicleRepo;
   final _formKey = GlobalKey<FormState>();
-  DistanceUnit _distanceUnit = .mi;
-  DateTime? _manufactureDate;
+  MileageUnit _mileageUnit = .mi;
+  CalendarDate? _manufactureDate;
   String _name = '';
   final _submission = FormSubmissionController();
+  late final _draftId = ResourceId.generate();
 
   bool get _isEditing => widget.vehicle != null;
 
@@ -65,19 +69,20 @@ class _VehicleFormScreenState extends State<VehicleFormScreen> {
                 },
               ),
               const SizedBox(height: 16),
-              DropdownButtonFormField<DistanceUnit>(
-                key: VehicleFormScreen.distanceUnitFieldKey,
-                decoration: InputDecoration(labelText: 'Distance Unit'),
-                initialValue: widget.vehicle?.distanceUnit ?? .mi,
-                items: DistanceUnit.values
-                    .map((it) => DropdownMenuItem<DistanceUnit>(value: it, child: Text(it.name)))
+              DropdownButtonFormField<MileageUnit>(
+                key: VehicleFormScreen.mileageUnitFieldKey,
+                decoration: InputDecoration(
+                  labelText: 'Mileage Unit',
+                  helperText: _isEditing ? 'Existing mileage values will not be converted.' : null,
+                ),
+                initialValue: widget.vehicle?.mileageUnit ?? .mi,
+                items: MileageUnit.values
+                    .map((it) => DropdownMenuItem<MileageUnit>(value: it, child: Text(it.name)))
                     .toList(),
                 onSaved: (val) {
-                  _distanceUnit = val!;
+                  _mileageUnit = val!;
                 },
-                onChanged: _isEditing || _submission.isSubmitting
-                    ? null
-                    : (_) {}, // enables the control
+                onChanged: _submission.isSubmitting ? null : (_) {}, // enables the control
               ),
               DateFormField(
                 key: VehicleFormScreen.dateFieldKey,
@@ -90,7 +95,7 @@ class _VehicleFormScreenState extends State<VehicleFormScreen> {
                   }
                   return null;
                 },
-                clock: widget.clock,
+                now: widget.now,
                 onSaved: (val) {
                   _manufactureDate = val;
                 },
@@ -113,7 +118,17 @@ class _VehicleFormScreenState extends State<VehicleFormScreen> {
     final form = _formKey.currentState!;
     if (!form.validate()) return;
     form.save();
-    final result = await _submission.submit(_persistVehicle);
+    final onCreateConflict = widget.onCreateConflict;
+    var hasConflict = false;
+    final result = await _submission.submit(() async {
+      try {
+        await _persistVehicle();
+      } on CreateConflict {
+        hasConflict = true;
+        rethrow;
+      }
+    });
+    if (hasConflict) onCreateConflict?.call();
     if (!mounted) return;
     switch (result) {
       case SubmissionSuccess():
@@ -122,9 +137,13 @@ class _VehicleFormScreenState extends State<VehicleFormScreen> {
         ScaffoldMessenger.of(context)
           ..hideCurrentSnackBar()
           ..showSnackBar(
-            const SnackBar(
+            SnackBar(
               key: VehicleFormScreen.errorSnackBarKey,
-              content: Text('Save failed. Please try again.'),
+              content: Text(
+                hasConflict
+                    ? 'This vehicle ID already exists. Go back to check the garage.'
+                    : 'Save failed. Please try again.',
+              ),
             ),
           );
       case SubmissionIgnored():
@@ -135,12 +154,18 @@ class _VehicleFormScreenState extends State<VehicleFormScreen> {
   Future<void> _persistVehicle() async {
     final vehicle = widget.vehicle;
     if (vehicle != null) {
-      await _repo.update(vehicle.id, name: _name, manufactureDate: _manufactureDate!);
-    } else {
-      await _repo.create(
+      await _repo.update(
+        vehicle.id,
         name: _name,
         manufactureDate: _manufactureDate!,
-        distanceUnit: _distanceUnit,
+        mileageUnit: _mileageUnit,
+      );
+    } else {
+      await _repo.create(
+        id: _draftId,
+        name: _name,
+        manufactureDate: _manufactureDate!,
+        mileageUnit: _mileageUnit,
       );
     }
   }

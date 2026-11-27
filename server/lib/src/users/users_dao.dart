@@ -1,11 +1,9 @@
 import 'package:postgres/postgres.dart';
 import 'package:server/src/db/database.dart';
+import 'package:shared/resource_id.dart';
 import 'package:shared/time.dart';
-import 'package:uuid/uuid.dart';
 
-class UsersDAO(final Database database, {final Clock _clock = systemClock}) {
-  static const _uuid = Uuid();
-
+class UsersDAO(final Database database, {final Now _now = DateTime.now}) {
   Future<UserRecord?> fetch(String id) async {
     final rows = await database.execute(
       Sql.named('''
@@ -20,7 +18,7 @@ WHERE id = @id:uuid
   }
 
   Future<UserRecord> createOrUpdate({required String email, required String name}) async {
-    final user = UserRecord(id: _uuid.v4(), email: email, name: name);
+    final user = UserRecord(id: ResourceId.generate(), email: email, name: name);
     final rows = await database.execute(
       Sql.named('''
 INSERT INTO users (id, email, name, created_at, updated_at)
@@ -29,7 +27,7 @@ ON CONFLICT (email) DO UPDATE
 SET name = EXCLUDED.name, updated_at = EXCLUDED.updated_at
 RETURNING id, email, name
 '''),
-      parameters: {...user.toMap(), 'now': _clock()},
+      parameters: {...user.toMap(), 'now': _now()},
     );
     return UserRecord.fromMap(rows.single.toColumnMap());
   }

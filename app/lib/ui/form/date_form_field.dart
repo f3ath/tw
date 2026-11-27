@@ -1,5 +1,5 @@
 import 'package:material_ui/material_ui.dart';
-import 'package:app/time/clock.dart';
+import 'package:shared/time.dart';
 
 /// Date picker which displays the selected date as text
 class const DateFormField({
@@ -8,23 +8,23 @@ class const DateFormField({
   super.validator,
   super.onSaved,
   super.enabled,
-  final String Function(DateTime?)? _format,
+  final String Function(CalendarDate?)? _format,
   final InputDecoration? _decoration = const InputDecoration(),
-  final Clock _clock = const Clock(),
-}) extends FormField<DateTime> {
+  final Now _now = DateTime.now,
+}) extends FormField<CalendarDate> {
   static final _firstDate = DateTime(1900);
   static final _lastDate = DateTime(2100);
 
   this : super(builder: _builder);
 
   @override
-  FormFieldState<DateTime> createState() => _DateFormFieldState();
+  FormFieldState<CalendarDate> createState() => _DateFormFieldState();
 
-  static Widget _builder(FormFieldState<DateTime> state) =>
+  static Widget _builder(FormFieldState<CalendarDate> state) =>
       (state as _DateFormFieldState)._buildInput();
 }
 
-class _DateFormFieldState extends FormFieldState<DateTime> {
+class _DateFormFieldState extends FormFieldState<CalendarDate> {
   late final _controller = TextEditingController();
 
   @override
@@ -43,11 +43,13 @@ class _DateFormFieldState extends FormFieldState<DateTime> {
     final format = widget._format;
     if (format != null) return format(value);
     final date = value;
-    return date == null ? '' : MaterialLocalizations.of(context).formatShortDate(date);
+    return date == null
+        ? ''
+        : MaterialLocalizations.of(context).formatShortDate(date.toLocalDateTime());
   }
 
   @override
-  void didChange(DateTime? value) {
+  void didChange(CalendarDate? value) {
     super.didChange(value);
     _controller.text = _formattedValue;
   }
@@ -74,12 +76,12 @@ class _DateFormFieldState extends FormFieldState<DateTime> {
     onTap: () async {
       final selected = await showDatePicker(
         context: context,
-        initialDate: value ?? widget._clock.now(),
+        initialDate: (value ?? CalendarDate.today(now: widget._now)).toLocalDateTime(),
         firstDate: DateFormField._firstDate,
         lastDate: DateFormField._lastDate,
       );
       if (!mounted || !widget.enabled || selected == null) return;
-      didChange(selected);
+      didChange(CalendarDate.fromDateTime(selected));
     },
     decoration: (widget._decoration ?? const InputDecoration()).copyWith(errorText: errorText),
   );

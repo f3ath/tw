@@ -6,8 +6,16 @@ class VehicleResource(VehicleRecord record) extends Resource {
   this : super(ResourceType.vehicles, record.id) {
     attributes.addAll({
       'name': record.name,
-      'distance_unit': record.distanceUnit.name,
-      'manufacture_date': record.manufactureDate.toIso8601String().split('T').first,
+      'mileage_unit': record.mileageUnit.name,
+      'manufacture_date': record.manufactureDate.toIsoDateString(),
     });
+    final lastService = record.lastService;
+    if (lastService != null) {
+      attributes['odometer'] = {
+        'value': lastService.odometer,
+        'date': lastService.date.toIsoDateString(),
+      };
+      relationships['last_service'] = ToOne(Identifier(ResourceType.services, lastService.id));
+    }
   }
 }

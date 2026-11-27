@@ -48,10 +48,29 @@ class _WelcomeScreenState() extends State<WelcomeScreen> {
   Widget build(BuildContext context) => Scaffold(
     body: SafeArea(
       child: Center(
-        child: FilledButton(
-          key: WelcomeScreen.loginButtonKey,
-          onPressed: _isLoggingIn ? null : _login,
-          child: Text(_isLoggingIn ? 'Logging in...' : 'Login with Google'),
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              SizedBox(
+                width: 317,
+                child: AspectRatio(
+                  aspectRatio: 317 / 66,
+                  child: Image.asset(
+                    'assets/brand/torquewrench-logo-dark.png',
+                    semanticLabel: 'TorqueWrench',
+                  ),
+                ),
+              ),
+              const SizedBox(height: 24),
+              FilledButton(
+                key: WelcomeScreen.loginButtonKey,
+                onPressed: _isLoggingIn ? null : _login,
+                child: Text(_isLoggingIn ? 'Logging in...' : 'Login with Google'),
+              ),
+            ],
+          ),
         ),
       ),
     ),

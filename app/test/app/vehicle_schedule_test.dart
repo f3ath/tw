@@ -25,7 +25,7 @@ void main() {
         original.id,
         name: 'Updated vehicle name',
         manufactureDate: original.manufactureDate,
-        distanceUnit: original.distanceUnit,
+        mileageUnit: original.mileageUnit,
       );
 
       final pair = VehicleSchedule(vehicle: vehicle, schedule: samples.oilChange);

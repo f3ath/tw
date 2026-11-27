@@ -11,6 +11,7 @@ class const OperationCard({
   @override
   Widget build(BuildContext context) => Card(
     child: ListTile(
+      titleAlignment: ListTileTitleAlignment.top,
       title: Text(operation.name),
       trailing: PopupMenuButton<OperationAction>(
         key: OperationCard.menuKey(operation.id),

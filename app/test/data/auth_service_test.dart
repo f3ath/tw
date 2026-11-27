@@ -1,13 +1,12 @@
 import 'dart:async';
 
-import 'package:flutter_test/flutter_test.dart';
-import 'package:mocktail/mocktail.dart';
 import 'package:app/app/auth/auth_exceptions.dart';
 import 'package:app/data/auth/auth_api.dart';
 import 'package:app/data/auth/backend_auth_service.dart';
 import 'package:app/data/auth/login_window.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:mocktail/mocktail.dart';
 import 'package:shared/model.dart';
-import 'package:app/time/clock.dart';
 
 void main() {
   setUpAll(() {
@@ -92,34 +91,33 @@ void main() {
       });
 
       test('throws TimeoutException if user never completes login', () async {
-        final clock = ClockMock();
-        final service = BackendAuthService(authApi: authApi, newWindow: () => window, clock: clock);
-
         var inDelay = false;
-
-        when(() => authApi.getCurrentUser()).thenAnswer((_) {
-          expect(inDelay, isFalse);
-          return Future.value(null);
-        });
-
         const tenSeconds = Duration(seconds: 10);
-
         final time = DateTime.utc(2026);
         var elapsed = 0;
-        when(() => clock.now()).thenAnswer((_) => time.add(Duration(seconds: elapsed)));
+        var delayCalled = 0;
 
-        when(() => clock.delayed<void>(any())).thenAnswer((i) {
+        Future<void> delayed(Duration d, [FutureOr<void> Function()? _]) {
+          delayCalled++;
           expect(inDelay, isFalse);
           inDelay = true;
-          expect(
-            i.positionalArguments[0],
-            equals(tenSeconds),
-            reason: 'Provided pollInterval must be used',
-          );
+          expect(d, equals(tenSeconds), reason: 'Provided pollInterval must be used');
           return Future(() {
             elapsed += 10;
             inDelay = false;
           });
+        }
+
+        final service = BackendAuthService(
+          authApi: authApi,
+          newWindow: () => window,
+          now: () => time.add(Duration(seconds: elapsed)),
+          delayed: delayed,
+        );
+
+        when(() => authApi.getCurrentUser()).thenAnswer((_) {
+          expect(inDelay, isFalse);
+          return Future.value(null);
         });
 
         final result = service.login(pollInterval: tenSeconds, pollTimeout: Duration(seconds: 30));
@@ -132,7 +130,7 @@ void main() {
           () => authApi.getCurrentUser(),
           () => window.close(),
         ]);
-        verify(() => clock.delayed<void>(any())).called(3); // pollTimeout / pollInterval
+        expect(delayCalled, equals(3)); // pollTimeout / pollInterval
       });
 
       test('aborts polling when user closes the window', () async {
@@ -157,6 +155,8 @@ void main() {
 
 class LoginWindowMock extends Mock implements LoginWindow;
 
-class AuthApiMock extends Mock implements AuthApi;
-
-class ClockMock extends Mock implements Clock;
+class AuthApiMock extends Mock implements AuthApi {
+  new() {
+    when(saveSession).thenAnswer((_) async {});
+  }
+}

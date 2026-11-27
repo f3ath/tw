@@ -1,0 +1,45 @@
+name: tw-local
+
+services:
+  web:
+    image: tw-web:compose-local
+    pull_policy: never
+    ports:
+      - "127.0.0.1:8080:8080"
+    volumes:
+      - ./app/nginx-local.conf:/etc/nginx/tw/local.conf:ro
+    depends_on:
+      - server
+
+  server:
+    build:
+      context: .
+      dockerfile: server/Dockerfile
+    environment:
+      BASE_URI: http://localhost:8080/api/v0
+      DATABASE_HOST: postgres
+      DATABASE_NAME: tw
+      GOOGLE_OAUTH_CLIENT_ID: ${GOOGLE_OAUTH_CLIENT_ID:?Set GOOGLE_OAUTH_CLIENT_ID in .env.local}
+      GOOGLE_OAUTH_CLIENT_SECRET: ${GOOGLE_OAUTH_CLIENT_SECRET:?Set GOOGLE_OAUTH_CLIENT_SECRET in .env.local}
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  postgres:
+    image: postgres:17-alpine
+    command: ["postgres", "-c", "ssl=off"]
+    environment:
+      POSTGRES_DB: tw
+      POSTGRES_USER: tw_system
+      POSTGRES_PASSWORD: tw_system
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./server/docker/init-users.sql:/docker-entrypoint-initdb.d/001-init-users.sql:ro
+    healthcheck:
+      test: ["CMD", "pg_isready", "-h", "127.0.0.1", "-U", "tw_system", "-d", "tw"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+volumes:
+  postgres-data:

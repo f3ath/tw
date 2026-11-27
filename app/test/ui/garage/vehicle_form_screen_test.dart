@@ -1,8 +1,9 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:app/app/repository_provider.dart';
-import 'package:app/testing/fixed_clock.dart';
 import 'package:shared/model.dart';
+import 'package:shared/time.dart';
+import 'package:shared/resource_id.dart';
 import 'package:app/testing/samples.dart' as samples;
 import 'package:app/testing/stub.dart';
 import 'package:app/ui/garage/vehicle_form_screen.dart';
@@ -34,15 +35,15 @@ void main() {
     });
 
     group('Creation', () {
-      testWidgets('distance units are selectable', (tester) async {
+      testWidgets('mileage units are selectable', (tester) async {
         final harness = Harness();
         final form = VehicleFormRobot(tester);
         await harness.pumpForm(tester);
-        expect(form.selectedDistanceUnit, equals(DistanceUnit.mi));
+        expect(form.selectedMileageUnit, equals(MileageUnit.mi));
 
-        await form.selectDistanceUnit('km');
+        await form.selectMileageUnit('km');
 
-        expect(form.selectedDistanceUnit, equals(DistanceUnit.km));
+        expect(form.selectedMileageUnit, equals(MileageUnit.km));
       });
 
       testWidgets('manufacture date can be selected and a subsequent change cancelled', (
@@ -54,10 +55,10 @@ void main() {
         expect(form.selectedDate, isNull);
 
         await form.selectDayAndConfirm('13');
-        expect(form.selectedDate, equals(DateTime(2009, 10, 13)));
+        expect(form.selectedDate, equals(CalendarDate(2009, 10, 13)));
 
         await form.selectDayAndCancel('22');
-        expect(form.selectedDate, equals(DateTime(2009, 10, 13)));
+        expect(form.selectedDate, equals(CalendarDate(2009, 10, 13)));
       });
 
       group('Validation', () {
@@ -95,15 +96,13 @@ void main() {
         });
       });
 
-      testWidgets('saves trimmed name, date, and distance unit and returns success', (
-        tester,
-      ) async {
+      testWidgets('saves trimmed name, date, and mileage unit and returns success', (tester) async {
         final harness = Harness();
         final form = VehicleFormRobot(tester);
         await harness.pumpForm(tester);
         await form.enterName('  Ford T  ');
         await form.selectDayAndConfirm('13');
-        await form.selectDistanceUnit('km');
+        await form.selectMileageUnit('km');
 
         await form.saveForm(pump: .settle);
 
@@ -111,8 +110,8 @@ void main() {
         expect(await harness.result, isTrue);
         final created = harness.repo.vehicles.values.single;
         expect(created.name, equals('Ford T'));
-        expect(created.manufactureDate, equals(DateTime(2009, 10, 13)));
-        expect(created.distanceUnit, equals(DistanceUnit.km));
+        expect(created.manufactureDate, equals(CalendarDate(2009, 10, 13)));
+        expect(created.mileageUnit, equals(MileageUnit.km));
       });
 
       testWidgets('disables fields while saving, retains inputs after failure, and permits retry', (
@@ -123,19 +122,19 @@ void main() {
         await harness.pumpForm(tester);
         await form.enterName('   Ford T');
         await form.selectDayAndConfirm('13');
-        await form.selectDistanceUnit('km');
+        await form.selectMileageUnit('km');
         final pending = harness.repo.pauseNextCreate();
 
         await form.saveForm();
 
+        final draftId = harness.repo.createIds.single;
+        expect(ResourceId.isValid(draftId), isTrue);
         expect(form.nameError, isNull);
         expect(form.dateError, isNull);
         expect(form.saveButton.enabled, isFalse);
         expect(tester.widget<TextFormField>(form.findNameField).enabled, isFalse);
         expect(
-          tester
-              .widget<DropdownButtonFormField<DistanceUnit>>(form.findDistanceUnitField)
-              .onChanged,
+          tester.widget<DropdownButtonFormField<MileageUnit>>(form.findMileageUnitField).onChanged,
           isNull,
         );
         final dateInput = find.descendant(of: form.findDateField, matching: find.byType(TextField));
@@ -144,6 +143,7 @@ void main() {
         await tester.pump();
         expect(form.findDatePickerDialog, findsNothing);
         await form.saveForm(pump: .none);
+        expect(harness.repo.createIds, [draftId]);
 
         pending.completeError(Exception('Network error'));
         await tester.pumpAndSettle();
@@ -152,15 +152,13 @@ void main() {
         expect(form.saveButton.enabled, isTrue);
         expect(tester.widget<TextFormField>(form.findNameField).enabled, isTrue);
         expect(
-          tester
-              .widget<DropdownButtonFormField<DistanceUnit>>(form.findDistanceUnitField)
-              .onChanged,
+          tester.widget<DropdownButtonFormField<MileageUnit>>(form.findMileageUnitField).onChanged,
           isNotNull,
         );
         expect(tester.widget<TextField>(dateInput).enabled, isTrue);
         expect(form.name, equals('   Ford T'));
-        expect(form.selectedDistanceUnit, equals(DistanceUnit.km));
-        expect(form.selectedDate, equals(DateTime(2009, 10, 13)));
+        expect(form.selectedMileageUnit, equals(MileageUnit.km));
+        expect(form.selectedDate, equals(CalendarDate(2009, 10, 13)));
         expect(harness.repo.vehicles, isEmpty);
 
         await form.saveForm(pump: .settle);
@@ -168,24 +166,24 @@ void main() {
         expect(await harness.result, isTrue);
         expect(findVehicleFormScreen, findsNothing);
         expect(harness.repo.vehicles.values.single.name, equals('Ford T'));
+        expect(harness.repo.createIds, [draftId, draftId]);
+        expect(harness.repo.vehicles.keys.single, draftId);
       });
     });
 
     group('Editing', () {
-      testWidgets('prefills properties and locks distance units', (tester) async {
+      testWidgets('prefills properties and allows changing mileage units', (tester) async {
         final vehicle = samples.santaFe;
         final harness = Harness(vehicle: vehicle, initialVehicles: samples.sampleVehicles);
         final form = VehicleFormRobot(tester);
         await harness.pumpForm(tester);
 
         expect(form.selectedDate, equals(vehicle.manufactureDate));
-        expect(form.selectedDistanceUnit, equals(vehicle.distanceUnit));
+        expect(form.selectedMileageUnit, equals(vehicle.mileageUnit));
         expect(form.name, equals(vehicle.name));
         expect(
-          tester
-              .widget<DropdownButtonFormField<DistanceUnit>>(form.findDistanceUnitField)
-              .onChanged,
-          isNull,
+          tester.widget<DropdownButtonFormField<MileageUnit>>(form.findMileageUnitField).onChanged,
+          isNotNull,
         );
       });
 
@@ -197,6 +195,7 @@ void main() {
         final form = VehicleFormRobot(tester);
         await harness.pumpForm(tester);
         await form.enterName('  Updated car  ');
+        await form.selectMileageUnit('mi');
         await form.selectDayAndConfirm('13');
         final pending = harness.repo.pauseNextUpdate();
 
@@ -209,11 +208,12 @@ void main() {
         expect(findVehicleFormScreen, findsNothing);
         expect(await harness.result, isTrue);
         expect(harness.repo.vehicles, hasLength(2));
+        expect(harness.repo.createIds, isEmpty);
         final updated = harness.repo.vehicles[vehicle.id]!;
         expect(updated.id, equals(vehicle.id));
         expect(updated.name, equals('Updated car'));
-        expect(updated.manufactureDate, equals(DateTime(2013, 1, 13)));
-        expect(updated.distanceUnit, equals(vehicle.distanceUnit));
+        expect(updated.manufactureDate, equals(CalendarDate(2013, 1, 13)));
+        expect(updated.mileageUnit, equals(MileageUnit.mi));
         expect(harness.repo.vehicles[samples.fourRunner.id], same(samples.fourRunner));
       });
 
@@ -234,8 +234,8 @@ void main() {
         expect(find.byKey(VehicleFormScreen.errorSnackBarKey), findsOneWidget);
         expect(form.saveButton.enabled, isTrue);
         expect(form.name, equals('Updated car'));
-        expect(form.selectedDate, equals(DateTime(2013, 1, 13)));
-        expect(form.selectedDistanceUnit, equals(vehicle.distanceUnit));
+        expect(form.selectedDate, equals(CalendarDate(2013, 1, 13)));
+        expect(form.selectedMileageUnit, equals(vehicle.mileageUnit));
         expect(harness.repo.vehicles[vehicle.id], same(vehicle));
 
         await form.saveForm(pump: .settle);
@@ -251,7 +251,7 @@ void main() {
 
 class Harness({final Vehicle? vehicle, Iterable<Vehicle> initialVehicles = const []}) {
   final repo = InMemoryVehicleRepo(initialVehicles: initialVehicles);
-  final clock = FixedClock(DateTime(2009, 10, 15));
+  DateTime now() => DateTime(2009, 10, 15);
   final _navigatorKey = GlobalKey<NavigatorState>();
   late Future<bool?> result;
 
@@ -267,7 +267,7 @@ class Harness({final Vehicle? vehicle, Iterable<Vehicle> initialVehicles = const
     );
     result = _navigatorKey.currentState!.push<bool>(
       MaterialPageRoute(
-        builder: (_) => VehicleFormScreen(vehicle: vehicle, clock: clock),
+        builder: (_) => VehicleFormScreen(vehicle: vehicle, now: now),
       ),
     );
     await tester.pumpAndSettle();

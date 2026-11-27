@@ -1,0 +1,5 @@
+apiVersion: v2
+name: tw-server
+description: Minimal TW HTTP server using an existing PostgreSQL installation
+type: application
+version: 0.1.0

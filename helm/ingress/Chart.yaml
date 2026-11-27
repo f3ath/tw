@@ -1,0 +1,5 @@
+apiVersion: v2
+name: tw-ingress
+description: Shared ingress routing for TW
+type: application
+version: 0.1.0

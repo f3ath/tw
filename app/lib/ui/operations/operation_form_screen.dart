@@ -1,5 +1,7 @@
 import 'package:material_ui/material_ui.dart';
 import 'package:shared/model.dart';
+import 'package:shared/resource_id.dart';
+import 'package:app/app/create_conflict.dart';
 import 'package:app/app/schedule_repo.dart';
 import 'package:app/ui/list_view_model.dart';
 import 'package:app/ui/schedules/schedule_autocomplete_item.dart';
@@ -14,6 +16,8 @@ class const OperationFormScreen({
   super.key,
   required final VehicleService vehicleService,
   final Operation? operation,
+  final VoidCallback? onSaved,
+  final VoidCallback? onCreateConflict,
 }) extends StatefulWidget {
   static const nameFieldKey = ValueKey('operation-name-field');
   static const detailsFieldKey = ValueKey('operation-details-field');
@@ -47,6 +51,7 @@ class _OperationFormScreenState extends State<OperationFormScreen> {
 
   final _formKey = GlobalKey<FormState>();
   final _submission = FormSubmissionController();
+  late final _draftId = ResourceId.generate();
   var _name = '';
   var _details = '';
 
@@ -87,7 +92,7 @@ class _OperationFormScreenState extends State<OperationFormScreen> {
               ),
               Text(
                 MaterialLocalizations.of(context)
-                    .formatShortDate(widget.vehicleService.service.date),
+                    .formatShortDate(widget.vehicleService.service.date.toLocalDateTime()),
               ),
               const SizedBox(height: 12),
               if (_schedules.isLoading)
@@ -205,7 +210,19 @@ class _OperationFormScreenState extends State<OperationFormScreen> {
     if (!form.validate()) return;
     form.save();
     _nameFocus.unfocus();
-    final result = await _submission.submit(_persistOperation);
+    final onSaved = widget.onSaved;
+    final onCreateConflict = widget.onCreateConflict;
+    var hasConflict = false;
+    final result = await _submission.submit(() async {
+      try {
+        await _persistOperation();
+      } on CreateConflict {
+        hasConflict = true;
+        rethrow;
+      }
+      onSaved?.call();
+    });
+    if (hasConflict) onCreateConflict?.call();
     if (!mounted) return;
     switch (result) {
       case SubmissionSuccess():
@@ -214,9 +231,13 @@ class _OperationFormScreenState extends State<OperationFormScreen> {
         ScaffoldMessenger.of(context)
           ..hideCurrentSnackBar()
           ..showSnackBar(
-            const SnackBar(
+            SnackBar(
               key: OperationFormScreen.errorSnackBarKey,
-              content: Text('Save failed. Please try again.'),
+              content: Text(
+                hasConflict
+                    ? 'This operation may already be saved. Check the operations list.'
+                    : 'Save failed. Please try again.',
+              ),
             ),
           );
       case SubmissionIgnored():
@@ -261,10 +282,16 @@ class _OperationFormScreenState extends State<OperationFormScreen> {
     if (schedule != null) {
       return _repo.createFromSchedule(
         widget.vehicleService.service.id,
+        id: _draftId,
         scheduleId: schedule.id,
         details: _details,
       );
     }
-    return _repo.create(widget.vehicleService.service.id, name: _name, details: _details);
+    return _repo.create(
+      widget.vehicleService.service.id,
+      id: _draftId,
+      name: _name,
+      details: _details,
+    );
   }
 }

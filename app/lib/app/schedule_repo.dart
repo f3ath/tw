@@ -5,6 +5,7 @@ abstract interface class ScheduleRepo {
 
   Future<void> create(
     String vehicleId, {
+    required String id,
     required String name,
     int? intervalDistance,
     int? intervalMonths,

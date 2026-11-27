@@ -2,7 +2,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:app/app/repository_provider.dart';
 import 'package:shared/model.dart';
-import 'package:app/testing/fixed_clock.dart';
+import 'package:shared/time.dart';
+import 'package:shared/resource_id.dart';
 import 'package:app/testing/samples.dart' as samples;
 import 'package:app/testing/stub.dart';
 import 'package:app/ui/services/service_form_screen.dart';
@@ -54,7 +55,11 @@ void main() {
       expect(harness.repo.services, isEmpty);
     });
 
-    for (final date in [DateTime(2020), DateTime(2026, 12, 6), DateTime(2099, 12, 31)]) {
+    for (final date in [
+      CalendarDate(2020),
+      CalendarDate(2026, 12, 6),
+      CalendarDate(2099, 12, 31),
+    ]) {
       testWidgets('accepts date $date without a seven-day limit', (tester) async {
         final harness = Harness();
         final form = ServiceFormRobot(tester);
@@ -114,7 +119,7 @@ void main() {
       expect(findServiceFormScreen, findsNothing);
       final service = harness.repo.services.values.single;
       expect(service.vehicleId, equals(samples.santaFe.id));
-      expect(service.date, equals(DateTime(2026, 11, 13)));
+      expect(service.date, equals(CalendarDate(2026, 11, 13)));
       expect(service.odometer, equals(12345));
       expect(service.details, equals('Oil change'));
     });
@@ -125,7 +130,7 @@ void main() {
       final harness = Harness();
       final form = ServiceFormRobot(tester);
       await harness.pumpForm(tester);
-      final selectedDate = DateTime(2026, 11, 14);
+      final selectedDate = CalendarDate(2026, 11, 14);
       await form.selectDayAndConfirm('14');
       await form.enterOdometer(' 42 ');
       await form.enterDetails('  Oil change  ');
@@ -134,6 +139,8 @@ void main() {
       await form.saveForm(pump: .none);
       await form.saveForm();
 
+      final draftId = harness.repo.createIds.single;
+      expect(ResourceId.isValid(draftId), isTrue);
       expect(form.saveButton.enabled, isFalse);
       expect(form.odometerEnabled, isFalse);
       expect(form.detailsEnabled, isFalse);
@@ -163,6 +170,8 @@ void main() {
 
       expect(await harness.result, same(harness.repo.services.values.single));
       final created = harness.repo.services.values.single;
+      expect(harness.repo.createIds, [draftId, draftId]);
+      expect(created.id, draftId);
       expect(created.odometer, equals(42));
       expect(created.date, equals(selectedDate));
       expect(created.details, equals('Oil change'));
@@ -220,7 +229,7 @@ void main() {
         expect(form.selectedDate, equals(service.date));
         expect(form.odometer, equals(service.odometer.toString()));
         expect(form.details, equals(service.details));
-        expect(form.distanceUnitLabel, equals(vehicle.distanceUnit.name));
+        expect(form.mileageUnitLabel, equals(vehicle.mileageUnit.name));
       });
     }
 
@@ -254,10 +263,11 @@ void main() {
       expect(result.vehicleId, equals(service.vehicleId));
       expect(findServiceFormScreen, findsNothing);
       expect(harness.repo.services, hasLength(2));
+      expect(harness.repo.createIds, isEmpty);
       final updated = harness.repo.services[service.id]!;
       expect(updated.id, equals(service.id));
       expect(updated.vehicleId, equals(service.vehicleId));
-      expect(updated.date, equals(DateTime(2026, 11, 13)));
+      expect(updated.date, equals(CalendarDate(2026, 11, 13)));
       expect(updated.odometer, equals(123456));
       expect(updated.details, isEmpty);
       expect(result.date, equals(updated.date));
@@ -290,7 +300,7 @@ void main() {
       expect(form.dateEnabled, isTrue);
       expect(form.odometerEnabled, isTrue);
       expect(form.detailsEnabled, isTrue);
-      expect(form.selectedDate, equals(DateTime(2026, 11, 14)));
+      expect(form.selectedDate, equals(CalendarDate(2026, 11, 14)));
       expect(form.odometer, equals(' 123456 '));
       expect(form.details, equals('  Inspection  '));
       expect(harness.repo.services[service.id], same(service));
@@ -304,7 +314,7 @@ void main() {
       expect(result.vehicleId, equals(service.vehicleId));
       expect(harness.repo.services, hasLength(2));
       final updated = harness.repo.services[service.id]!;
-      expect(updated.date, equals(DateTime(2026, 11, 14)));
+      expect(updated.date, equals(CalendarDate(2026, 11, 14)));
       expect(updated.odometer, equals(123456));
       expect(updated.details, equals('Inspection'));
       expect(result.date, equals(updated.date));
@@ -369,7 +379,7 @@ class Harness({
         builder: (_) => ServiceFormScreen(
           vehicle: vehicle ?? samples.santaFe,
           service: service,
-          clock: FixedClock(DateTime(2026, 11, 28, 15, 30)),
+          now: () => DateTime(2026, 11, 28, 15, 30),
         ),
       ),
     );

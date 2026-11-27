@@ -1,12 +1,14 @@
+import 'package:json_api/client.dart' show RequestFailure;
 import 'package:shared/api.dart';
+import 'package:shared/time.dart';
+import 'package:shared/resource_id.dart';
 import 'package:test/test.dart';
-import 'package:uuid/uuid.dart';
 
 import 'harness.dart';
 
 void main() {
   final harness = TestHarness();
-  final manufactured = DateTime(2020, 5, 1);
+  final manufactured = CalendarDate(2020, 5, 1);
 
   setUp(() async {
     await harness.startServer();
@@ -16,61 +18,177 @@ void main() {
     await harness.stopServer();
   });
 
+  test('mileage units can be changed in both directions and omitted on updates', () async {
+    final client = await harness.login();
+    final vehicle = await client.createVehicle(name: 'Civic', manufactureDate: manufactured);
+    for (final unit in [MileageUnit.km, MileageUnit.mi]) {
+      final updated = await client.updateVehicle(vehicle.id, mileageUnit: unit);
+      expect(updated!.mileageUnit, unit);
+      expect((await client.fetchVehicle(vehicle.id)).mileageUnit, unit);
+      await client.updateVehicle(vehicle.id, name: 'Renamed');
+      expect((await client.fetchVehicle(vehicle.id)).mileageUnit, unit);
+    }
+  });
+
   test('a new account has an empty garage', () async {
     final client = await harness.login();
     expect(await client.listVehicles(), isEmpty);
   });
 
-  for (final unit in DistanceUnit.values) {
+  test('listing vehicles returns the odometer reading when available', () async {
+    final client = await harness.login();
+    final serviced = await client.createVehicle(name: 'Civic', manufactureDate: manufactured);
+    final unserviced = await client.createVehicle(name: 'Corolla', manufactureDate: manufactured);
+    final date = CalendarDate(2021);
+    await client.createService(serviced.id, date: date, odometer: 100);
+
+    final listed = await client.listVehicles();
+    final reading = listed.singleWhere((vehicle) => vehicle.id == serviced.id).odometer!;
+    expect(reading.date, date);
+    expect(reading.value, 100);
+    expect(listed.singleWhere((vehicle) => vehicle.id == unserviced.id).odometer, isNull);
+  });
+
+  for (final unit in MileageUnit.values) {
     test('create, fetch, and list a vehicle measured in ${unit.name}', () async {
       final client = await harness.login();
       final created = await client.createVehicle(
         name: 'Civic',
         manufactureDate: manufactured,
-        distanceUnit: unit,
+        mileageUnit: unit,
       );
-      expect(created.id, isNotEmpty);
+      expect(ResourceId.isValid(created.id), isTrue);
       expect(created.name, 'Civic');
       expect(created.manufactureDate, manufactured);
-      expect(created.distanceUnit, unit);
+      expect(created.mileageUnit, unit);
 
       final fetched = await client.fetchVehicle(created.id);
       expect(fetched.id, created.id);
       expect(fetched.name, created.name);
       expect(fetched.manufactureDate, created.manufactureDate);
-      expect(fetched.distanceUnit, unit);
+      expect(fetched.mileageUnit, unit);
 
       final listed = (await client.listVehicles()).single;
       expect(listed.id, created.id);
       expect(listed.name, created.name);
       expect(listed.manufactureDate, created.manufactureDate);
-      expect(listed.distanceUnit, unit);
+      expect(listed.mileageUnit, unit);
     });
   }
 
-  test('save edited vehicle fields while preserving its ID and distance unit', () async {
+  test('persist an explicit vehicle ID', () async {
+    final client = await harness.login();
+    final id = ResourceId.generate();
+    final created = await client.createVehicle(
+      id: id,
+      name: 'Civic',
+      manufactureDate: manufactured,
+    );
+
+    expect(created.id, id);
+    expect((await client.fetchVehicle(id)).name, 'Civic');
+    expect((await client.listVehicles()).single.id, id);
+  });
+
+  test('persist an uppercase vehicle ID in the database output format', () async {
+    final client = await harness.login();
+    final id = 'a${ResourceId.generate().substring(1)}';
+    final created = await client.createVehicle(
+      id: id.toUpperCase(),
+      name: 'Civic',
+      manufactureDate: manufactured,
+    );
+
+    expect(created.id, id);
+    expect((await client.fetchVehicle(id)).name, 'Civic');
+  });
+
+  test('reject vehicle IDs outside the hyphenated UUID v4 format', () async {
+    final client = await harness.login();
+    const validId = '12345678-abcd-4abc-8abc-1234567890ab';
+    for (final id in [
+      '',
+      'not-a-uuid',
+      validId.replaceAll('-', ''),
+      '12345678-abcd-7abc-8abc-1234567890ab',
+      '12345678-abcd-4abc-7abc-1234567890ab',
+      '$validId\n',
+    ]) {
+      await expectLater(
+        client.createVehicle(id: id, name: 'Civic', manufactureDate: manufactured),
+        throwsStatusCode(400),
+        reason: 'Rejected ID: ${id.codeUnits}',
+      );
+    }
+    expect(await client.listVehicles(), isEmpty);
+  });
+
+  test('return a generic conflict for duplicate IDs within and across tenants', () async {
+    final owner = await harness.login();
+    final other = await harness.login();
+    final id = 'a${ResourceId.generate().substring(1)}';
+    await owner.createVehicle(id: id, name: 'Civic', manufactureDate: manufactured);
+
+    for (final client in [owner, other]) {
+      await expectLater(
+        client.createVehicle(id: id.toUpperCase(), name: 'Corolla', manufactureDate: manufactured),
+        throwsA(
+          isA<RequestFailure>()
+              .having((failure) => failure.rawResponse.httpResponse.statusCode, 'status code', 409)
+              .having((failure) => failure.rawResponse.document, 'document', isNull),
+        ),
+      );
+    }
+    await expectLater(other.fetchVehicle(id), throwsStatusCode(404));
+    expect(await other.listVehicles(), isEmpty);
+    expect((await owner.listVehicles()).single.id, id);
+    expect((await owner.fetchVehicle(id)).name, 'Civic');
+  });
+
+  test('concurrent vehicle creates with the same ID have one winner', () async {
+    final client = await harness.login();
+    final otherHarness = TestHarness();
+    addTearDown(otherHarness.stopServer);
+    await otherHarness.startServer();
+    final other = await otherHarness.login(email: (await client.fetchCurrentUser())!.email);
+    final id = ResourceId.generate();
+
+    final results = await Future.wait([
+      for (final writer in [client, other])
+        writer
+            .createVehicle(id: id, name: 'Civic', manufactureDate: manufactured)
+            .then<Object>((vehicle) => vehicle, onError: (Object error) => error),
+    ]);
+
+    expect(results.whereType<Vehicle>().single.id, id);
+    expect(results.whereType<RequestFailure>().single.rawResponse.httpResponse.statusCode, 409);
+    expect((await client.listVehicles()).single.id, id);
+  });
+
+  test('save edited vehicle fields while preserving its ID', () async {
     final client = await harness.login();
     final created = await client.createVehicle(
       name: 'Civic',
       manufactureDate: manufactured,
-      distanceUnit: DistanceUnit.km,
+      mileageUnit: MileageUnit.km,
     );
-    final editedDate = DateTime(2019, 4, 2);
+    final editedDate = CalendarDate(2019, 4, 2);
     final updated = await client.updateVehicle(
       created.id,
       name: 'My Civic',
       manufactureDate: editedDate,
+      mileageUnit: MileageUnit.mi,
     );
     expect(updated, isNotNull);
     expect(updated!.id, created.id);
     expect(updated.name, 'My Civic');
     expect(updated.manufactureDate, editedDate);
-    expect(updated.distanceUnit, DistanceUnit.km);
+    expect(updated.mileageUnit, MileageUnit.mi);
 
     final fetched = await client.fetchVehicle(created.id);
     expect(fetched.name, updated.name);
     expect(fetched.manufactureDate, updated.manufactureDate);
-    expect(fetched.distanceUnit, DistanceUnit.km);
+    expect(fetched.mileageUnit, MileageUnit.mi);
     expect((await client.listVehicles()).single.name, updated.name);
   });
 
@@ -105,7 +223,7 @@ void main() {
     expect(await other.listVehicles(), isEmpty);
     await expectLater(other.fetchVehicle(created.id), throwsStatusCode(404));
     await expectLater(
-      other.updateVehicle(created.id, name: 'Changed', manufactureDate: DateTime(2018)),
+      other.updateVehicle(created.id, name: 'Changed', manufactureDate: CalendarDate(2018)),
       throwsStatusCode(404),
     );
     await expectLater(other.deleteVehicle(created.id), throwsStatusCode(404));
@@ -139,7 +257,7 @@ void main() {
 
   test('missing vehicles return not found', () async {
     final client = await harness.login();
-    final id = const Uuid().v4();
+    final id = ResourceId.generate();
     await expectLater(client.fetchVehicle(id), throwsStatusCode(404));
     await expectLater(
       client.updateVehicle(id, name: 'Civic', manufactureDate: manufactured),
@@ -172,7 +290,7 @@ void main() {
   test('reject a future manufacture date on creation', () async {
     final client = await harness.login();
     await expectLater(
-      client.createVehicle(name: 'Civic', manufactureDate: DateTime(9999)),
+      client.createVehicle(name: 'Civic', manufactureDate: CalendarDate(9999)),
       throwsStatusCode(400),
     );
     expect(await client.listVehicles(), isEmpty);
@@ -182,7 +300,7 @@ void main() {
     final client = await harness.login();
     final vehicle = await client.createVehicle(name: 'Civic', manufactureDate: manufactured);
     await expectLater(
-      client.updateVehicle(vehicle.id, name: 'Civic', manufactureDate: DateTime(9999)),
+      client.updateVehicle(vehicle.id, name: 'Civic', manufactureDate: CalendarDate(9999)),
       throwsStatusCode(400),
     );
     expect((await client.fetchVehicle(vehicle.id)).manufactureDate, manufactured);

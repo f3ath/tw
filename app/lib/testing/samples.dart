@@ -1,19 +1,20 @@
 import 'package:shared/model.dart';
+import 'package:shared/time.dart';
 
 const sampleUser = User('user-0', name: 'Begelme Ashambe', email: 'begelme@example.com');
 
 final santaFe = Vehicle(
   'vehicle-0',
   name: 'Santa Fe',
-  manufactureDate: DateTime(2013),
-  distanceUnit: .km,
+  manufactureDate: CalendarDate(2013),
+  mileageUnit: .km,
 );
 
 final fourRunner = Vehicle(
   'vehicle-1',
   name: '4Runner',
-  manufactureDate: DateTime(2022),
-  distanceUnit: .mi,
+  manufactureDate: CalendarDate(2022),
+  mileageUnit: .mi,
 );
 
 final sampleVehicles = List<Vehicle>.unmodifiable([santaFe, fourRunner]);
@@ -41,7 +42,7 @@ final sampleSchedules = List<Schedule>.unmodifiable([oilChange, tireRotation]);
 final santaFeOilService = Service(
   'service-0',
   vehicleId: santaFe.id,
-  date: DateTime(2026, 11, 1),
+  date: CalendarDate(2026, 11, 1),
   odometer: 120000,
   details: 'Changed engine oil and filter',
 );
@@ -49,7 +50,7 @@ final santaFeOilService = Service(
 final fourRunnerTireService = Service(
   'service-1',
   vehicleId: fourRunner.id,
-  date: DateTime(2026, 10, 15),
+  date: CalendarDate(2026, 10, 15),
   odometer: 45000,
   details: '',
 );

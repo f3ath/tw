@@ -13,6 +13,7 @@ import 'package:http_interop_http/http_interop_http.dart';
 import 'package:json_api/routing.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:shared/api.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
   const fake = bool.fromEnvironment('FAKE');
@@ -20,12 +21,18 @@ void main() {
 }
 
 TwApp _realApp() {
-  final uriDesign = StandardUriDesign(Uri.parse('http://localhost:8080/api/v0'));
+  const apiUrl = String.fromEnvironment('API_URL', defaultValue: 'https://api.twdiy.app/api/v0');
+  final baseUri = Uri.parse(apiUrl);
+  final uriDesign = StandardUriDesign(baseUri);
   final handler = http.Client().sendInterop;
   final twApiClient = TwApiClient(uriDesign, handler);
   return TwApp(
     authService: BackendAuthService(
-      authApi: ApiClientAdapter(twApiClient),
+      authApi: ApiClientAdapter(
+        twApiClient,
+        preferences: SharedPreferencesAsync(),
+        baseUri: baseUri,
+      ),
       newWindow: openLoginWindow,
     ),
     scheduleRepo: BackendScheduleRepo(twApiClient),

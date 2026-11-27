@@ -7,8 +7,8 @@ import 'package:server/src/log/sink_log.dart';
 import 'package:server/src/server/server.dart';
 import 'package:server/src/server/server_config.dart';
 import 'package:shared/api.dart';
+import 'package:shared/resource_id.dart';
 import 'package:test/test.dart';
-import 'package:uuid/uuid.dart';
 
 class TestHarness() {
   final _config = ServerConfig(
@@ -25,7 +25,7 @@ class TestHarness() {
     instanceType: 'test',
   );
 
-  late final Server _server = Server(_config, log: SinkLog(stderr));
+  late final Server _server = Server(_config, log: SinkLog(stderr, minLevel: .error));
 
   Future<void> startServer() => _server.start();
 
@@ -37,8 +37,8 @@ class TestHarness() {
 
   Future<TwApiClient> login({String? email, String? name}) async {
     final client = newClient();
-    email ??= '${const Uuid().v4()}@example.com';
-    name ??= 'Test User ${const Uuid().v4()}';
+    email ??= '${ResourceId.generate()}@example.com';
+    name ??= 'Test User ${ResourceId.generate()}';
     final session = await client.createSession();
     expect(session, isNotNull);
     expect(await client.fetchCurrentUser(), isNull);

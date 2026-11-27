@@ -2,6 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:app/app/repository_provider.dart';
 import 'package:shared/model.dart';
+import 'package:shared/time.dart';
 import 'package:app/testing/samples.dart' as samples;
 import 'package:app/testing/stub.dart';
 import 'package:app/ui/services/service_screen.dart';
@@ -11,7 +12,11 @@ import '../../robots.dart';
 void main() {
   group('ServiceScreen', () {
     testWidgets('shows only the selected vehicle services after loading', (tester) async {
-      final harness = Harness(vehicle: samples.santaFe, initialServices: samples.sampleServices);
+      final harness = Harness(
+        vehicle: samples.santaFe,
+        initialServices: samples.sampleServices,
+        initialOperations: samples.sampleOperations,
+      );
       final pending = harness.repo.pauseNextList();
       await harness.pumpScreen(tester);
 
@@ -24,7 +29,12 @@ void main() {
 
       expect(find.byKey(ServiceScreen.loadingIndicatorKey), findsNothing);
       expectServicesVisible(tester, [samples.santaFeOilService]);
-      expect(find.text('120,000 km'), findsOneWidget);
+      expect(find.textContaining(' at 120,000 km'), findsOneWidget);
+      expect(find.text('•'), findsNWidgets(2));
+      expect(find.text(samples.oilChangeOperation.name), findsOneWidget);
+      expect(find.text(samples.brakeInspectionOperation.name), findsOneWidget);
+      expect(find.text(samples.tireRotationOperation.name), findsNothing);
+      expect(harness.operationRepo.listCalls, isZero);
       expect(find.byKey(ServiceScreen.serviceKey(samples.fourRunnerTireService.id)), findsNothing);
     });
 
@@ -37,6 +47,7 @@ void main() {
 
       expect(harness.repo.listCalls, equals(1));
       expectServicesVisible(tester, [samples.santaFeOilService]);
+      expect(find.byType(Divider), findsNothing);
     });
 
     testWidgets('shows an empty state when the vehicle has no services', (tester) async {
@@ -73,7 +84,7 @@ void main() {
 
       expect(find.byKey(ServiceScreen.errorTextKey), findsNothing);
       expectServicesVisible(tester, [samples.fourRunnerTireService]);
-      expect(find.text('45,000 mi'), findsOneWidget);
+      expect(find.textContaining(' at 45,000 mi'), findsOneWidget);
       expect(services.findServiceCard(samples.santaFeOilService.id), findsNothing);
       expect(harness.repo.listCalls, equals(2));
     });
@@ -92,7 +103,7 @@ void main() {
         expect(findServiceFormScreen, findsOneWidget);
         expect(findServiceScreen, findsNothing);
         expect(find.text(vehicle.name), findsOneWidget);
-        expect(form.distanceUnitLabel, equals(vehicle.distanceUnit.name));
+        expect(form.mileageUnitLabel, equals(vehicle.mileageUnit.name));
         expect(form.saveButton.enabled, isTrue);
 
         await tester.pageBack();
@@ -131,6 +142,55 @@ void main() {
       expect(services.findServiceCard(samples.fourRunnerTireService.id), findsNothing);
     });
 
+    testWidgets('a create conflict keeps the draft and refreshes the open vehicle history', (
+      tester,
+    ) async {
+      final harness = Harness(
+        vehicle: samples.santaFe,
+        initialServices: [samples.fourRunnerTireService],
+      );
+      final form = ServiceFormRobot(tester);
+      final history = ServiceRobot(tester);
+      await harness.pumpLoadedScreen(tester);
+      await history.tapNewService();
+      await form.enterOdometer('42');
+      await form.enterDetails('Oil change');
+      final pending = harness.repo.pauseNextCreate();
+      await form.saveForm();
+
+      final id = harness.repo.createIds.single;
+      final saved = Service(
+        id,
+        vehicleId: samples.santaFe.id,
+        date: form.selectedDate!,
+        odometer: 42,
+        details: 'Oil change',
+      );
+      harness.repo.services[id] = saved;
+      pending.completeError(Exception('Response lost'));
+      await tester.pumpAndSettle();
+      expect(harness.repo.listCalls, 1);
+
+      await form.saveForm(pump: .settle);
+
+      expect(findServiceFormScreen, findsOneWidget);
+      expect(
+        find.text('This service may already be saved. Check the service history.'),
+        findsOneWidget,
+      );
+      expect(form.odometer, '42');
+      expect(form.details, 'Oil change');
+      expect(form.saveButton.enabled, isTrue);
+      expect(harness.repo.createIds, [id, id]);
+      expect(harness.repo.listCalls, 2);
+
+      await tester.pageBack();
+      await tester.pumpAndSettle();
+      expectServicesVisible(tester, [saved]);
+      expect(history.findServiceCard(samples.fourRunnerTireService.id), findsNothing);
+      expect(harness.repo.listCalls, 2);
+    });
+
     group('Operations', () {
       for (final service in samples.sampleServices) {
         testWidgets('tapping ${service.id} opens its operations and Back preserves history', (
@@ -142,7 +202,7 @@ void main() {
           final otherService = Service(
             'other-service',
             vehicleId: vehicle.id,
-            date: DateTime(2020),
+            date: CalendarDate(2020),
             odometer: 1000,
             details: 'Other service',
           );
@@ -171,7 +231,7 @@ void main() {
           );
           expect(
             operations.serviceDateText.data,
-            equals(localizations.formatShortDate(service.date)),
+            contains(localizations.formatShortDate(service.date.toLocalDateTime())),
           );
           for (final operation in samples.sampleOperations) {
             expect(
@@ -199,7 +259,7 @@ void main() {
       final inspection = Service(
         'inspection',
         vehicleId: samples.santaFe.id,
-        date: DateTime(2026, 11, 3),
+        date: CalendarDate(2026, 11, 3),
         odometer: 121000,
         details: 'Check brakes and tires',
       );
@@ -223,7 +283,7 @@ void main() {
         expect(form.selectedDate, equals(inspection.date));
         expect(form.odometer, equals(inspection.odometer.toString()));
         expect(form.details, equals(inspection.details));
-        expect(form.distanceUnitLabel, equals(samples.santaFe.distanceUnit.name));
+        expect(form.mileageUnitLabel, equals(samples.santaFe.mileageUnit.name));
         await form.enterDetails('Unsaved edit');
 
         await tester.pageBack();
@@ -266,12 +326,15 @@ void main() {
         expect(harness.repo.updateCalls, equals(1));
         expect(harness.repo.services, hasLength(3));
         expect(updated.vehicleId, equals(inspection.vehicleId));
-        expect(updated.date, equals(DateTime(2026, 11, 13)));
+        expect(updated.date, equals(CalendarDate(2026, 11, 13)));
         expect(updated.odometer, equals(123456));
         expect(updated.details, equals('Updated inspection'));
         expectServicesVisible(tester, [samples.santaFeOilService, updated]);
         final updatedCard = services.findServiceCard(inspection.id);
-        expect(find.descendant(of: updatedCard, matching: find.text('123,456 km')), findsOneWidget);
+        expect(
+          find.descendant(of: updatedCard, matching: find.textContaining(' at 123,456 km')),
+          findsOneWidget,
+        );
         expect(
           find.descendant(of: updatedCard, matching: find.text(inspection.details)),
           findsNothing,
@@ -319,7 +382,7 @@ void main() {
         expect(harness.repo.listCalls, equals(2));
         expect(harness.repo.updateCalls, equals(2));
         expectServicesVisible(tester, [harness.repo.services[service.id]!]);
-        expect(find.text('45,000 mi'), findsOneWidget);
+        expect(find.textContaining(' at 45,000 mi'), findsOneWidget);
         expect(find.text('Updated tire service'), findsOneWidget);
       });
     });
@@ -338,8 +401,6 @@ void main() {
             await services.tapServiceMenuDelete(service.id);
 
             expect(services.findDeleteConfirmation, findsOneWidget);
-            expect(services.deleteDialog.service, same(service));
-            expect(services.deleteDialog.distanceUnit, equals(vehicle.distanceUnit));
             expect(harness.repo.deleteCalls, equals(0));
             if (dismiss) {
               await services.dismissServiceDeletion();
@@ -363,7 +424,7 @@ void main() {
         final inspection = Service(
           'inspection',
           vehicleId: samples.santaFe.id,
-          date: DateTime(2026, 11, 3),
+          date: CalendarDate(2026, 11, 3),
           odometer: 121000,
           details: 'Inspection',
         );
@@ -376,6 +437,7 @@ void main() {
         await harness.pumpLoadedScreen(tester);
         await services.tapServiceMenuDelete(inspection.id);
 
+        expect(find.text('Delete this service? This cannot be undone.'), findsOneWidget);
         await services.confirmServiceDeletion();
 
         expect(harness.repo.deleteCalls, equals(1));
@@ -513,7 +575,12 @@ void expectServicesVisible(WidgetTester tester, List<Service> services) {
     expect(card, findsOneWidget);
     final localizations = MaterialLocalizations.of(tester.element(card));
     expect(
-      find.descendant(of: card, matching: find.text(localizations.formatShortDate(service.date))),
+      find.descendant(
+        of: card,
+        matching: find.textContaining(
+          '${localizations.formatShortDate(service.date.toLocalDateTime())} at ',
+        ),
+      ),
       findsOneWidget,
     );
     if (service.details.isNotEmpty) {
@@ -525,10 +592,13 @@ void expectServicesVisible(WidgetTester tester, List<Service> services) {
 class Harness({
   required final Vehicle vehicle,
   Iterable<Service> initialServices = const [],
-  Iterable<Operation> initialOperations = const [],
+  final Iterable<Operation> _initialOperations = const [],
 }) {
   final repo = InMemoryServiceRepo(initialServices: initialServices);
-  final operationRepo = InMemoryOperationRepo(initialOperations: initialOperations);
+  late final operationRepo = InMemoryOperationRepo(
+    initialOperations: _initialOperations,
+    serviceRepo: repo,
+  );
 
   Future<void> pumpScreen(WidgetTester tester) => tester.pumpWidget(
     RepositoryProvider(

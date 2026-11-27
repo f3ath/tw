@@ -1,17 +1,78 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:app/app/repository_provider.dart';
-import 'package:app/testing/fixed_clock.dart';
 import 'package:shared/model.dart';
+import 'package:shared/time.dart';
 import 'package:app/testing/stub.dart' as stub;
 import 'package:app/testing/samples.dart' as samples;
 import 'package:app/ui/garage/garage_screen.dart';
-import 'package:app/ui/garage/vehicle_delete_dialog.dart';
+import 'package:app/ui/delete_confirmation_dialog.dart';
+import 'package:app/ui/garage/vehicle_form_screen.dart';
 
 import '../../robots.dart';
 
 void main() {
   group('GarageScreen', () {
+    testWidgets('shows vehicle age using the injected clock', (tester) async {
+      final vehicle = Vehicle(
+        'vehicle-id',
+        name: 'Civic',
+        manufactureDate: CalendarDate(2008, 10, 15),
+        mileageUnit: .mi,
+      );
+
+      await Harness(initialVehicles: [vehicle]).pumpLoadedScreen(tester);
+
+      expect(find.text('1 yr 0 mon old'), findsOneWidget);
+    });
+
+    testWidgets('shows overdue and due-soon schedules on the matching vehicle card', (
+      tester,
+    ) async {
+      final vehicle = Vehicle(
+        'vehicle-id',
+        name: 'Civic',
+        manufactureDate: CalendarDate(2008),
+        mileageUnit: .km,
+        odometer: Odometer(date: CalendarDate(2009, 10, 14), value: 20000),
+      );
+      final harness = Harness(initialVehicles: [vehicle, samples.santaFe]);
+      harness.scheduleRepo.schedules.addAll({
+        'brakes': Schedule(
+          id: 'brakes',
+          vehicleId: vehicle.id,
+          name: 'Brakes',
+          intervalDistance: null,
+          intervalMonths: 6,
+          details: 'Check the pads',
+          nextDue: (date: CalendarDate(2009, 10, 16), odometer: null),
+        ),
+        'oil': Schedule(
+          id: 'oil',
+          vehicleId: vehicle.id,
+          name: 'Oil change',
+          intervalDistance: 5000,
+          intervalMonths: null,
+          details: 'Replace the filter',
+          nextDue: (date: null, odometer: 19800),
+        ),
+      });
+
+      await harness.pumpLoadedScreen(tester);
+
+      final card = GarageRobot(tester).findVehicleCard(vehicle.id);
+      final overdue = find.descendant(
+        of: card,
+        matching: find.text('Oil change — overdue by 200 km'),
+      );
+      final soon = find.descendant(of: card, matching: find.text('Brakes — due in 1 day'));
+      expect(overdue, findsOneWidget);
+      expect(soon, findsOneWidget);
+      expect(tester.getTopLeft(overdue).dy, lessThan(tester.getTopLeft(soon).dy));
+      expect(find.text('Check the pads'), findsNothing);
+      expect(find.text('Replace the filter'), findsNothing);
+    });
+
     testWidgets('displays the user name and updates it on rebuild', (WidgetTester tester) async {
       final harness = Harness();
       await harness.pumpLoadedScreen(tester, userName: 'First');
@@ -130,7 +191,7 @@ void main() {
         final form = VehicleFormRobot(tester);
         await garage.tapNewVehicle();
         await form.enterName('New Car');
-        await form.selectDistanceUnit('km');
+        await form.selectMileageUnit('km');
         await form.selectDayAndConfirm('2');
         await form.saveForm(pump: .settle);
 
@@ -141,6 +202,49 @@ void main() {
         expect(find.byKey(GarageScreen.emptyTextKey), findsNothing);
         expectVehiclesVisible([samples.santaFe, samples.fourRunner]);
         expect(find.text('New Car'), findsOne);
+      });
+
+      testWidgets('a conflict after a lost response keeps the draft and refreshes the garage', (
+        tester,
+      ) async {
+        final harness = Harness(initialVehicles: []);
+        await harness.pumpLoadedScreen(tester);
+        await GarageRobot(tester).tapNewVehicle();
+        final form = VehicleFormRobot(tester);
+        await form.enterName('New Car');
+        await form.selectDayAndConfirm('2');
+        final pending = harness.repo.pauseNextCreate();
+        await form.saveForm();
+
+        final id = harness.repo.createIds.single;
+        final saved = Vehicle(
+          id,
+          name: 'New Car',
+          manufactureDate: CalendarDate(2009, 10, 2),
+          mileageUnit: .mi,
+        );
+        harness.repo.vehicles[id] = saved;
+        pending.completeError(Exception('Response lost'));
+        await tester.pumpAndSettle();
+        expect(harness.repo.listCalls, 1);
+
+        await form.saveForm(pump: .settle);
+
+        expect(findVehicleFormScreen, findsOneWidget);
+        expect(find.byKey(VehicleFormScreen.errorSnackBarKey), findsOneWidget);
+        expect(
+          find.text('This vehicle ID already exists. Go back to check the garage.'),
+          findsOneWidget,
+        );
+        expect(form.name, 'New Car');
+        expect(form.saveButton.enabled, isTrue);
+        expect(harness.repo.createIds, [id, id]);
+        expect(harness.repo.listCalls, 2);
+
+        await tester.pageBack();
+        await tester.pumpAndSettle();
+        expectVehiclesVisible([saved]);
+        expect(harness.repo.listCalls, 2);
       });
     });
 
@@ -202,6 +306,52 @@ void main() {
     });
 
     group('Manage services', () {
+      testWidgets('editing a service refreshes the odometer used by due schedules', (tester) async {
+        final date = CalendarDate(2009, 10, 14);
+        Vehicle vehicleWithReading(int value) => Vehicle(
+          'vehicle-id',
+          name: 'Civic',
+          manufactureDate: CalendarDate(2008),
+          mileageUnit: .km,
+          odometer: Odometer(date: date, value: value),
+        );
+        final vehicle = vehicleWithReading(20000);
+        final harness = Harness(initialVehicles: [vehicle]);
+        final service = Service(
+          'service-id',
+          vehicleId: vehicle.id,
+          date: date,
+          odometer: 20000,
+          details: '',
+        );
+        harness.serviceRepo.services[service.id] = service;
+        harness.scheduleRepo.schedules['oil'] = Schedule(
+          id: 'oil',
+          vehicleId: vehicle.id,
+          name: 'Oil change',
+          intervalDistance: 5000,
+          intervalMonths: null,
+          details: '',
+          nextDue: (date: null, odometer: 20200),
+        );
+
+        await harness.pumpLoadedScreen(tester);
+        expect(find.text('Oil change — due in 200 km'), findsOneWidget);
+
+        await GarageRobot(tester).tapVehicleMenuServices(vehicle.id);
+        await ServiceRobot(tester).tapServiceMenuEdit(service.id);
+        final form = ServiceFormRobot(tester);
+        await form.enterOdometer('20300');
+        await form.saveForm(pump: .settle);
+        harness.repo.vehicles[vehicle.id] = vehicleWithReading(20300);
+
+        await tester.pageBack();
+        await tester.pumpAndSettle();
+
+        expect(find.text('Oil change — due in 200 km'), findsNothing);
+        expect(find.text('Oil change — overdue by 100 km'), findsOneWidget);
+      });
+
       for (final service in samples.sampleServices) {
         testWidgets('opens ${service.vehicleId} services and returns without reloading', (
           tester,
@@ -252,8 +402,8 @@ void main() {
           expect(findGarageScreen, findsNothing);
           expect(findServiceScreen, findsNothing);
           expect(find.text(vehicle.name), findsOneWidget);
-          expect(form.distanceUnitLabel, equals(vehicle.distanceUnit.name));
-          expect(form.selectedDate, equals(harness.clock.now()));
+          expect(form.mileageUnitLabel, equals(vehicle.mileageUnit.name));
+          expect(form.selectedDate, equals(CalendarDate.today(now: harness.now)));
           expect(form.odometer, isEmpty);
           await form.enterOdometer('12345');
 
@@ -290,7 +440,7 @@ void main() {
           expect(harness.repo.listCalls, equals(1));
           final created = harness.serviceRepo.services.values.single;
           expect(created.vehicleId, equals(vehicle.id));
-          expect(created.date, equals(harness.clock.now()));
+          expect(created.date, equals(CalendarDate.today(now: harness.now)));
           expect(created.odometer, equals(12345));
           expect(created.details, equals('Shortcut service'));
           expect(operations.selectedService, same(created));
@@ -305,7 +455,7 @@ void main() {
           expect(findServiceFormScreen, findsNothing);
           expect(findGarageScreen, findsOneWidget);
           expectVehiclesVisible(samples.sampleVehicles);
-          expect(harness.repo.listCalls, equals(1));
+          expect(harness.repo.listCalls, equals(2));
 
           await garage.tapVehicleMenuServices(vehicle.id);
 
@@ -350,6 +500,49 @@ void main() {
       });
     });
 
+    testWidgets('a service shortcut conflict can open fresh history without losing the draft', (
+      tester,
+    ) async {
+      final harness = Harness();
+      final vehicle = samples.fourRunner;
+      final form = ServiceFormRobot(tester);
+      await harness.pumpLoadedScreen(tester);
+      await GarageRobot(tester).tapVehicleNewService(vehicle.id);
+      await form.enterOdometer('42');
+      final pending = harness.serviceRepo.pauseNextCreate();
+      await form.saveForm();
+
+      final id = harness.serviceRepo.createIds.single;
+      harness.serviceRepo.services[id] = Service(
+        id,
+        vehicleId: vehicle.id,
+        date: CalendarDate.today(now: harness.now),
+        odometer: 42,
+        details: 'Saved service',
+      );
+      pending.completeError(Exception('Response lost'));
+      await tester.pumpAndSettle();
+      await form.saveForm(pump: .settle);
+
+      expect(findServiceFormScreen, findsOneWidget);
+      expect(findOperationScreen, findsNothing);
+      expect(harness.serviceRepo.createIds, [id, id]);
+      expect(harness.serviceRepo.listCalls, 0);
+
+      await tester.tap(find.text('View history'));
+      await tester.pumpAndSettle();
+
+      expect(findServiceScreen, findsOneWidget);
+      expect(ServiceRobot(tester).findServiceCard(id), findsOneWidget);
+      expect(harness.serviceRepo.listCalls, 1);
+      expect(harness.operationRepo.listCalls, 0);
+
+      await tester.pageBack();
+      await tester.pumpAndSettle();
+      expect(findServiceFormScreen, findsOneWidget);
+      expect(form.odometer, '42');
+    });
+
     group('Delete a Vehicle', () {
       testWidgets('cancelling deletion preserves the vehicle', (WidgetTester tester) async {
         final garage = GarageRobot(tester);
@@ -362,7 +555,7 @@ void main() {
 
         expect(harness.repo.vehicles.containsKey(vehicle.id), isTrue);
         expect(garage.findVehicleCard(vehicle.id), findsOneWidget);
-        expect(find.byKey(VehicleDeleteDialog.confirmationKey), findsNothing);
+        expect(find.byKey(DeleteConfirmationDialog.confirmationKey), findsNothing);
       });
 
       testWidgets('confirming deletion removes the vehicle and refreshes the list', (
@@ -381,7 +574,7 @@ void main() {
 
         expect(harness.repo.vehicles.containsKey(vehicle.id), isFalse);
         expect(garage.findVehicleCard(vehicle.id), findsNothing);
-        expect(find.byKey(VehicleDeleteDialog.confirmationKey), findsNothing);
+        expect(find.byKey(DeleteConfirmationDialog.confirmationKey), findsNothing);
       });
 
       testWidgets('failed deletion shows feedback and preserves the vehicle', (
@@ -426,7 +619,7 @@ class Harness({Iterable<Vehicle>? initialVehicles}) {
   final scheduleRepo = stub.InMemoryScheduleRepo();
   final serviceRepo = stub.InMemoryServiceRepo();
   final operationRepo = stub.InMemoryOperationRepo();
-  final clock = FixedClock(DateTime(2009, 10, 15));
+  DateTime now() => DateTime(2009, 10, 15);
 
   Future<void> pumpLoadedScreen(WidgetTester tester, {String userName = 'John Doe'}) async {
     await pumpScreen(tester, userName: userName);
@@ -441,7 +634,7 @@ class Harness({Iterable<Vehicle>? initialVehicles}) {
         serviceRepo: serviceRepo,
         operationRepo: operationRepo,
         child: MaterialApp(
-          home: GarageScreen(onLogout: () async {}, userName: userName, clock: clock),
+          home: GarageScreen(onLogout: () async {}, userName: userName, now: now),
         ),
       ),
     );

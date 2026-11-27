@@ -3,6 +3,7 @@ import 'package:material_ui/material_ui.dart';
 import 'package:app/app/repository_provider.dart';
 import 'package:app/app/vehicle_service.dart';
 import 'package:shared/model.dart';
+import 'package:shared/resource_id.dart';
 import 'package:app/testing/samples.dart' as samples;
 import 'package:app/testing/stub.dart';
 import 'package:app/ui/operations/operation_screen.dart';
@@ -32,7 +33,7 @@ void main() {
         expect(operations.vehicleNameText.data, equals(vehicle.name));
         expect(
           operations.serviceDateText.data,
-          equals(localizations.formatShortDate(service.date)),
+          contains(localizations.formatShortDate(service.date.toLocalDateTime())),
         );
         expect(
           tester.getTopLeft(operations.findServiceDateText).dy,
@@ -135,6 +136,7 @@ void main() {
 
       await harness.repo.createFromSchedule(
         samples.santaFeOilService.id,
+        id: ResourceId.generate(),
         scheduleId: samples.oilChange.id,
       );
       await harness.pumpLoadedScreen(tester);
@@ -205,6 +207,7 @@ void main() {
           expect(updated.scheduleId, equals(original.scheduleId));
           expect(updated.serviceId, equals(original.serviceId));
           expect(harness.repo.operations, hasLength(samples.sampleOperations.length));
+          expect(harness.repo.createIds, isEmpty);
           expect(
             harness.repo.operations[samples.tireRotationOperation.id],
             same(samples.tireRotationOperation),
@@ -418,7 +421,7 @@ void main() {
           expect(findOperationScreen, findsNothing);
           expect(find.text(vehicle.name), findsOneWidget);
           final labels = MaterialLocalizations.of(tester.element(findOperationFormScreen));
-          expect(find.text(labels.formatShortDate(service.date)), findsOneWidget);
+          expect(find.text(labels.formatShortDate(service.date.toLocalDateTime())), findsOneWidget);
           await form.enterName('Unsaved work');
 
           await tester.pageBack();
@@ -493,6 +496,58 @@ void main() {
         expect(harness.repo.listCalls, equals(2));
       });
 
+      testWidgets('a linked create conflict keeps the draft and refreshes the service operations', (
+        tester,
+      ) async {
+        var operationsChanged = 0;
+        final harness = Harness(
+          vehicle: samples.santaFe,
+          service: samples.santaFeOilService,
+          onOperationsChanged: () => operationsChanged++,
+        );
+        final operations = OperationRobot(tester);
+        final form = OperationFormRobot(tester);
+        await harness.pumpLoadedScreen(tester);
+        await operations.tapNewOperation();
+        await form.focusName();
+        await form.selectSchedule(samples.oilChange.id);
+        await form.enterDetails('Notes');
+        final pending = harness.repo.pauseNextCreate();
+        await form.saveForm();
+
+        final id = harness.repo.createIds.single;
+        final saved = Operation(
+          id,
+          serviceId: samples.santaFeOilService.id,
+          scheduleId: samples.oilChange.id,
+          name: samples.oilChange.name,
+          details: 'Notes',
+        );
+        harness.repo.operations[id] = saved;
+        pending.completeError(Exception('Response lost'));
+        await tester.pumpAndSettle();
+        expect(harness.repo.listCalls, 1);
+        expect(operationsChanged, 0);
+
+        await form.saveForm(pump: .settle);
+
+        expect(findOperationFormScreen, findsOneWidget);
+        expect(
+          find.text('This operation may already be saved. Check the operations list.'),
+          findsOneWidget,
+        );
+        expect(form.details, 'Notes');
+        expect(form.findSummaryText(samples.oilChange.details), findsOneWidget);
+        expect(harness.repo.createIds, [id, id]);
+        expect(harness.repo.listCalls, 2);
+        expect(operationsChanged, 1);
+
+        await tester.pageBack();
+        await tester.pumpAndSettle();
+        expectOperationsVisible(tester, [saved]);
+        expect(harness.repo.listCalls, 2);
+      });
+
       testWidgets('failed save refreshes only after retry succeeds', (tester) async {
         final harness = Harness(vehicle: samples.santaFe, service: samples.santaFeOilService);
         final operations = OperationRobot(tester);
@@ -565,6 +620,7 @@ class Harness({
   required final Vehicle vehicle,
   required final Service service,
   final Iterable<Operation> initialOperations = const [],
+  final VoidCallback? onOperationsChanged,
 }) {
   final serviceRepo = InMemoryServiceRepo(initialServices: [service]);
   final scheduleRepo = InMemoryScheduleRepo(initialSchedules: samples.sampleSchedules);
@@ -583,6 +639,7 @@ class Harness({
       child: MaterialApp(
         home: OperationScreen(
           vehicleService: VehicleService(vehicle: vehicle, service: service),
+          onOperationsChanged: onOperationsChanged,
         ),
       ),
     ),

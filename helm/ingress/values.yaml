@@ -1,0 +1,10 @@
+className: traefik
+# Empty matches any hostname, including direct access by IP.
+host: ""
+serverService: api
+annotations:
+  traefik.ingress.kubernetes.io/router.entrypoints: web
+# K3s bundled Traefik configuration; disable on other Kubernetes distributions.
+traefik:
+  enabled: true
+  webPort: 8080

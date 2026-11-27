@@ -22,12 +22,58 @@ flutter run -d chrome --dart-define=FAKE=true
 
 Omit `cd app` if already in the app directory.
 Fake mode seeds users, vehicles, schedules, services, and operations without a server.
-For the real backend, omit `--dart-define=FAKE=true` and follow the
-[server setup](../server/README.md). The API URL is currently fixed at
-`http://localhost:8080/api/v0` in `lib/main.dart`.
+Omit `--dart-define=FAKE=true` to use the deployed API at
+`https://api.twdiy.app/api/v0`. Set `--dart-define=API_URL=<url>` to choose a
+different backend. For a persistent local stack, see the
+[Docker Compose setup](../README.md#local-web-app-and-persistent-database).
 
 Platform priority is web, then iOS, then Android; Linux/macOS support is optional.
 Web URLs/history, responsive layout, and keyboard/touch support are introduced as needed.
+
+## Deploying the web app
+
+The web app runs as a separate Helm release with an internal Service on port
+8080. It uses the existing API at `https://api.twdiy.app/api/v0`.
+
+From the repository root, use the same `REGISTRY`, `KUBE_CONTEXT`, and
+`KUBE_NAMESPACE` settings as the server in the Git-ignored `.env`. Add the
+web settings from [env.example](../env.example). The default release is `web`.
+
+`make build-web` and `make push-web` use the locally installed Flutter SDK
+(override with `FLUTTER=/path/to/flutter`) to compile into `app/build/web`.
+Docker packages that output in Nginx. `WEB_PLATFORM` selects the Nginx image
+architecture and defaults to `SERVER_PLATFORM`.
+
+In the local file named by `WEB_VALUES_FILE`, set the image to match the
+registry, image name, and tag used by Make. Use a new tag for each update.
+
+```yaml
+image: registry.example.com:5000/tw-web:dev-1
+```
+
+```sh
+make push-web
+make deploy-web
+```
+
+Add a published application route on your existing Cloudflare Tunnel. Set the
+hostname to `web.twdiy.app` and the origin service to
+`http://web.tw.svc.cluster.local:8080`. Replace `web` and `tw` with your Helm
+release and namespace if they differ, and use your cluster's DNS suffix if it
+differs from `cluster.local`. For a locally managed tunnel, add the following
+rule before the final catch-all in your existing `cloudflared` configuration.
+
+```yaml
+  - hostname: web.twdiy.app
+    service: http://web.tw.svc.cluster.local:8080
+```
+
+After routing is configured, check that the public endpoint serves the Flutter
+bootstrap script, then open the app and sign in to verify the browser-to-API flow.
+
+```sh
+curl -fsS -o /dev/null https://web.twdiy.app/flutter_bootstrap.js
+```
 
 ## Architecture
 
@@ -81,7 +127,7 @@ not been rerun for the subsequent refactors.
   Local logout must remain independent of server revocation; the current auth flow
   is accepted for this iteration and should not block maintenance features.
 - Cleanup policy for old server sessions, including failed revocations.
-- HTTP-client lifetime ownership and configurable backend URL.
+- HTTP-client lifetime ownership.
 - Pull-to-refresh and long-name layout checks.
 - Vehicle deletion coverage for a committed deletion followed by a lost response.
 

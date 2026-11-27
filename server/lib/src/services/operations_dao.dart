@@ -1,9 +1,10 @@
 import 'package:postgres/postgres.dart';
 import 'package:server/src/db/database.dart';
+import 'package:server/src/db/duplicate_id.dart';
 import 'package:server/src/db/invalid_record.dart';
 import 'package:shared/time.dart';
 
-class OperationsDAO(final ScopedDatabase _database, {final Clock _clock = systemClock}) {
+class OperationsDAO(final ScopedDatabase _database, {final Now _now = DateTime.now}) {
   static const _select = '''
 SELECT operation.id, operation.service_id, operation.schedule_id,
        operation.name, operation.details
@@ -32,6 +33,19 @@ ORDER BY operation.created_at, operation.id
         return rows.map((row) => OperationRecord.fromMap(row.toColumnMap())).toList();
       });
 
+  Future<List<OperationRecord>> fetchByServiceIds(List<String> serviceIds) async {
+    if (serviceIds.isEmpty) return [];
+    final rows = await _database.execute(
+      Sql.named('''
+$_select
+WHERE operation.service_id = ANY(@service_ids:_uuid)
+ORDER BY operation.created_at, operation.id
+'''),
+      parameters: {'service_ids': serviceIds},
+    );
+    return rows.map((row) => OperationRecord.fromMap(row.toColumnMap())).toList();
+  }
+
   Future<OperationRecord?> fetchById(String id) =>
       _database.runTx((session) => _fetchById(session, id));
 
@@ -46,6 +60,7 @@ ORDER BY operation.created_at, operation.id
     if (vehicleId == null) return null;
     await _validateSchedule(
       session,
+      operationId: id,
       serviceId: serviceId,
       vehicleId: vehicleId,
       scheduleId: scheduleId,
@@ -62,22 +77,26 @@ WHERE id = @schedule_id:uuid
       );
       resolvedName = rows.single[0] as String;
     }
-    await session.execute(
-      Sql.named('''
+    try {
+      await session.execute(
+        Sql.named('''
 INSERT INTO service_operations (id, owner_id, vehicle_id, service_id, schedule_id, name, details, created_at, updated_at)
 SELECT @id:uuid, owner_id, vehicle_id, id, @schedule_id:uuid, @name:text, @details:text, @now:timestamp, @now:timestamp
 FROM services
 WHERE id = @service_id:uuid
 '''),
-      parameters: {
-        'id': id,
-        'service_id': serviceId,
-        'schedule_id': scheduleId,
-        'name': resolvedName,
-        'details': details ?? '',
-        'now': _clock(),
-      },
-    );
+        parameters: {
+          'id': id,
+          'service_id': serviceId,
+          'schedule_id': scheduleId,
+          'name': resolvedName,
+          'details': details ?? '',
+          'now': _now(),
+        },
+      );
+    } on UniqueViolationException {
+      throw DuplicateId();
+    }
     return _fetchById(session, id);
   });
 
@@ -96,10 +115,11 @@ WHERE id = @service_id:uuid
     if (existing == null) return null;
     await _validateSchedule(
       session,
+      operationId: id,
       serviceId: serviceId,
       vehicleId: vehicleId,
       scheduleId: scheduleId,
-      existing: existing,
+      previousScheduleId: existing.scheduleId,
     );
     await session.execute(
       Sql.named('''
@@ -117,7 +137,7 @@ WHERE id = @id:uuid
         'schedule_id': scheduleId,
         'name': name,
         'details': details,
-        'now': _clock(),
+        'now': _now(),
       },
     );
     return _fetchById(session, id);
@@ -150,10 +170,11 @@ FOR UPDATE
 
   Future<void> _validateSchedule(
     TxSession session, {
+    required String operationId,
     required String serviceId,
     required String vehicleId,
     required String? scheduleId,
-    OperationRecord? existing,
+    String? previousScheduleId,
   }) async {
     if (scheduleId == null) return;
     final schedules = await session.execute(
@@ -167,7 +188,7 @@ FOR SHARE
     );
     if (schedules.isEmpty) throw InvalidRecord();
     final schedule = schedules.single;
-    if (schedule[0] != vehicleId || schedule[1] == true && existing?.scheduleId != scheduleId) {
+    if (schedule[0] != vehicleId || schedule[1] == true && previousScheduleId != scheduleId) {
       throw InvalidRecord();
     }
     final duplicates = await session.execute(
@@ -176,10 +197,10 @@ SELECT id
 FROM service_operations
 WHERE service_id = @service_id:uuid
   AND schedule_id = @schedule_id:uuid
-  AND id IS DISTINCT FROM @exclude_id:uuid
+  AND id <> @operation_id:uuid
 LIMIT 1
 '''),
-      parameters: {'service_id': serviceId, 'schedule_id': scheduleId, 'exclude_id': existing?.id},
+      parameters: {'service_id': serviceId, 'schedule_id': scheduleId, 'operation_id': operationId},
     );
     if (duplicates.isNotEmpty) throw InvalidRecord();
   }

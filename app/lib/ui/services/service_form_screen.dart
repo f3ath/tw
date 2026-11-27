@@ -1,16 +1,20 @@
-import 'package:material_ui/material_ui.dart';
-import 'package:app/ui/form/form_submission_controller.dart';
+import 'package:app/app/create_conflict.dart';
 import 'package:app/app/repository_provider.dart';
-import 'package:shared/model.dart';
 import 'package:app/app/service_repo.dart';
-import 'package:app/time/clock.dart';
 import 'package:app/ui/form/date_form_field.dart';
+import 'package:app/ui/form/form_submission_controller.dart';
+import 'package:material_ui/material_ui.dart';
+import 'package:shared/model.dart';
+import 'package:shared/resource_id.dart';
+import 'package:shared/time.dart';
 
 class const ServiceFormScreen({
   super.key,
   required final Vehicle vehicle,
   final Service? service,
-  final Clock clock = const Clock(),
+  final Now now = DateTime.now,
+  final VoidCallback? onCreateConflict,
+  final VoidCallback? onViewHistory,
 }) extends StatefulWidget {
   static const dateFieldKey = ValueKey('service-date-field');
   static const odometerFieldKey = ValueKey('service-odometer-field');
@@ -25,10 +29,11 @@ class const ServiceFormScreen({
 class _ServiceFormScreenState extends State<ServiceFormScreen> {
   late final ServiceRepo _repo = RepositoryProvider.read(context).serviceRepo;
   final _formKey = GlobalKey<FormState>();
-  late DateTime _date;
+  late CalendarDate _date;
   late int _odometer;
   var _details = '';
   final _submission = FormSubmissionController();
+  late final _draftId = ResourceId.generate();
 
   @override
   void dispose() {
@@ -51,12 +56,12 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
               const SizedBox(height: 12),
               DateFormField(
                 key: ServiceFormScreen.dateFieldKey,
-                initialValue: widget.service?.date ?? widget.clock.now(),
+                initialValue: widget.service?.date ?? CalendarDate.today(now: widget.now),
                 enabled: !_submission.isSubmitting,
                 validator: (value) => value == null ? 'Please select a date' : null,
                 onSaved: (value) => _date = value!,
                 decoration: const InputDecoration(labelText: 'Date'),
-                clock: widget.clock,
+                now: widget.now,
               ),
               TextFormField(
                 key: ServiceFormScreen.odometerFieldKey,
@@ -71,7 +76,7 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
                 onSaved: (value) => _odometer = int.parse(value!.trim()),
                 decoration: InputDecoration(
                   labelText: 'Odometer',
-                  suffixText: widget.vehicle.distanceUnit.name,
+                  suffixText: widget.vehicle.mileageUnit.name,
                 ),
                 keyboardType: TextInputType.number,
                 textInputAction: TextInputAction.next,
@@ -104,18 +109,41 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
     final form = _formKey.currentState!;
     if (!form.validate()) return;
     form.save();
-    final result = await _submission.submit(_persistService);
+    final onCreateConflict = widget.onCreateConflict;
+    var hasConflict = false;
+    final result = await _submission.submit(() async {
+      try {
+        return await _persistService();
+      } on CreateConflict {
+        hasConflict = true;
+        rethrow;
+      }
+    });
+    if (hasConflict) onCreateConflict?.call();
     if (!mounted) return;
     switch (result) {
       case SubmissionSuccess(:final value):
         Navigator.of(context).pop(value);
       case SubmissionFailure():
+        final onViewHistory = widget.onViewHistory;
         ScaffoldMessenger.of(context)
           ..hideCurrentSnackBar()
           ..showSnackBar(
-            const SnackBar(
+            SnackBar(
               key: ServiceFormScreen.errorSnackBarKey,
-              content: Text('Save failed. Please try again.'),
+              content: Text(
+                hasConflict
+                    ? 'This service may already be saved. Check the service history.'
+                    : 'Save failed. Please try again.',
+              ),
+              action: hasConflict && onViewHistory != null
+                  ? SnackBarAction(
+                      label: 'View history',
+                      onPressed: () {
+                        if (mounted && ModalRoute.of(context)?.isCurrent == true) onViewHistory();
+                      },
+                    )
+                  : null,
             ),
           );
       case SubmissionIgnored():
@@ -128,6 +156,7 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
     if (service == null) {
       return await _repo.create(
         widget.vehicle.id,
+        id: _draftId,
         date: _date,
         odometer: _odometer,
         details: _details,

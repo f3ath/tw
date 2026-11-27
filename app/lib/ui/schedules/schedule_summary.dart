@@ -9,7 +9,7 @@ class const ScheduleSummary({super.key, required final VehicleSchedule vehicleSc
     final schedule = vehicleSchedule.schedule;
     final interval = formatScheduleInterval(
       schedule,
-      vehicleSchedule.vehicle.distanceUnit,
+      vehicleSchedule.vehicle.mileageUnit,
       MaterialLocalizations.of(context),
     );
     if (interval.isEmpty && schedule.details.isEmpty) return const SizedBox.shrink();

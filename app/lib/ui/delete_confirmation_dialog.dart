@@ -1,16 +1,18 @@
 import 'package:material_ui/material_ui.dart';
-import 'package:shared/model.dart';
 
-class const VehicleDeleteDialog({super.key, required final Vehicle vehicle})
-    extends StatelessWidget {
+class const DeleteConfirmationDialog({
+  super.key,
+  required final String title,
+  required final String message,
+}) extends StatelessWidget {
   static const confirmationKey = ValueKey('delete-confirmation');
-  static const deleteButtonKey = ValueKey('delete-confirmation-delete');
   static const cancelButtonKey = ValueKey('delete-confirmation-cancel');
+  static const deleteButtonKey = ValueKey('delete-confirmation-delete');
 
   @override
   Widget build(BuildContext context) => AlertDialog(
-    title: const Text('Delete vehicle?'),
-    content: Text('Delete "${vehicle.name}"? This cannot be undone.'),
+    title: Text(title),
+    content: Text(message),
     actions: [
       TextButton(
         key: cancelButtonKey,

@@ -1,0 +1,71 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}
+  namespace: {{ .Release.Namespace }}
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Release.Name }}
+    spec:
+      containers:
+        - name: server
+          image: {{ .Values.image | quote }}
+          imagePullPolicy: {{ .Values.imagePullPolicy }}
+          ports:
+            - name: http
+              containerPort: 8080
+          env:
+            - name: INSTANCE_TYPE
+              value: prod
+            - name: BASE_URI
+              value: {{ .Values.baseUri | quote }}
+            - name: DATABASE_HOST
+              value: {{ .Values.database.host | quote }}
+            - name: DATABASE_PORT
+              value: {{ .Values.database.port | quote }}
+            - name: DATABASE_NAME
+              value: {{ .Values.database.name | quote }}
+            - name: DATABASE_SYSTEM_USERNAME
+              value: tw_system
+            - name: DATABASE_TENANT_USERNAME
+              value: tw_tenant
+            {{- range list "DATABASE_SYSTEM_PASSWORD" "DATABASE_TENANT_PASSWORD" }}
+            - name: {{ . }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $.Values.database.existingSecret | quote }}
+                  key: {{ . }}
+            {{- end }}
+            {{- range list "GOOGLE_OAUTH_CLIENT_ID" "GOOGLE_OAUTH_CLIENT_SECRET" }}
+            - name: {{ . }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $.Values.oauthSecret | quote }}
+                  key: {{ . }}
+            {{- end }}
+          startupProbe:
+            httpGet:
+              path: /k8s/is-ready
+              port: http
+            periodSeconds: 5
+            failureThreshold: 60
+          readinessProbe:
+            httpGet:
+              path: /k8s/is-ready
+              port: http
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /k8s/is-live
+              port: http
+            periodSeconds: 10
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}

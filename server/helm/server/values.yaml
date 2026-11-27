@@ -1,0 +1,15 @@
+image: tw-server:local
+imagePullPolicy: IfNotPresent
+baseUri: http://localhost:8080/api/v0
+oauthSecret: server-oauth
+database:
+  host: pg
+  port: 5432
+  name: tw
+  existingSecret: database
+resources:
+  requests:
+    cpu: 100m
+    memory: 64Mi
+  limits:
+    memory: 256Mi

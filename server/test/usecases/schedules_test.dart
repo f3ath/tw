@@ -1,6 +1,8 @@
+import 'package:json_api/client.dart' show RequestFailure;
 import 'package:shared/api.dart';
+import 'package:shared/time.dart';
+import 'package:shared/resource_id.dart';
 import 'package:test/test.dart';
-import 'package:uuid/uuid.dart';
 
 import 'harness.dart';
 
@@ -12,7 +14,7 @@ void main() {
   setUp(() async {
     await harness.startServer();
     client = await harness.login();
-    vehicle = await client.createVehicle(name: 'Civic', manufactureDate: DateTime(2020));
+    vehicle = await client.createVehicle(name: 'Civic', manufactureDate: CalendarDate(2020));
   });
 
   tearDown(() async {
@@ -22,8 +24,98 @@ void main() {
   Future<Schedule> createSchedule() =>
       client.createSchedule(vehicle.id, name: 'Oil', intervalDistance: 5000, intervalMonths: 6);
 
+  test(
+    'listSchedules bases nextDue on the linked service over a newer unrelated service',
+    () async {
+      final schedule = await createSchedule();
+      final linkedService = await client.createService(
+        vehicle.id,
+        date: CalendarDate(2023, 8, 31),
+        odometer: 12000,
+      );
+      await client.createOperation(linkedService.id, scheduleId: schedule.id);
+      await client.createService(vehicle.id, date: CalendarDate(2024, 2, 10), odometer: 12500);
+
+      final listed = (await client.listSchedules(vehicle.id)).single;
+
+      expect(listed.lastPerformed?.id, linkedService.id);
+      expect(listed.nextDue, (date: CalendarDate(2024, 2, 27), odometer: 17000));
+    },
+  );
+
   test('a new vehicle has an empty schedule', () async {
     expect(await client.listSchedules(vehicle.id), isEmpty);
+  });
+
+  test('persist an explicit schedule ID and return it in lowercase', () async {
+    final id = 'a${ResourceId.generate().substring(1)}';
+    final created = await client.createSchedule(
+      vehicle.id.toUpperCase(),
+      id: id.toUpperCase(),
+      name: 'Oil',
+      intervalMonths: 6,
+      details: 'Replace the filter',
+    );
+
+    expect(created.id, id);
+    expect(created.vehicleId, vehicle.id);
+    expect(created.details, 'Replace the filter');
+    final listed = (await client.listSchedules(vehicle.id)).single;
+    expect(listed.id, id);
+    expect(listed.vehicleId, vehicle.id);
+    expect(listed.details, created.details);
+  });
+
+  test('reject malformed and non-v4 schedule IDs', () async {
+    for (final id in ['not-a-uuid', '12345678-abcd-7abc-8abc-1234567890ab']) {
+      await expectLater(
+        client.createSchedule(vehicle.id, id: id, name: 'Oil', intervalMonths: 6),
+        throwsStatusCode(400),
+      );
+    }
+    expect(await client.listSchedules(vehicle.id), isEmpty);
+  });
+
+  test('reject malformed and non-v4 vehicle relationship IDs', () async {
+    for (final vehicleId in ['not-a-uuid', '12345678-abcd-7abc-8abc-1234567890ab']) {
+      await expectLater(
+        client.createSchedule(vehicleId, name: 'Oil', intervalMonths: 6),
+        throwsStatusCode(400),
+      );
+    }
+    expect(await client.listSchedules(vehicle.id), isEmpty);
+  });
+
+  test('duplicate schedule IDs return a generic conflict for accessible parents', () async {
+    final other = await harness.login();
+    final otherVehicle = await other.createVehicle(
+      name: 'Corolla',
+      manufactureDate: CalendarDate(2020),
+    );
+    final id = ResourceId.generate();
+    await client.createSchedule(vehicle.id, id: id, name: 'Oil', intervalMonths: 6);
+
+    for (final (writer, parentId) in [(client, vehicle.id), (other, otherVehicle.id)]) {
+      await expectLater(
+        writer.createSchedule(parentId, id: id, name: 'Tires', intervalMonths: 12),
+        throwsA(
+          isA<RequestFailure>()
+              .having((failure) => failure.rawResponse.httpResponse.statusCode, 'status code', 409)
+              .having((failure) => failure.rawResponse.document, 'document', isNull),
+        ),
+      );
+    }
+    await expectLater(
+      other.createSchedule(vehicle.id, id: id, name: 'Tires', intervalMonths: 12),
+      throwsStatusCode(404),
+    );
+    await expectLater(
+      other.createSchedule(ResourceId.generate(), id: id, name: 'Tires', intervalMonths: 12),
+      throwsStatusCode(404),
+    );
+    await expectLater(other.listSchedules(vehicle.id), throwsStatusCode(404));
+    expect(await other.listSchedules(otherVehicle.id), isEmpty);
+    expect((await client.listSchedules(vehicle.id)).single.name, 'Oil');
   });
 
   const intervals = <({String label, int? distance, int? months})>[
@@ -31,13 +123,15 @@ void main() {
     (label: 'time only', distance: null, months: 6),
     (label: 'distance and time', distance: 5000, months: 6),
   ];
-  for (final unit in DistanceUnit.values) {
+  final manufactureDate = CalendarDate(2020, 2, 11);
+  final after180Days = CalendarDate(2020, 8, 9);
+  for (final unit in MileageUnit.values) {
     for (final interval in intervals) {
       test('create and list a ${unit.name} schedule with ${interval.label}', () async {
         final target = await client.createVehicle(
           name: 'Corolla',
-          manufactureDate: DateTime(2020),
-          distanceUnit: unit,
+          manufactureDate: manufactureDate,
+          mileageUnit: unit,
         );
         final created = await client.createSchedule(
           target.id,
@@ -59,6 +153,8 @@ void main() {
         expect(listed.intervalDistance, interval.distance);
         expect(listed.intervalMonths, interval.months);
         expect(listed.isArchived, isFalse);
+        expect(listed.nextDue?.date, interval.months == null ? null : after180Days);
+        expect(listed.nextDue?.odometer, interval.distance);
         expect(await client.listSchedules(vehicle.id), isEmpty);
       });
     }
@@ -154,7 +250,7 @@ void main() {
       );
       await expectLater(
         unauthorized.updateSchedule(
-          const Uuid().v4(),
+          ResourceId.generate(),
           name: 'Oil',
           intervalDistance: 5000,
           intervalMonths: 6,
@@ -192,7 +288,7 @@ void main() {
   });
 
   test('missing vehicles and schedule items return not found', () async {
-    final missingId = const Uuid().v4();
+    final missingId = ResourceId.generate();
     await expectLater(client.listSchedules(missingId), throwsStatusCode(404));
     await expectLater(
       client.createSchedule(missingId, name: 'Oil', intervalDistance: 5000, intervalMonths: 6),

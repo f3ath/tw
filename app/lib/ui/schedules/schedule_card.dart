@@ -5,20 +5,18 @@ import 'package:app/ui/schedules/schedule_interval.dart';
 class const ScheduleCard({
   super.key,
   required final Schedule schedule,
-  required final DistanceUnit distanceUnit,
+  required final MileageUnit mileageUnit,
   required final ValueChanged<ScheduleAction> onAction,
 }) extends StatelessWidget {
   static ValueKey<String> menuKey(String scheduleId) => ValueKey('schedule-menu-$scheduleId');
 
   @override
   Widget build(BuildContext context) {
-    final interval = formatScheduleInterval(
-      schedule,
-      distanceUnit,
-      MaterialLocalizations.of(context),
-    );
+    final localizations = MaterialLocalizations.of(context);
+    final interval = formatScheduleInterval(schedule, mileageUnit, localizations);
     return Card(
       child: ListTile(
+        titleAlignment: ListTileTitleAlignment.top,
         title: Text(schedule.name),
         trailing: PopupMenuButton<ScheduleAction>(
           key: ScheduleCard.menuKey(schedule.id),
@@ -49,15 +47,13 @@ class const ScheduleCard({
             ),
           ],
         ),
-        subtitle: interval.isEmpty && schedule.details.isEmpty
-            ? null
-            : Column(
-                crossAxisAlignment: .start,
-                children: [
-                  if (interval.isNotEmpty) Text(interval),
-                  if (schedule.details.isNotEmpty) Text(schedule.details),
-                ],
-              ),
+        subtitle: Column(
+          crossAxisAlignment: .start,
+          children: [
+            if (interval.isNotEmpty) Text(interval),
+            if (schedule.details.isNotEmpty) Text(schedule.details),
+          ],
+        ),
       ),
     );
   }

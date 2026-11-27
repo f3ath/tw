@@ -1,30 +1,32 @@
 import 'package:http_interop/http_interop.dart';
 import 'package:json_api/document.dart';
+import 'package:json_api/query.dart';
 import 'package:json_api/routing.dart';
 import 'package:json_api/server.dart';
 import 'package:server/src/auth/request_ext.dart';
+import 'package:server/src/db/duplicate_id.dart';
 import 'package:server/src/db/invalid_record.dart';
 import 'package:server/src/json_api/base_controller.dart';
 import 'package:server/src/schedules/schedule_resource.dart';
 import 'package:server/src/schedules/schedules_dao.dart';
+import 'package:server/src/services/operations_dao.dart';
 import 'package:server/src/services/service_resource.dart';
 import 'package:server/src/services/services_dao.dart';
 import 'package:server/src/validation/date.dart';
 import 'package:server/src/vehicles/vehicle_resource.dart';
 import 'package:server/src/vehicles/vehicles_dao.dart';
-import 'package:shared/api.dart' show DistanceUnit;
+import 'package:shared/api.dart' show MileageUnit;
+import 'package:shared/resource_id.dart';
 import 'package:shared/time.dart';
-import 'package:uuid/uuid.dart';
 
 class VehiclesController(
   final VehiclesTDAOProvider _ownedVehicles,
   final SchedulesTDAOProvider _ownedSchedules,
   final ServicesTDAOProvider _ownedServices,
+  final OperationsDAOProvider _ownedOperations,
   final UriBuilder _uriFor, {
-  final Clock _clock = systemClock,
+  final Now _now = DateTime.now,
 }) extends BaseController {
-  static const _uuid = Uuid();
-
   @override
   Future<Response> fetchCollection(Request request, Target target) async {
     final vehicles = await _ownedVehicles(request.userId).fetchAll();
@@ -33,28 +35,33 @@ class VehiclesController(
 
   @override
   Future<Response> createResource(Request request, Target target, NewResource newResource) async {
-    final resource = newResource.toResource(_uuid.v4);
+    final resource = newResource.toResource(ResourceId.generate);
     final attributes = resource.attributes;
     final name = _parseName(attributes['name']);
-    final manufactureDate = parseDate(attributes['manufacture_date'], clock: _clock);
+    final manufactureDate = parseDate(attributes['manufacture_date'], now: _now);
     if (name == null) {
       return badRequest(OutboundErrorDocument([ErrorObject(title: 'Empty name')]));
     }
     if (manufactureDate == null) {
       return badRequest(OutboundErrorDocument([ErrorObject(title: 'Invalid date')]));
     }
-    final distanceUnit = resource.attributes.containsKey('distance_unit')
-        ? resource.attributes['distance_unit']
-        : DistanceUnit.mi.name;
-    if (distanceUnit is! String || !DistanceUnit.values.asNameMap().containsKey(distanceUnit)) {
+    final mileageUnit = resource.attributes.containsKey('mileage_unit')
+        ? resource.attributes['mileage_unit']
+        : MileageUnit.mi.name;
+    if (mileageUnit is! String || !MileageUnit.values.asNameMap().containsKey(mileageUnit)) {
       return badRequest();
     }
-    final vehicle = await _ownedVehicles(request.userId).create(
-      id: resource.id,
-      distanceUnit: DistanceUnit.values.byName(distanceUnit),
-      name: name,
-      manufactureDate: manufactureDate,
-    );
+    final VehicleRecord vehicle;
+    try {
+      vehicle = await _ownedVehicles(request.userId).create(
+        id: resource.id,
+        mileageUnit: MileageUnit.values.byName(mileageUnit),
+        name: name,
+        manufactureDate: manufactureDate,
+      );
+    } on DuplicateId {
+      return conflict();
+    }
     return created(
       OutboundDataDocument.resource(VehicleResource(vehicle)),
       _uriFor(ResourceTarget(target.type, vehicle.id)).toString(),
@@ -73,17 +80,26 @@ class VehiclesController(
   @override
   Future<Response> updateResource(Request request, ResourceTarget target, Resource resource) async {
     final attributes = resource.attributes;
-    if (attributes.containsKey('distance_unit')) return badRequest();
+    final unit = attributes['mileage_unit'];
+    if (attributes.containsKey('mileage_unit') &&
+        (unit is! String || !MileageUnit.values.asNameMap().containsKey(unit))) {
+      return badRequest();
+    }
+    final mileageUnit = unit is String ? MileageUnit.values.byName(unit) : null;
     final name = _parseName(attributes['name']);
-    final manufactureDate = parseDate(attributes['manufacture_date'], clock: _clock);
+    final manufactureDate = parseDate(attributes['manufacture_date'], now: _now);
     if ((attributes.containsKey('name') && name == null) ||
         (attributes.containsKey('manufacture_date') && manufactureDate == null)) {
       return badRequest();
     }
     final VehicleRecord? vehicle;
     try {
-      vehicle = await _ownedVehicles(request.userId)
-          .update(id: target.id, name: name, manufactureDate: manufactureDate);
+      vehicle = await _ownedVehicles(request.userId).update(
+        id: target.id,
+        name: name,
+        manufactureDate: manufactureDate,
+        mileageUnit: mileageUnit,
+      );
     } on InvalidRecord {
       return badRequest();
     }
@@ -102,19 +118,40 @@ class VehiclesController(
   }
 
   @override
-  Future<Response> fetchRelated(Request request, RelatedTarget target) async {
-    if (target.relationship != 'schedule' && target.relationship != 'service') return notFound();
+  Future<Response> fetchRelated(Request request, RelatedTarget target) async =>
+      switch (target.relationship) {
+        'schedule' => _fetchSchedules(request, target.id),
+        'service' => _fetchServices(request, target.id),
+        _ => notFound(),
+      };
 
-    final vehicle = await _ownedVehicles(request.userId).fetchById(id: target.id);
+  Future<Response> _fetchSchedules(Request request, String vehicleId) async {
+    if (Include.fromUri(request.uri).isNotEmpty) return badRequest();
+    final userId = request.userId;
+    final vehicle = await _ownedVehicles(userId).fetchById(id: vehicleId);
     if (vehicle == null) return notFound();
 
-    if (target.relationship == 'service') {
-      final services = await _ownedServices(request.userId).fetchByVehicleId(vehicleId: target.id);
+    final schedules = await _ownedSchedules(userId).fetchByVehicleId(vehicleId: vehicleId);
+    return ok(ScheduleResource.vehicleCollection(schedules, vehicle.manufactureDate));
+  }
+
+  Future<Response> _fetchServices(Request request, String vehicleId) async {
+    final include = Include.fromUri(request.uri);
+    final emptyInclude = include.length == 1 && include.single.isEmpty;
+    if (!emptyInclude && include.any((path) => path != 'operations')) return badRequest();
+
+    final userId = request.userId;
+    if (!await _ownedVehicles(userId).existsById(id: vehicleId)) return notFound();
+
+    final services = await _ownedServices(userId).fetchByVehicleId(vehicleId: vehicleId);
+    if (include.isEmpty) {
       return ok(OutboundDataDocument.collection(services.map(ServiceResource.new)));
     }
-
-    final schedules = await _ownedSchedules(request.userId).fetchByVehicleId(vehicleId: target.id);
-    return ok(OutboundDataDocument.collection(schedules.map(ScheduleResource.new)));
+    final operations = emptyInclude
+        ? null
+        : await _ownedOperations(userId)
+              .fetchByServiceIds(services.map((service) => service.id).toList());
+    return ok(ServicesWithOperationsDocument(services, operations));
   }
 
   static String? _parseName(Object? value) =>

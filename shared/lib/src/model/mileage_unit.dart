@@ -1,0 +1,4 @@
+enum MileageUnit() {
+  mi,
+  km,
+}

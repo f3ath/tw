@@ -3,7 +3,7 @@ import 'package:shared/model.dart';
 
 String formatScheduleInterval(
   Schedule schedule,
-  DistanceUnit unit,
+  MileageUnit unit,
   MaterialLocalizations localizations,
 ) {
   final distance = schedule.intervalDistance;

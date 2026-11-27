@@ -2,6 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:app/app/repository_provider.dart';
 import 'package:shared/model.dart';
+import 'package:shared/resource_id.dart';
 import 'package:app/testing/samples.dart' as samples;
 import 'package:app/testing/stub.dart';
 import 'package:app/ui/schedules/schedule_form_screen.dart';
@@ -55,6 +56,7 @@ void main() {
           expect(await harness.result, isTrue);
           final updated = harness.repo.schedules[samples.oilChange.id]!;
           expect(harness.repo.schedules, hasLength(2));
+          expect(harness.repo.createIds, isEmpty);
           expect(updated.id, equals(samples.oilChange.id));
           expect(updated.vehicleId, equals(samples.santaFe.id));
           expect(updated.name, equals('Updated inspection'));
@@ -249,8 +251,11 @@ void main() {
         await form.fill(name: 'Inspection', distance: '7500', months: '6', details: 'Check brakes');
         final pending = harness.repo.pauseNextCreate();
         await form.saveForm();
+        final draftId = harness.repo.createIds.single;
+        expect(ResourceId.isValid(draftId), isTrue);
         expect(form.saveButton.enabled, isFalse);
         await form.saveForm(pump: .none);
+        expect(harness.repo.createIds, [draftId]);
 
         pending.completeError(Exception('Network error'));
         await tester.pumpAndSettle();
@@ -268,7 +273,8 @@ void main() {
 
         expect(findScheduleFormScreen, findsNothing);
         expect(await harness.result, isTrue);
-        expect(harness.repo.schedules, hasLength(1));
+        expect(harness.repo.createIds, [draftId, draftId]);
+        expect(harness.repo.schedules.keys, [draftId]);
       });
     });
   });

@@ -5,13 +5,17 @@ import 'package:app/app/auth_service.dart';
 import 'package:app/data/auth/auth_api.dart';
 import 'package:app/data/auth/login_window.dart';
 import 'package:shared/model.dart';
-import 'package:app/time/clock.dart';
+import 'package:shared/time.dart';
 
 class BackendAuthService({
   required final AuthApi _authApi,
   required final LoginWindow Function() _newWindow,
-  final Clock _clock = const Clock(),
+  final Delayed<void> _delayed = Future.delayed,
+  final Now _now = DateTime.now,
 }) implements AuthService {
+  @override
+  Future<User?> restoreSession() => _authApi.restoreSession();
+
   @override
   Future<User> login({
     Duration pollInterval = const Duration(seconds: 2),
@@ -21,12 +25,15 @@ class BackendAuthService({
     try {
       final uri = await _authApi.startLogin();
       await window.navigate(uri);
-      final deadline = _clock.now().add(pollTimeout);
-      while (_clock.now().isBefore(deadline)) {
+      final deadline = _now().add(pollTimeout);
+      while (_now().isBefore(deadline)) {
         if (window.isClosed) throw UserCancelledException('User cancelled');
         final user = await _authApi.getCurrentUser();
-        if (user != null) return user;
-        await _clock.delayed<void>(pollInterval);
+        if (user != null) {
+          await _authApi.saveSession();
+          return user;
+        }
+        await _delayed(pollInterval);
       }
       throw TimeoutException('Login never finished');
     } finally {

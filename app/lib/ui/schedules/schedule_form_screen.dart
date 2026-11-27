@@ -2,12 +2,15 @@ import 'package:material_ui/material_ui.dart';
 import 'package:app/ui/form/form_submission_controller.dart';
 import 'package:app/app/repository_provider.dart';
 import 'package:shared/model.dart';
+import 'package:shared/resource_id.dart';
 import 'package:app/app/schedule_repo.dart';
+import 'package:app/app/create_conflict.dart';
 
 class const ScheduleFormScreen({
   super.key,
   required final Vehicle vehicle,
   final Schedule? schedule,
+  final VoidCallback? onCreateConflict,
 }) extends StatefulWidget {
   static const nameFieldKey = ValueKey('schedule-name-field');
   static const distanceFieldKey = ValueKey('schedule-distance-field');
@@ -35,6 +38,7 @@ class _ScheduleFormScreenState extends State<ScheduleFormScreen> {
   var _name = '';
   var _details = '';
   final _submission = FormSubmissionController();
+  late final _draftId = ResourceId.generate();
 
   bool get _hasInterval =>
       _distanceController.text.trim().isNotEmpty || _monthsController.text.trim().isNotEmpty;
@@ -81,7 +85,7 @@ class _ScheduleFormScreenState extends State<ScheduleFormScreen> {
                 validator: _validateInterval,
                 decoration: InputDecoration(
                   labelText: 'Distance interval',
-                  suffixText: widget.vehicle.distanceUnit.name,
+                  suffixText: widget.vehicle.mileageUnit.name,
                 ),
                 keyboardType: TextInputType.number,
                 textInputAction: TextInputAction.next,
@@ -127,7 +131,17 @@ class _ScheduleFormScreenState extends State<ScheduleFormScreen> {
     final form = _formKey.currentState!;
     if (!form.validate()) return;
     form.save();
-    final result = await _submission.submit(_persistSchedule);
+    final onCreateConflict = widget.onCreateConflict;
+    var hasConflict = false;
+    final result = await _submission.submit(() async {
+      try {
+        await _persistSchedule();
+      } on CreateConflict {
+        hasConflict = true;
+        rethrow;
+      }
+    });
+    if (hasConflict) onCreateConflict?.call();
     if (!mounted) return;
     switch (result) {
       case SubmissionSuccess():
@@ -136,9 +150,13 @@ class _ScheduleFormScreenState extends State<ScheduleFormScreen> {
         ScaffoldMessenger.of(context)
           ..hideCurrentSnackBar()
           ..showSnackBar(
-            const SnackBar(
+            SnackBar(
               key: ScheduleFormScreen.errorSnackBarKey,
-              content: Text('Save failed. Please try again.'),
+              content: Text(
+                hasConflict
+                    ? 'This schedule may already be saved. Go back to check the schedule list.'
+                    : 'Save failed. Please try again.',
+              ),
             ),
           );
       case SubmissionIgnored():
@@ -151,6 +169,7 @@ class _ScheduleFormScreenState extends State<ScheduleFormScreen> {
     if (schedule == null) {
       await _repo.create(
         widget.vehicle.id,
+        id: _draftId,
         name: _name,
         intervalDistance: _intervalDistance,
         intervalMonths: _intervalMonths,

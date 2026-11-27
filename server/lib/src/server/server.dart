@@ -32,12 +32,12 @@ import 'package:server/src/users/users_dao.dart';
 import 'package:server/src/vehicles/vehicles_controller.dart';
 import 'package:server/src/vehicles/vehicles_dao.dart';
 import 'package:shared/api.dart';
+import 'package:shared/resource_id.dart';
 import 'package:shared/time.dart';
-import 'package:uuid/uuid.dart';
 
 class Server(
   final ServerConfig _config, {
-  final Clock _clock = systemClock,
+  final Now _now = DateTime.now,
   final Handler _catchAll = plainNotFound,
   final Log _log = const NoLog(),
 }) implements ContainerProbes {
@@ -53,7 +53,7 @@ class Server(
       redirectUri: _config.baseUri.replace(path: _googleOAuthCallbackPath).toString(),
     ),
   });
-  late final _handler = newLoggingMiddleware(_log, () => const Uuid().v4().split('-').last)(
+  late final _handler = newLoggingMiddleware(_log, () => ResourceId.generate().split('-').last)(
     routingHandler(_routes, _catchAll),
   );
   var _isReady = false;
@@ -69,19 +69,19 @@ class Server(
   void _setupControllers(TenantConnection connection) {
     final db = Database(connection);
 
-    final sessionsDAO = SessionsDAO(db, clock: _clock);
-    final usersDAO = UsersDAO(db, clock: _clock);
+    final sessionsDAO = SessionsDAO(db, now: _now);
+    final usersDAO = UsersDAO(db, now: _now);
     final googleOAuthController = OAuthController(_oauth, sessionsDAO, usersDAO);
 
     VehiclesDAO vehiclesDAOProvider(String ownerId) =>
-        VehiclesDAO(ScopedDatabase(ownerId, connection), clock: _clock);
+        VehiclesDAO(ScopedDatabase(ownerId, connection), now: _now);
     SchedulesDAO schedulesDAOProvider(String ownerId) =>
-        SchedulesDAO(ScopedDatabase(ownerId, connection), clock: _clock);
+        SchedulesDAO(ScopedDatabase(ownerId, connection), now: _now);
     ServicesDAO servicesDAOProvider(String ownerId) =>
-        ServicesDAO(ScopedDatabase(ownerId, connection), clock: _clock);
+        ServicesDAO(ScopedDatabase(ownerId, connection), now: _now);
 
     OperationsDAO operationsDAOProvider(String ownerId) =>
-        OperationsDAO(ScopedDatabase(ownerId, connection), clock: _clock);
+        OperationsDAO(ScopedDatabase(ownerId, connection), now: _now);
 
     final uriDesign = StandardUriDesign(_config.baseUri);
 
@@ -91,8 +91,9 @@ class Server(
         vehiclesDAOProvider,
         schedulesDAOProvider,
         servicesDAOProvider,
+        operationsDAOProvider,
         uriDesign.uri,
-        clock: _clock,
+        now: _now,
       ),
       ResourceType.operations: OperationsController(operationsDAOProvider, uriDesign.uri),
       ResourceType.schedules: SchedulesController(schedulesDAOProvider, uriDesign.uri),
@@ -100,7 +101,7 @@ class Server(
         servicesDAOProvider,
         operationsDAOProvider,
         uriDesign.uri,
-        clock: _clock,
+        now: _now,
       ),
     };
 
@@ -122,6 +123,11 @@ class Server(
         final userId = session?.userId;
         if (userId != null) {
           rq.httpRequest.userId = userId;
+        }
+
+        if (rq case CreateResourceRequest(newResource: NewResource(id: final id?))
+            when !ResourceId.isValid(id)) {
+          return badRequest(OutboundErrorDocument([ErrorObject(title: 'Invalid ID')]));
         }
         return null;
       },

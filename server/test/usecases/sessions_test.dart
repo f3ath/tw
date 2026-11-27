@@ -1,6 +1,8 @@
 import 'package:http_interop/http_interop.dart';
+import 'package:json_api/routing.dart';
+import 'package:shared/api.dart';
+import 'package:shared/resource_id.dart';
 import 'package:test/test.dart';
-import 'package:uuid/uuid.dart';
 
 import 'harness.dart';
 
@@ -13,6 +15,22 @@ void main() {
 
   tearDown(() async {
     await harness.stopServer();
+  });
+
+  test('creating a session rejects a malformed client-supplied ID', () async {
+    final client = TwApiClient(
+      StandardUriDesign(Uri(path: '/api/v0')),
+      (request) => harness.handler(
+        Request(
+          request.method,
+          request.uri,
+          Body.text('{"data":{"type":"sessions","id":"not-a-uuid"}}'),
+          request.headers,
+        ),
+      ),
+    );
+
+    await expectLater(client.createSession(), throwsStatusCode(400));
   });
 
   test('listing sessions requires authentication', () async {
@@ -73,7 +91,7 @@ void main() {
   });
 
   test('signing in links the session to the user without exposing tokens', () async {
-    final email = '${const Uuid().v4()}@example.com';
+    final email = '${ResourceId.generate()}@example.com';
     final client = await harness.login(email: email, name: 'Test User');
     final completed = await client.fetchCurrentSession();
     final sessions = await client.listSessions();

@@ -9,6 +9,21 @@ import '../robots.dart';
 
 void main() {
   group('WelcomeScreen', () {
+    testWidgets('fits the logo above Google login on a narrow screen', (tester) async {
+      const viewport = Size(320, 480);
+      tester.view.devicePixelRatio = 1;
+      tester.view.physicalSize = viewport;
+      addTearDown(tester.view.resetDevicePixelRatio);
+      addTearDown(tester.view.resetPhysicalSize);
+      await tester.pumpWidget(MaterialApp(home: WelcomeScreen(onLogin: () async {})));
+
+      final logo = tester.getRect(find.bySemanticsLabel('TorqueWrench'));
+      final button = tester.getRect(find.text('Login with Google'));
+      expect(logo.bottom, lessThan(button.top));
+      expect(logo.left, greaterThanOrEqualTo(0));
+      expect(logo.right, lessThanOrEqualTo(viewport.width));
+    });
+
     testWidgets('failed login restores the button and allows retry', (WidgetTester tester) async {
       final welcome = WelcomeRobot(tester);
       var attempt = Completer<void>();

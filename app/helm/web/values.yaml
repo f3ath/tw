@@ -1,0 +1,3 @@
+image: tw-web:local
+imagePullPolicy: Always
+resources: {}

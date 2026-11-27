@@ -3,24 +3,23 @@ import 'package:json_api/document.dart';
 import 'package:json_api/routing.dart';
 import 'package:json_api/server.dart';
 import 'package:server/src/auth/request_ext.dart';
+import 'package:server/src/db/duplicate_id.dart';
 import 'package:server/src/db/invalid_record.dart';
 import 'package:server/src/json_api/base_controller.dart';
 import 'package:server/src/services/operation_resource.dart';
 import 'package:server/src/services/operations_dao.dart';
 import 'package:shared/api.dart';
-import 'package:uuid/uuid.dart';
+import 'package:shared/resource_id.dart';
 
 class OperationsController(final OperationsDAOProvider _ownedOperations, final UriBuilder _uriFor)
     extends BaseController {
-  static const _uuid = Uuid();
-
   @override
   Future<Response> createResource(
     Request request,
     CollectionTarget target,
     NewResource newResource,
   ) async {
-    final resource = newResource.toResource(_uuid.v4);
+    final resource = newResource.toResource(ResourceId.generate);
     final service = resource.one('service');
     if (service == null || service.isEmpty || service.single.type != ResourceType.services) {
       return badRequest();
@@ -30,20 +29,26 @@ class OperationsController(final OperationsDAOProvider _ownedOperations, final U
         schedule?.isNotEmpty == true && schedule!.single.type != ResourceType.schedules) {
       return badRequest();
     }
+    final serviceId = service.single.id;
     final scheduleId = schedule?.singleOrNull?.id;
+    if (!ResourceId.isValid(serviceId) || scheduleId != null && !ResourceId.isValid(scheduleId)) {
+      return badRequest();
+    }
     final attributes = resource.attributes;
     if (!_isValid(attributes, nameRequired: scheduleId == null)) return badRequest();
     final OperationRecord? operation;
     try {
       operation = await _ownedOperations(request.userId).create(
         id: resource.id,
-        serviceId: service.single.id,
+        serviceId: serviceId,
         scheduleId: scheduleId,
         name: attributes['name'] as String?,
         details: attributes['details'] as String?,
       );
     } on InvalidRecord {
       return badRequest();
+    } on DuplicateId {
+      return conflict();
     }
     if (operation == null) return notFound();
     return created(

@@ -2,15 +2,17 @@ import 'package:app/ui/delete_and_refresh.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:app/app/repository_provider.dart';
 import 'package:shared/model.dart';
-import 'package:app/ui/schedules/schedule_delete_dialog.dart';
 import 'package:app/app/schedule_repo.dart';
 import 'package:app/ui/list_view_model.dart';
-import 'package:app/ui/loading_view.dart';
-import 'package:app/ui/error_retry_view.dart';
+import 'package:app/ui/list_state_view.dart';
 import 'package:app/ui/schedules/schedule_card.dart';
 import 'package:app/ui/schedules/schedule_form_screen.dart';
 
-class const ScheduleScreen({super.key, required final Vehicle vehicle}) extends StatefulWidget {
+class const ScheduleScreen({
+  super.key,
+  required final Vehicle vehicle,
+  final VoidCallback? onChanged,
+}) extends StatefulWidget {
   static const addButtonKey = ValueKey('schedules-add-button');
   static const loadingIndicatorKey = ValueKey('schedules-loading-indicator');
   static const errorTextKey = ValueKey('schedules-error-text');
@@ -42,90 +44,87 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
   }
 
   @override
-  Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(
-      title: Row(
-        children: [
-          const Icon(Icons.event_repeat, size: 30),
-          const SizedBox(width: 10),
-          Expanded(child: Text(widget.vehicle.name, overflow: TextOverflow.ellipsis)),
-        ],
+  Widget build(BuildContext context) {
+    final actions = _ScheduleActions(
+      context: context,
+      vehicle: widget.vehicle,
+      delete: _repo.delete,
+      reload: _model.load,
+      onChanged: widget.onChanged,
+    );
+    return Scaffold(
+      appBar: AppBar(
+        title: Row(
+          children: [
+            const Icon(Icons.event_repeat, size: 30),
+            const SizedBox(width: 10),
+            Expanded(child: Text(widget.vehicle.name, overflow: TextOverflow.ellipsis)),
+          ],
+        ),
       ),
-    ),
-    body: ListenableBuilder(
-      listenable: _model,
-      builder: (_, _) {
-        if (_model.isLoading) {
-          return const LoadingView(indicatorKey: ScheduleScreen.loadingIndicatorKey);
-        }
-        if (_model.hasError) {
-          return ErrorRetryView(
-            message: 'Error loading schedules',
-            errorTextKey: ScheduleScreen.errorTextKey,
-            retryButtonKey: ScheduleScreen.retryButtonKey,
-            onRetry: _model.load,
-          );
-        }
-        if (_model.items.isEmpty) {
-          return const Center(child: Text('No schedules yet', key: ScheduleScreen.emptyTextKey));
-        }
-        return ListView.builder(
-          itemCount: _model.items.length,
-          itemBuilder: (_, index) => _buildScheduleCard(_model.items[index]),
-        );
-      },
-    ),
-    floatingActionButton: FloatingActionButton.extended(
-      key: ScheduleScreen.addButtonKey,
-      icon: const Icon(Icons.add),
-      label: const Text('New Schedule'),
-      onPressed: () => _openScheduleForm(),
-    ),
-  );
+      body: ListStateView<Schedule>(
+        model: _model,
+        loadingIndicatorKey: ScheduleScreen.loadingIndicatorKey,
+        errorTextKey: ScheduleScreen.errorTextKey,
+        retryButtonKey: ScheduleScreen.retryButtonKey,
+        emptyTextKey: ScheduleScreen.emptyTextKey,
+        errorMessage: 'Error loading schedules',
+        emptyMessage: 'No schedules yet',
+        itemBuilder: (schedule) => _buildScheduleCard(schedule, actions),
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        key: ScheduleScreen.addButtonKey,
+        icon: const Icon(Icons.add),
+        label: const Text('New Schedule'),
+        onPressed: () => actions.openForm(),
+      ),
+    );
+  }
 
-  ScheduleCard _buildScheduleCard(Schedule schedule) => ScheduleCard(
+  ScheduleCard _buildScheduleCard(Schedule schedule, _ScheduleActions actions) => ScheduleCard(
     key: ScheduleScreen.scheduleKey(schedule.id),
     schedule: schedule,
-    distanceUnit: widget.vehicle.distanceUnit,
-    onAction: (action) => _handleScheduleAction(action, schedule),
+    mileageUnit: widget.vehicle.mileageUnit,
+    onAction: (action) => actions.handle(action, schedule),
+  );
+}
+
+class const _ScheduleActions({
+  required final BuildContext context,
+  required final Vehicle vehicle,
+  required final Future<void> Function(String) delete,
+  required final Future<void> Function() reload,
+  required final VoidCallback? onChanged,
+}) {
+  Future<void> handle(ScheduleAction action, Schedule schedule) => switch (action) {
+    .edit => openForm(schedule: schedule),
+    .delete => _deleteSchedule(schedule),
+  };
+
+  Future<void> _deleteSchedule(Schedule schedule) => confirmDeleteAndRefresh(
+    context: context,
+    title: 'Delete schedule?',
+    message: 'Delete "${schedule.name}"? This cannot be undone.',
+    delete: () => delete(schedule.id),
+    refresh: _reloadAfterChange,
+    errorSnackBarKey: ScheduleScreen.deleteErrorSnackBarKey,
   );
 
-  Future<void> _handleScheduleAction(ScheduleAction action, Schedule schedule) async {
-    switch (action) {
-      case .edit:
-        await _openScheduleForm(schedule: schedule);
-        return;
-      case .delete:
-        await _deleteSchedule(schedule);
-        return;
-    }
-  }
-
-  Future<void> _deleteSchedule(Schedule schedule) async {
-    final confirmed = await _confirmScheduleDeletion(schedule);
-    if (!confirmed || !mounted) return;
-    await deleteAndRefresh(
-      context: context,
-      delete: () => _repo.delete(schedule.id),
-      refresh: _model.load,
-      errorSnackBarKey: ScheduleScreen.deleteErrorSnackBarKey,
-    );
-  }
-
-  Future<bool> _confirmScheduleDeletion(Schedule schedule) async =>
-      await showDialog<bool>(
-        context: context,
-        builder: (_) =>
-            ScheduleDeleteDialog(key: ScheduleDeleteDialog.confirmationKey, schedule: schedule),
-      ) ??
-      false;
-
-  Future<void> _openScheduleForm({Schedule? schedule}) async {
+  Future<void> openForm({Schedule? schedule}) async {
     final refresh = await Navigator.of(context).push<bool>(
       MaterialPageRoute(
-        builder: (_) => ScheduleFormScreen(vehicle: widget.vehicle, schedule: schedule),
+        builder: (_) => ScheduleFormScreen(
+          vehicle: vehicle,
+          schedule: schedule,
+          onCreateConflict: _reloadAfterChange,
+        ),
       ),
     );
-    if (refresh == true && mounted) await _model.load();
+    if (refresh == true && context.mounted) await _reloadAfterChange();
+  }
+
+  Future<void> _reloadAfterChange() {
+    onChanged?.call();
+    return reload();
   }
 }

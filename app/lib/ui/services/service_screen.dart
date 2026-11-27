@@ -1,18 +1,21 @@
 import 'package:app/ui/delete_and_refresh.dart';
+import 'package:app/ui/open_and_refresh_on_change.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:shared/model.dart';
 import 'package:app/app/repository_provider.dart';
 import 'package:app/app/vehicle_service.dart';
 import 'package:app/app/service_repo.dart';
-import 'package:app/ui/error_retry_view.dart';
+import 'package:app/ui/list_state_view.dart';
 import 'package:app/ui/list_view_model.dart';
-import 'package:app/ui/loading_view.dart';
 import 'package:app/ui/operations/operation_screen.dart';
 import 'package:app/ui/services/service_card.dart';
-import 'package:app/ui/services/service_delete_dialog.dart';
 import 'package:app/ui/services/service_form_screen.dart';
 
-class const ServiceScreen({super.key, required final Vehicle vehicle}) extends StatefulWidget {
+class const ServiceScreen({
+  super.key,
+  required final Vehicle vehicle,
+  final VoidCallback? onChanged,
+}) extends StatefulWidget {
   static const addButtonKey = ValueKey('services-add-button');
   static const loadingIndicatorKey = ValueKey('services-loading-indicator');
   static const errorTextKey = ValueKey('services-error-text');
@@ -45,104 +48,98 @@ class _ServiceScreenState extends State<ServiceScreen> {
   }
 
   @override
-  Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(
-      title: Row(
-        children: [
-          const Icon(Icons.build_outlined, size: 30),
-          const SizedBox(width: 10),
-          Expanded(child: Text(widget.vehicle.name, overflow: TextOverflow.ellipsis)),
-        ],
+  Widget build(BuildContext context) {
+    final actions = _ServiceActions(
+      context: context,
+      vehicle: widget.vehicle,
+      delete: _repo.delete,
+      reload: _model.load,
+      onChanged: widget.onChanged,
+    );
+    return Scaffold(
+      appBar: AppBar(
+        title: Row(
+          children: [
+            const Icon(Icons.build_outlined, size: 30),
+            const SizedBox(width: 10),
+            Expanded(child: Text(widget.vehicle.name, overflow: TextOverflow.ellipsis)),
+          ],
+        ),
       ),
-    ),
-    body: ListenableBuilder(
-      listenable: _model,
-      builder: (_, _) {
-        if (_model.isLoading) {
-          return const LoadingView(indicatorKey: ServiceScreen.loadingIndicatorKey);
-        }
-        if (_model.hasError) {
-          return ErrorRetryView(
-            message: 'Error loading services',
-            errorTextKey: ServiceScreen.errorTextKey,
-            retryButtonKey: ServiceScreen.retryButtonKey,
-            onRetry: _model.load,
-          );
-        }
-        if (_model.items.isEmpty) {
-          return const Center(child: Text('No services yet', key: ServiceScreen.emptyTextKey));
-        }
-        return ListView.builder(
-          itemCount: _model.items.length,
-          itemBuilder: (_, index) => _buildServiceCard(_model.items[index]),
-        );
-      },
-    ),
-    floatingActionButton: FloatingActionButton.extended(
-      key: ServiceScreen.addButtonKey,
-      icon: const Icon(Icons.add),
-      label: const Text('New Service'),
-      onPressed: () => _openServiceForm(),
-    ),
-  );
+      body: ListStateView<Service>(
+        model: _model,
+        loadingIndicatorKey: ServiceScreen.loadingIndicatorKey,
+        errorTextKey: ServiceScreen.errorTextKey,
+        retryButtonKey: ServiceScreen.retryButtonKey,
+        emptyTextKey: ServiceScreen.emptyTextKey,
+        errorMessage: 'Error loading services',
+        emptyMessage: 'No services yet',
+        itemBuilder: (service) => _buildServiceCard(service, actions),
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        key: ServiceScreen.addButtonKey,
+        icon: const Icon(Icons.add),
+        label: const Text('Log Service'),
+        onPressed: () => actions.openForm(),
+      ),
+    );
+  }
 
-  ServiceCard _buildServiceCard(Service service) => ServiceCard(
+  ServiceCard _buildServiceCard(Service service, _ServiceActions actions) => ServiceCard(
     key: ServiceScreen.serviceKey(service.id),
     service: service,
-    distanceUnit: widget.vehicle.distanceUnit,
-    onAction: (action) => _handleServiceAction(action, service),
+    mileageUnit: widget.vehicle.mileageUnit,
+    onAction: (action) => actions.handle(action, service),
   );
+}
 
-  Future<void> _handleServiceAction(ServiceAction action, Service service) async {
-    switch (action) {
-      case .operations:
-        await _openOperations(service);
-        return;
-      case .edit:
-        await _openServiceForm(service: service);
-        return;
-      case .delete:
-        await _deleteService(service);
-        return;
-    }
-  }
+class const _ServiceActions({
+  required final BuildContext context,
+  required final Vehicle vehicle,
+  required final Future<void> Function(String) delete,
+  required final Future<void> Function() reload,
+  required final VoidCallback? onChanged,
+}) {
+  Future<void> handle(ServiceAction action, Service service) => switch (action) {
+    .operations => _openOperations(service),
+    .edit => openForm(service: service),
+    .delete => _deleteService(service),
+  };
 
-  Future<void> _openOperations(Service service) => Navigator.of(context).push<void>(
-    MaterialPageRoute(
-      builder: (_) => OperationScreen(
-        vehicleService: VehicleService(vehicle: widget.vehicle, service: service),
-      ),
+  Future<void> _openOperations(Service service) => openAndRefreshOnChange(
+    context: context,
+    buildScreen: (onOperationsChanged) => OperationScreen(
+      vehicleService: VehicleService(vehicle: vehicle, service: service),
+      onOperationsChanged: onOperationsChanged,
     ),
+    refresh: reload,
+    onChanged: onChanged,
   );
 
-  Future<void> _deleteService(Service service) async {
-    final confirmed = await _confirmServiceDeletion(service);
-    if (!confirmed || !mounted) return;
-    await deleteAndRefresh(
-      context: context,
-      delete: () => _repo.delete(service.id),
-      refresh: _model.load,
-      errorSnackBarKey: ServiceScreen.deleteErrorSnackBarKey,
-    );
-  }
+  Future<void> _deleteService(Service service) => confirmDeleteAndRefresh(
+    context: context,
+    title: 'Delete service?',
+    message: 'Delete this service? This cannot be undone.',
+    delete: () => delete(service.id),
+    refresh: _reloadAfterChange,
+    errorSnackBarKey: ServiceScreen.deleteErrorSnackBarKey,
+  );
 
-  Future<bool> _confirmServiceDeletion(Service service) async =>
-      await showDialog<bool>(
-        context: context,
-        builder: (_) => ServiceDeleteDialog(
-          key: ServiceDeleteDialog.confirmationKey,
-          service: service,
-          distanceUnit: widget.vehicle.distanceUnit,
-        ),
-      ) ??
-      false;
-
-  Future<void> _openServiceForm({Service? service}) async {
+  Future<void> openForm({Service? service}) async {
     final savedService = await Navigator.of(context).push<Service>(
       MaterialPageRoute(
-        builder: (_) => ServiceFormScreen(vehicle: widget.vehicle, service: service),
+        builder: (_) => ServiceFormScreen(
+          vehicle: vehicle,
+          service: service,
+          onCreateConflict: _reloadAfterChange,
+        ),
       ),
     );
-    if (savedService != null && mounted) await _model.load();
+    if (savedService != null && context.mounted) await _reloadAfterChange();
+  }
+
+  Future<void> _reloadAfterChange() {
+    onChanged?.call();
+    return reload();
   }
 }

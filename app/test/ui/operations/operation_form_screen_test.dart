@@ -1,6 +1,8 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:shared/model.dart';
+import 'package:shared/time.dart';
+import 'package:shared/resource_id.dart';
 import 'package:app/app/repository_provider.dart';
 import 'package:app/app/vehicle_service.dart';
 import 'package:app/testing/samples.dart' as samples;
@@ -140,6 +142,8 @@ void main() {
       final pending = harness.repo.pauseNextCreate();
       await form.saveForm(pump: .none);
       await form.saveForm();
+      final draftId = harness.repo.createIds.single;
+      expect(ResourceId.isValid(draftId), isTrue);
       expect(form.nameEnabled, isFalse);
       expect(form.detailsEnabled, isFalse);
       expect(form.saveButton.enabled, isFalse);
@@ -153,8 +157,31 @@ void main() {
       await form.saveForm(pump: .settle);
       expect(await harness.result, isTrue);
       expect(harness.repo.operations, hasLength(1));
+      expect(harness.repo.createIds, [draftId, draftId]);
+      expect(harness.repo.operations.keys, [draftId]);
       expect(harness.repo.operations.values.single.scheduleId, equals(samples.oilChange.id));
       expect(harness.repo.operations.values.single.details, equals('Independent notes'));
+    });
+
+    testWidgets('switching a failed scheduled draft to custom work keeps the ID', (tester) async {
+      final harness = Harness(initialSchedules: [samples.oilChange]);
+      final form = OperationFormRobot(tester);
+      await harness.pumpForm(tester);
+      await form.focusName();
+      await form.selectSchedule(samples.oilChange.id);
+      final pending = harness.repo.pauseNextCreate();
+      await form.saveForm();
+      final id = harness.repo.createIds.single;
+      pending.completeError(Exception('Network error'));
+      await tester.pumpAndSettle();
+
+      await form.enterName('Inspection');
+      await form.saveForm(pump: .settle);
+
+      expect(await harness.result, isTrue);
+      expect(harness.repo.createIds, [id, id]);
+      expect(harness.repo.operations[id]?.scheduleId, isNull);
+      expect(harness.repo.operations[id]?.name, 'Inspection');
     });
 
     for (final scenario in ['missing service', 'missing schedule', 'wrong vehicle', 'duplicate']) {
@@ -200,7 +227,7 @@ void main() {
       final service = Service(
         'second-service',
         vehicleId: samples.santaFe.id,
-        date: DateTime(2026, 11, 4),
+        date: CalendarDate(2026, 11, 4),
         odometer: 121000,
         details: '',
       );
@@ -325,7 +352,7 @@ void main() {
         await harness.pumpForm(tester);
         expect(find.text(vehicle.name), findsOneWidget);
         final labels = MaterialLocalizations.of(tester.element(findOperationFormScreen));
-        expect(find.text(labels.formatShortDate(service.date)), findsOneWidget);
+        expect(find.text(labels.formatShortDate(service.date.toLocalDateTime())), findsOneWidget);
         await form.enterName('  Inspection  ');
         await form.enterDetails('  Check brakes\nand tires  ');
 
@@ -391,6 +418,7 @@ void main() {
       expect(harness.repo.operations, isEmpty);
 
       final retry = harness.repo.pauseNextCreate();
+      final draftId = harness.repo.createIds.single;
       await form.saveForm(pump: .none);
       await form.saveForm();
       expect(harness.repo.operations, isEmpty);
@@ -399,6 +427,8 @@ void main() {
 
       expect(await harness.result, isTrue);
       final created = harness.repo.operations.values.single;
+      expect(harness.repo.createIds, [draftId, draftId]);
+      expect(created.id, draftId);
       expect(created.name, equals('Inspection'));
       expect(created.details, equals('Check brakes'));
     });

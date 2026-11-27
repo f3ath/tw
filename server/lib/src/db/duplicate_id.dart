@@ -1,0 +1,1 @@
+class DuplicateId() implements Exception;

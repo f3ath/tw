@@ -1,8 +1,8 @@
 import 'package:shared/api.dart';
-import 'package:json_api/client.dart' show RequestFailure;
 import 'package:shared/time.dart';
+import 'package:json_api/client.dart' show RequestFailure;
+import 'package:shared/resource_id.dart';
 import 'package:test/test.dart';
-import 'package:uuid/uuid.dart';
 
 import 'harness.dart';
 
@@ -16,8 +16,12 @@ void main() {
   setUp(() async {
     await harness.startServer();
     client = await harness.login();
-    vehicle = await client.createVehicle(name: 'Civic', manufactureDate: DateTime(2020));
-    service = await client.createService(vehicle.id, date: DateTime(2024, 1, 15), odometer: 150);
+    vehicle = await client.createVehicle(name: 'Civic', manufactureDate: CalendarDate(2020));
+    service = await client.createService(
+      vehicle.id,
+      date: CalendarDate(2024, 1, 15),
+      odometer: 150,
+    );
     schedule = await client.createSchedule(
       vehicle.id,
       name: 'Oil',
@@ -43,6 +47,118 @@ void main() {
 
   test('a service can have no operations', () async {
     expect(await client.listOperations(service.id), isEmpty);
+  });
+
+  test('create and list the complete flow with explicit IDs', () async {
+    final vehicleId = ResourceId.generate();
+    final scheduleId = ResourceId.generate();
+    final serviceId = ResourceId.generate();
+    final linkedId = 'a${ResourceId.generate().substring(1)}';
+    final customId = ResourceId.generate();
+    final createdVehicle = await client.createVehicle(
+      id: vehicleId,
+      name: 'Corolla',
+      manufactureDate: CalendarDate(2020),
+    );
+    final createdSchedule = await client.createSchedule(
+      createdVehicle.id,
+      id: scheduleId,
+      name: 'Oil change',
+      intervalMonths: 6,
+    );
+    final createdService = await client.createService(
+      createdVehicle.id,
+      id: serviceId,
+      date: CalendarDate(2024, 1, 15),
+      odometer: 150,
+    );
+    final linked = await client.createOperation(
+      createdService.id.toUpperCase(),
+      id: linkedId.toUpperCase(),
+      scheduleId: createdSchedule.id.toUpperCase(),
+    );
+    final custom = await client.createOperation(
+      createdService.id,
+      id: customId,
+      name: 'Replace wipers',
+      details: 'Front and rear',
+    );
+
+    expect(createdVehicle.id, vehicleId);
+    expect(createdSchedule.id, scheduleId);
+    expect(createdService.id, serviceId);
+    expect(linked.id, linkedId);
+    expect(linked.serviceId, serviceId);
+    expect(linked.scheduleId, scheduleId);
+    expect(linked.name, createdSchedule.name);
+    expect(custom.id, customId);
+    expect(custom.serviceId, serviceId);
+    expect(custom.scheduleId, isNull);
+    expect((await client.listVehicles()).map((vehicle) => vehicle.id), contains(vehicleId));
+    final listedSchedule = (await client.listSchedules(vehicleId)).single;
+    expect(listedSchedule.id, scheduleId);
+    final listedService = (await client.listServices(vehicleId, includeOperations: true)).single;
+    expect(listedService.id, serviceId);
+    expect(
+      listedService.operations.map((operation) => operation.id),
+      unorderedEquals([linkedId, customId]),
+    );
+    final operations = {
+      for (final operation in await client.listOperations(serviceId)) operation.id: operation,
+    };
+    expect(operations.keys, unorderedEquals([linkedId, customId]));
+    expect(operations[linkedId]?.scheduleId, scheduleId);
+    expect(operations[customId]?.details, 'Front and rear');
+  });
+
+  test('reject malformed and non-v4 operation and relationship IDs', () async {
+    for (final id in ['not-a-uuid', '12345678-abcd-7abc-8abc-1234567890ab']) {
+      await expectLater(
+        client.createOperation(service.id, id: id, name: 'Wash car'),
+        throwsStatusCode(400),
+      );
+      await expectLater(client.createOperation(id, name: 'Wash car'), throwsStatusCode(400));
+      await expectLater(client.createOperation(service.id, scheduleId: id), throwsStatusCode(400));
+    }
+    expect(await client.listOperations(service.id), isEmpty);
+  });
+
+  test('duplicate operation IDs return a generic conflict for accessible services', () async {
+    final other = await harness.login();
+    final otherVehicle = await other.createVehicle(
+      name: 'Corolla',
+      manufactureDate: CalendarDate(2020),
+    );
+    final otherService = await other.createService(
+      otherVehicle.id,
+      date: service.date,
+      odometer: service.odometer,
+    );
+    final id = ResourceId.generate();
+    await client.createOperation(service.id, id: id, scheduleId: schedule.id);
+
+    for (final (writer, serviceId, scheduleId) in [
+      (client, service.id, schedule.id),
+      (other, otherService.id, null),
+    ]) {
+      await expectLater(
+        writer.createOperation(serviceId, id: id, scheduleId: scheduleId, name: 'Wash car'),
+        throwsA(
+          isA<RequestFailure>()
+              .having((failure) => failure.rawResponse.httpResponse.statusCode, 'status code', 409)
+              .having((failure) => failure.rawResponse.document, 'document', isNull),
+        ),
+      );
+    }
+    await expectLater(
+      other.createOperation(service.id, id: id, name: 'Wash car'),
+      throwsStatusCode(404),
+    );
+    await expectLater(other.listOperations(service.id), throwsStatusCode(404));
+    expect(await other.listOperations(otherService.id), isEmpty);
+    final existing = (await client.listOperations(service.id)).single;
+    expect(existing.id, id);
+    expect(existing.name, schedule.name);
   });
 
   test('create and list a scheduled operation', () async {
@@ -105,7 +221,7 @@ void main() {
   test('list operations only for the selected service', () async {
     final second = await client.createService(
       vehicle.id,
-      date: DateTime(2024, 1, 16),
+      date: CalendarDate(2024, 1, 16),
       odometer: 200,
     );
     final firstOperation = await client.createOperation(service.id, name: 'Replace wipers');
@@ -118,7 +234,7 @@ void main() {
     final first = await client.createOperation(service.id, scheduleId: schedule.id);
     final secondService = await client.createService(
       vehicle.id,
-      date: DateTime(2024, 1, 16),
+      date: CalendarDate(2024, 1, 16),
       odometer: 200,
     );
     final second = await client.createOperation(secondService.id, scheduleId: schedule.id);
@@ -246,7 +362,7 @@ void main() {
   test('each schedule item can be selected only once per service', () async {
     final created = await client.createOperation(service.id, scheduleId: schedule.id);
     await expectLater(
-      client.createOperation(service.id, scheduleId: schedule.id),
+      client.createOperation(service.id, id: ResourceId.generate(), scheduleId: schedule.id),
       throwsStatusCode(400),
     );
     expect((await client.listOperations(service.id)).single.id, created.id);
@@ -293,7 +409,7 @@ void main() {
     await archive(true);
     final retained = await client.updateOperation(created.id, scheduleId: schedule.id);
     expect(retained!.scheduleId, schedule.id);
-    await client.updateService(service.id, date: DateTime(2024, 1, 16), odometer: 200);
+    await client.updateService(service.id, date: CalendarDate(2024, 1, 16), odometer: 200);
     expect((await client.listOperations(service.id)).single.id, created.id);
     await client.deleteOperation(created.id);
     expect(await client.listOperations(service.id), isEmpty);
@@ -305,12 +421,7 @@ void main() {
       () async {
         await archive(true);
         if (isToday) {
-          final now = systemClock();
-          await client.updateService(
-            service.id,
-            date: DateTime(now.year, now.month, now.day),
-            odometer: 150,
-          );
+          await client.updateService(service.id, date: CalendarDate.today(), odometer: 150);
         }
         await expectLater(
           client.createOperation(service.id, scheduleId: schedule.id),
@@ -348,7 +459,7 @@ void main() {
           final owner = isForeignAccount ? await harness.login() : client;
           final otherVehicle = await owner.createVehicle(
             name: 'Corolla',
-            manufactureDate: DateTime(2020),
+            manufactureDate: CalendarDate(2020),
           );
           final otherSchedule = await owner.createSchedule(
             otherVehicle.id,
@@ -376,7 +487,7 @@ void main() {
     test('operation CRUD requires ${isPending ? 'completed sign-in' : 'authentication'}', () async {
       final unauthorized = harness.newClient();
       if (isPending) await unauthorized.createSession();
-      final id = const Uuid().v4();
+      final id = ResourceId.generate();
       await expectLater(unauthorized.listOperations(service.id), throwsStatusCode(401));
       await expectLater(
         unauthorized.createOperation(service.id, name: 'Wash car'),
@@ -404,7 +515,7 @@ void main() {
     final created = await client.createOperation(service.id, name: 'Wash car');
     final second = await client.createService(
       vehicle.id,
-      date: DateTime(2024, 1, 16),
+      date: CalendarDate(2024, 1, 16),
       odometer: 200,
     );
     final updated = await client.updateOperation(created.id, name: 'Changed');
@@ -417,7 +528,7 @@ void main() {
   });
 
   test('missing services and operations return not found', () async {
-    final id = const Uuid().v4();
+    final id = ResourceId.generate();
     await expectLater(client.listOperations(id), throwsStatusCode(404));
     await expectLater(client.createOperation(id, name: 'Wash car'), throwsStatusCode(404));
     await expectLater(client.updateOperation(id, name: 'Wash car'), throwsStatusCode(404));
@@ -429,7 +540,7 @@ void main() {
       final existing = isEditing
           ? await client.createOperation(service.id, name: 'Wash car')
           : null;
-      final missingId = const Uuid().v4();
+      final missingId = ResourceId.generate();
       await expectLater(
         existing == null
             ? client.createOperation(service.id, scheduleId: missingId)

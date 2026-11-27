@@ -1,4 +1,0 @@
-enum DistanceUnit() {
-  mi,
-  km,
-}

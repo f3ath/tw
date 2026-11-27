@@ -1,0 +1,8 @@
+image: postgres:17-alpine
+database: tw
+# Secret must contain DATABASE_SYSTEM_PASSWORD and DATABASE_TENANT_PASSWORD.
+existingSecret: database
+storage:
+  size: 10Gi
+  # Empty uses the cluster's default StorageClass.
+  className: ""

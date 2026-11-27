@@ -1,7 +1,9 @@
 import 'dart:async';
 
 import 'package:shared/model.dart';
+import 'package:shared/time.dart';
 import 'package:app/app/auth_service.dart';
+import 'package:app/app/create_conflict.dart';
 import 'package:app/app/vehicle_repo.dart';
 import 'package:app/app/schedule_repo.dart';
 import 'package:app/app/service_repo.dart';
@@ -9,6 +11,9 @@ import 'package:app/app/operation_repo.dart';
 import 'package:app/testing/request_gate.dart';
 
 class InMemoryAuthService({required final User _user}) implements AuthService {
+  @override
+  Future<User?> restoreSession() async => null;
+
   @override
   Future<User> login({
     Duration pollInterval = const Duration(seconds: 1),
@@ -21,8 +26,8 @@ class InMemoryAuthService({required final User _user}) implements AuthService {
 
 class InMemoryVehicleRepo({Iterable<Vehicle> initialVehicles = const []}) implements VehicleRepo {
   final vehicles = <String, Vehicle>{for (final vehicle in initialVehicles) vehicle.id: vehicle};
+  final createIds = <String>[];
   var listCalls = 0;
-  var _nextId = 0;
 
   final _listGate = RequestGate();
   final _createGate = RequestGate();
@@ -39,16 +44,15 @@ class InMemoryVehicleRepo({Iterable<Vehicle> initialVehicles = const []}) implem
 
   @override
   Future<void> create({
+    required String id,
     required String name,
-    required DateTime manufactureDate,
-    required DistanceUnit distanceUnit,
+    required CalendarDate manufactureDate,
+    required MileageUnit mileageUnit,
   }) async {
+    createIds.add(id);
     await _createGate.wait();
-    String id;
-    do {
-      id = 'vehicle-${_nextId++}';
-    } while (vehicles.containsKey(id));
-    final v = Vehicle(id, name: name, manufactureDate: manufactureDate, distanceUnit: distanceUnit);
+    if (vehicles.containsKey(id)) throw const CreateConflict();
+    final v = Vehicle(id, name: name, manufactureDate: manufactureDate, mileageUnit: mileageUnit);
     vehicles[v.id] = v;
   }
 
@@ -60,7 +64,12 @@ class InMemoryVehicleRepo({Iterable<Vehicle> initialVehicles = const []}) implem
   }
 
   @override
-  Future<void> update(String id, {required String name, required DateTime manufactureDate}) async {
+  Future<void> update(
+    String id, {
+    required String name,
+    required CalendarDate manufactureDate,
+    MileageUnit? mileageUnit,
+  }) async {
     await _updateGate.wait();
     final v = vehicles[id];
     if (v == null) {
@@ -70,7 +79,7 @@ class InMemoryVehicleRepo({Iterable<Vehicle> initialVehicles = const []}) implem
       id,
       name: name,
       manufactureDate: manufactureDate,
-      distanceUnit: v.distanceUnit,
+      mileageUnit: mileageUnit ?? v.mileageUnit,
     );
   }
 
@@ -86,12 +95,12 @@ class InMemoryScheduleRepo({Iterable<Schedule> initialSchedules = const []})
   final schedules = <String, Schedule>{
     for (final schedule in initialSchedules) schedule.id: schedule,
   };
+  final createIds = <String>[];
   var listCalls = 0;
   final _listGate = RequestGate();
   final _createGate = RequestGate();
   final _updateGate = RequestGate();
   final _deleteGate = RequestGate();
-  var _nextId = 0;
 
   Completer<void> pauseNextList() => _listGate.pause();
 
@@ -111,16 +120,15 @@ class InMemoryScheduleRepo({Iterable<Schedule> initialSchedules = const []})
   @override
   Future<void> create(
     String vehicleId, {
+    required String id,
     required String name,
     int? intervalDistance,
     int? intervalMonths,
     String details = '',
   }) async {
+    createIds.add(id);
     await _createGate.wait();
-    String id;
-    do {
-      id = 'schedule-${_nextId++}';
-    } while (schedules.containsKey(id));
+    if (schedules.containsKey(id)) throw const CreateConflict();
     schedules[id] = Schedule(
       id: id,
       vehicleId: vehicleId,
@@ -162,6 +170,8 @@ class InMemoryScheduleRepo({Iterable<Schedule> initialSchedules = const []})
 
 class InMemoryServiceRepo({Iterable<Service> initialServices = const []}) implements ServiceRepo {
   final services = <String, Service>{for (final service in initialServices) service.id: service};
+  final createIds = <String>[];
+  Map<String, Operation>? _operations;
   var listCalls = 0;
   var updateCalls = 0;
   var deleteCalls = 0;
@@ -169,7 +179,6 @@ class InMemoryServiceRepo({Iterable<Service> initialServices = const []}) implem
   final _createGate = RequestGate();
   final _updateGate = RequestGate();
   final _deleteGate = RequestGate();
-  var _nextId = 0;
 
   Completer<void> pauseNextList() => _listGate.pause();
 
@@ -183,7 +192,26 @@ class InMemoryServiceRepo({Iterable<Service> initialServices = const []}) implem
   Future<List<Service>> list(String vehicleId) async {
     listCalls++;
     await _listGate.wait();
-    return services.values.where((service) => service.vehicleId == vehicleId).toList();
+    final vehicleServices = services.values.where((service) => service.vehicleId == vehicleId);
+    final operations = _operations;
+    if (operations == null) return vehicleServices.toList();
+
+    final operationsByService = <String, List<Operation>>{};
+    for (final operation in operations.values) {
+      (operationsByService[operation.serviceId] ??= []).add(operation);
+    }
+    return vehicleServices.map((service) {
+      final operations = operationsByService[service.id] ?? const <Operation>[];
+      if (operations.isEmpty && service.operations.isEmpty) return service;
+      return Service(
+        service.id,
+        vehicleId: service.vehicleId,
+        date: service.date,
+        odometer: service.odometer,
+        details: service.details,
+        operations: List.unmodifiable(operations),
+      );
+    }).toList();
   }
 
   @override
@@ -196,15 +224,14 @@ class InMemoryServiceRepo({Iterable<Service> initialServices = const []}) implem
   @override
   Future<Service> create(
     String vehicleId, {
-    required DateTime date,
+    required String id,
+    required CalendarDate date,
     required int odometer,
     String details = '',
   }) async {
+    createIds.add(id);
     await _createGate.wait();
-    String id;
-    do {
-      id = 'service-${_nextId++}';
-    } while (services.containsKey(id));
+    if (services.containsKey(id)) throw const CreateConflict();
     final service = Service(
       id,
       vehicleId: vehicleId,
@@ -219,7 +246,7 @@ class InMemoryServiceRepo({Iterable<Service> initialServices = const []}) implem
   @override
   Future<void> update(
     String serviceId, {
-    required DateTime date,
+    required CalendarDate date,
     required int odometer,
     required String details,
   }) async {
@@ -233,6 +260,7 @@ class InMemoryServiceRepo({Iterable<Service> initialServices = const []}) implem
       date: date,
       odometer: odometer,
       details: details,
+      operations: original.operations,
     );
   }
 }
@@ -242,17 +270,21 @@ class InMemoryOperationRepo({
   InMemoryServiceRepo? serviceRepo,
   InMemoryScheduleRepo? scheduleRepo,
 }) implements OperationRepo {
+  this {
+    if (serviceRepo != null) serviceRepo._operations = operations;
+  }
+
   final _serviceRepo = serviceRepo ?? InMemoryServiceRepo();
   final _scheduleRepo = scheduleRepo ?? InMemoryScheduleRepo();
   final operations = <String, Operation>{
     for (final operation in initialOperations) operation.id: operation,
   };
+  final createIds = <String>[];
   var listCalls = 0;
   final _listGate = RequestGate();
   final _createGate = RequestGate();
   final _updateGate = RequestGate();
   final _deleteGate = RequestGate();
-  var _nextId = 0;
 
   Completer<void> pauseNextList() => _listGate.pause();
 
@@ -270,17 +302,25 @@ class InMemoryOperationRepo({
   }
 
   @override
-  Future<void> create(String serviceId, {required String name, String details = ''}) async {
+  Future<void> create(
+    String serviceId, {
+    required String id,
+    required String name,
+    String details = '',
+  }) async {
+    createIds.add(id);
     await _createGate.wait();
-    _addOperation(serviceId, name: name, details: details);
+    _addOperation(serviceId, id: id, name: name, details: details);
   }
 
   @override
   Future<void> createFromSchedule(
     String serviceId, {
+    required String id,
     required String scheduleId,
     String details = '',
   }) async {
+    createIds.add(id);
     await _createGate.wait();
     final service = _serviceRepo.services[serviceId];
     if (service == null) throw Exception('Service not found');
@@ -291,11 +331,20 @@ class InMemoryOperationRepo({
     }
     if (schedule.isArchived) throw Exception('Schedule is archived');
     if (operations.values.any(
-      (operation) => operation.serviceId == serviceId && operation.scheduleId == scheduleId,
+      (operation) =>
+          operation.id != id &&
+          operation.serviceId == serviceId &&
+          operation.scheduleId == scheduleId,
     )) {
       throw Exception('Schedule already recorded in this service');
     }
-    _addOperation(serviceId, name: schedule.name, details: details, scheduleId: schedule.id);
+    _addOperation(
+      serviceId,
+      id: id,
+      name: schedule.name,
+      details: details,
+      scheduleId: schedule.id,
+    );
   }
 
   @override
@@ -343,14 +392,12 @@ class InMemoryOperationRepo({
 
   void _addOperation(
     String serviceId, {
+    required String id,
     required String name,
     required String details,
     String? scheduleId,
   }) {
-    String id;
-    do {
-      id = 'operation-${_nextId++}';
-    } while (operations.containsKey(id));
+    if (operations.containsKey(id)) throw const CreateConflict();
     operations[id] = Operation(
       id,
       serviceId: serviceId,

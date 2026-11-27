@@ -5,7 +5,7 @@ Middleware newLoggingMiddleware(Log log, String Function() newId) => middleware(
   onRequest: (rq) async {
     rq.context['request_id'] = newId();
     rq.context['request_time'] = DateTime.now();
-    log.info('Rq:${rq.context['request_id']} ${rq.method} ${rq.uri.path}');
+    log.info('Rq:${rq.context['request_id']} ${rq.method} ${rq.uri.path} ${rq.uri.query}');
     return null;
   },
   onResponse: (rs, rq) async {

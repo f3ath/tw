@@ -2,6 +2,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:shared/model.dart';
+import 'package:shared/time.dart';
 import 'package:app/ui/garage/garage_screen.dart';
 import 'package:app/ui/garage/vehicle_card.dart';
 import 'package:app/ui/schedules/schedule_screen.dart';
@@ -12,11 +13,11 @@ import 'package:app/ui/welcome/welcome_screen.dart';
 import 'package:app/ui/services/service_screen.dart';
 import 'package:app/ui/services/service_form_screen.dart';
 import 'package:app/ui/services/service_card.dart';
-import 'package:app/ui/services/service_delete_dialog.dart';
+import 'package:app/ui/delete_confirmation_dialog.dart';
 import 'package:app/ui/operations/operation_screen.dart';
 import 'package:app/ui/operations/operation_card.dart';
-import 'package:app/ui/operations/operation_delete_dialog.dart';
 import 'package:app/ui/operations/operation_form_screen.dart';
+import 'package:app/ui/operations/service_info_text.dart';
 import 'package:app/ui/schedules/schedule_autocomplete_item.dart';
 import 'package:app/ui/schedules/schedule_summary.dart';
 
@@ -161,21 +162,22 @@ class GarageRobot(super.tester) extends TestRobot {
 
 class VehicleFormRobot(super.tester) extends TestRobot {
   final findNameField = find.byKey(VehicleFormScreen.nameFieldKey);
-  final findDistanceUnitField = find.byKey(VehicleFormScreen.distanceUnitFieldKey);
+  final findMileageUnitField = find.byKey(VehicleFormScreen.mileageUnitFieldKey);
   final findDateField = find.byKey(VehicleFormScreen.dateFieldKey);
   final findDatePickerDialog = find.byType(DatePickerDialog);
   final findSaveButton = find.byKey(VehicleFormScreen.saveButtonKey);
 
-  DistanceUnit? get selectedDistanceUnit =>
-      tester.state<FormFieldState<DistanceUnit>>(findDistanceUnitField).value;
+  MileageUnit? get selectedMileageUnit =>
+      tester.state<FormFieldState<MileageUnit>>(findMileageUnitField).value;
 
   FilledButton get saveButton => tester.widget<FilledButton>(findSaveButton);
 
-  DateTime? get selectedDate => dateField.value;
+  CalendarDate? get selectedDate => dateField.value;
 
   FormFieldState<String> get nameField => tester.state<FormFieldState<String>>(findNameField);
 
-  FormFieldState<DateTime> get dateField => tester.state<FormFieldState<DateTime>>(findDateField);
+  FormFieldState<CalendarDate> get dateField =>
+      tester.state<FormFieldState<CalendarDate>>(findDateField);
 
   String? get name => nameField.value;
 
@@ -193,12 +195,12 @@ class VehicleFormRobot(super.tester) extends TestRobot {
   Future<void> selectDayAndCancel(String day) =>
       _selectDatePickerDay(findDateField, day, confirm: false);
 
-  Future<void> selectDistanceUnit(String name) async {
-    await tester.tap(findDistanceUnitField);
+  Future<void> selectMileageUnit(String name) async {
+    await tester.tap(findMileageUnitField);
     await tester.pumpAndSettle();
     await tester.tap(
       find
-          .descendant(of: find.byType(DropdownMenuItem<DistanceUnit>), matching: find.text(name))
+          .descendant(of: find.byType(DropdownMenuItem<MileageUnit>), matching: find.text(name))
           .hitTestable(),
     );
     await tester.pumpAndSettle();
@@ -289,11 +291,8 @@ class ScheduleFormRobot(super.tester) extends TestRobot {
 
 class ServiceRobot(super.tester) extends TestRobot {
   final findNewServiceButton = find.byKey(ServiceScreen.addButtonKey);
-  final findDeleteConfirmation = find.byKey(ServiceDeleteDialog.confirmationKey);
+  final findDeleteConfirmation = find.byKey(DeleteConfirmationDialog.confirmationKey);
   final findDeleteError = find.byKey(ServiceScreen.deleteErrorSnackBarKey);
-
-  ServiceDeleteDialog get deleteDialog =>
-      tester.widget<ServiceDeleteDialog>(findDeleteConfirmation);
 
   Future<void> tapNewService({PumpMode pump = .settle}) async {
     await tester.tap(findNewServiceButton);
@@ -321,12 +320,12 @@ class ServiceRobot(super.tester) extends TestRobot {
   Future<void> tapServiceMenuDelete(String id) => _tapServiceMenuAction(id, .delete);
 
   Future<void> confirmServiceDeletion({PumpMode pump = .frame}) async {
-    await tester.tap(find.byKey(ServiceDeleteDialog.deleteButtonKey));
+    await tester.tap(find.byKey(DeleteConfirmationDialog.deleteButtonKey));
     await pumpAfterAction(pump);
   }
 
   Future<void> cancelServiceDeletion() async {
-    await tester.tap(find.byKey(ServiceDeleteDialog.cancelButtonKey));
+    await tester.tap(find.byKey(DeleteConfirmationDialog.cancelButtonKey));
     await tester.pumpAndSettle();
   }
 
@@ -362,7 +361,7 @@ class OperationRobot(super.tester) extends TestRobot {
     await pumpAfterAction(pump);
   }
 
-  final findDeleteConfirmation = find.byKey(OperationDeleteDialog.confirmationKey);
+  final findDeleteConfirmation = find.byKey(DeleteConfirmationDialog.confirmationKey);
   final findDeleteError = find.byKey(OperationScreen.deleteErrorSnackBarKey);
 
   Future<void> tapOperationMenuEdit(String id) => _tapOperationMenuAction(id, .edit);
@@ -385,12 +384,12 @@ class OperationRobot(super.tester) extends TestRobot {
   }
 
   Future<void> confirmOperationDeletion({PumpMode pump = .settle}) async {
-    await tester.tap(find.byKey(OperationDeleteDialog.deleteButtonKey));
+    await tester.tap(find.byKey(DeleteConfirmationDialog.deleteButtonKey));
     await pumpAfterAction(pump);
   }
 
   Future<void> cancelOperationDeletion() async {
-    await tester.tap(find.byKey(OperationDeleteDialog.cancelButtonKey));
+    await tester.tap(find.byKey(DeleteConfirmationDialog.cancelButtonKey));
     await tester.pumpAndSettle();
   }
 
@@ -402,7 +401,7 @@ class OperationRobot(super.tester) extends TestRobot {
   Service get selectedService =>
       tester.widget<OperationScreen>(findOperationScreen).vehicleService.service;
   final findVehicleNameText = find.byKey(OperationScreen.vehicleNameTextKey);
-  final findServiceDateText = find.byKey(OperationScreen.serviceDateTextKey);
+  final findServiceDateText = find.byKey(ServiceInfoText.serviceInfoTextKey);
 
   Text get vehicleNameText => tester.widget<Text>(findVehicleNameText);
   Text get serviceDateText => tester.widget<Text>(findServiceDateText);
@@ -489,12 +488,13 @@ class ServiceFormRobot(super.tester) extends TestRobot {
   FilledButton get saveButton => tester.widget<FilledButton>(findSaveButton);
   DatePickerDialog get datePicker => tester.widget<DatePickerDialog>(findDatePickerDialog);
 
-  FormFieldState<DateTime> get dateField => tester.state<FormFieldState<DateTime>>(findDateField);
+  FormFieldState<CalendarDate> get dateField =>
+      tester.state<FormFieldState<CalendarDate>>(findDateField);
   FormFieldState<String> get odometerField =>
       tester.state<FormFieldState<String>>(findOdometerField);
   FormFieldState<String> get detailsField => tester.state<FormFieldState<String>>(findDetailsField);
 
-  DateTime? get selectedDate => dateField.value;
+  CalendarDate? get selectedDate => dateField.value;
   String? get odometer => odometerField.value;
   String? get details => detailsField.value;
   String? get dateError => dateField.errorText;
@@ -503,7 +503,7 @@ class ServiceFormRobot(super.tester) extends TestRobot {
   bool get dateEnabled => _dateInput.enabled ?? true;
   bool get odometerEnabled => tester.widget<TextFormField>(findOdometerField).enabled;
   bool get detailsEnabled => tester.widget<TextFormField>(findDetailsField).enabled;
-  String? get distanceUnitLabel => _odometerInput.decoration?.suffixText;
+  String? get mileageUnitLabel => _odometerInput.decoration?.suffixText;
 
   TextField get _dateInput => tester.widget<TextField>(
     find.descendant(of: findDateField, matching: find.byType(TextField)),
@@ -516,7 +516,7 @@ class ServiceFormRobot(super.tester) extends TestRobot {
   Future<void> enterOdometer(String value) => _enterText(findOdometerField, value);
   Future<void> enterDetails(String value) => _enterText(findDetailsField, value);
 
-  Future<void> setDateValue(DateTime? value) async {
+  Future<void> setDateValue(CalendarDate? value) async {
     dateField.didChange(value);
     await tester.pump();
   }

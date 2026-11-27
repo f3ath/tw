@@ -1,0 +1,13 @@
+**
+!server/
+!server/pubspec.*
+!server/bin/
+!server/bin/**
+!server/lib/
+!server/lib/**
+!server/assets/
+!server/assets/**
+!shared/
+!shared/pubspec.*
+!shared/lib/
+!shared/lib/**

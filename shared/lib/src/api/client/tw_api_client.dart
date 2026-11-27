@@ -1,8 +1,10 @@
 import 'package:http_interop/http_interop.dart';
 import 'package:json_api/client.dart';
 import 'package:json_api/document.dart';
+import 'package:json_api/query.dart';
 import 'package:json_api/routing.dart';
 import 'package:shared/api.dart';
+import 'package:shared/time.dart';
 
 class TwApiClient(UriDesign urlDesign, Handler handler) {
   this {
@@ -73,19 +75,23 @@ class TwApiClient(UriDesign urlDesign, Handler handler) {
   // Vehicles
 
   Future<Vehicle> createVehicle({
+    String? id,
     required String name,
-    required DateTime manufactureDate,
-    DistanceUnit distanceUnit = DistanceUnit.mi,
+    required CalendarDate manufactureDate,
+    MileageUnit mileageUnit = MileageUnit.mi,
   }) async {
-    final response = await _jsonApi.createNew(
-      ResourceType.vehicles,
-      attributes: {
-        'name': name,
-        'manufacture_date': _date(manufactureDate),
-        'distance_unit': distanceUnit.name,
-      },
-    );
-    return response.resource.toVehicle();
+    final attributes = {
+      'name': name,
+      'manufacture_date': manufactureDate.toIsoDateString(),
+      'mileage_unit': mileageUnit.name,
+    };
+    final resource = id == null
+        ? (await _jsonApi.createNew(ResourceType.vehicles, attributes: attributes)).resource
+        : (await _jsonApi.create(ResourceType.vehicles, id, attributes: attributes)).resource;
+    if (resource == null) {
+      throw InvalidResponse('Missing created vehicle');
+    }
+    return resource.toVehicle();
   }
 
   Future<List<Vehicle>> listVehicles() async =>
@@ -96,13 +102,19 @@ class TwApiClient(UriDesign urlDesign, Handler handler) {
   Future<Vehicle> fetchVehicle(String id) async =>
       (await _jsonApi.fetchResource(ResourceType.vehicles, id)).resource.toVehicle();
 
-  Future<Vehicle?> updateVehicle(String id, {String? name, DateTime? manufactureDate}) async {
+  Future<Vehicle?> updateVehicle(
+    String id, {
+    String? name,
+    CalendarDate? manufactureDate,
+    MileageUnit? mileageUnit,
+  }) async {
     final response = await _jsonApi.updateResource(
       ResourceType.vehicles,
       id,
       attributes: {
         'name': ?name,
-        if (manufactureDate != null) 'manufacture_date': _date(manufactureDate),
+        'mileage_unit': ?mileageUnit?.name,
+        if (manufactureDate != null) 'manufacture_date': manufactureDate.toIsoDateString(),
       },
     );
     return response.resource?.toVehicle();
@@ -114,29 +126,49 @@ class TwApiClient(UriDesign urlDesign, Handler handler) {
 
   // Schedules
 
-  Future<List<Schedule>> listSchedules(String vehicleId) async =>
-      (await _jsonApi.fetchRelatedCollection(
-        ResourceType.vehicles,
-        vehicleId,
-        'schedule',
-      )).collection.map((it) => it.toSchedule()).toList();
+  Future<List<Schedule>> listSchedules(String vehicleId) async {
+    final response = await _jsonApi.fetchRelatedCollection(
+      ResourceType.vehicles,
+      vehicleId,
+      'schedule',
+    );
+    return response.collection
+        .map((resource) => resource.toSchedule(included: response.included))
+        .toList();
+  }
 
   Future<Schedule> createSchedule(
     String vehicleId, {
+    String? id,
     required String name,
     int? intervalDistance,
     int? intervalMonths,
     String details = '',
   }) async {
+    final one = {'vehicle': Identifier(ResourceType.vehicles, vehicleId)};
+    final attributes = {
+      'name': name,
+      'interval_distance': intervalDistance,
+      'interval_months': intervalMonths,
+      'details': details,
+    };
+    if (id != null) {
+      final response = await _jsonApi.create(
+        ResourceType.schedules,
+        id,
+        one: one,
+        attributes: attributes,
+      );
+      final resource = response.resource;
+      if (resource == null) {
+        throw InvalidResponse('Missing created schedule');
+      }
+      return resource.toSchedule();
+    }
     final response = await _jsonApi.createNew(
       ResourceType.schedules,
-      one: {'vehicle': Identifier(ResourceType.vehicles, vehicleId)},
-      attributes: {
-        'name': name,
-        'interval_distance': intervalDistance,
-        'interval_months': intervalMonths,
-        'details': details,
-      },
+      one: one,
+      attributes: attributes,
     );
     return response.resource.toSchedule();
   }
@@ -169,37 +201,69 @@ class TwApiClient(UriDesign urlDesign, Handler handler) {
 
   // Services
 
-  Future<List<Service>> listServices(String vehicleId) async =>
-      (await _jsonApi.fetchRelatedCollection(
-        ResourceType.vehicles,
-        vehicleId,
-        'service',
-      )).collection.map((it) => it.toService()).toList();
+  Future<List<Service>> listServices(String vehicleId, {bool includeOperations = false}) async {
+    final response = await _jsonApi.fetchRelatedCollection(
+      ResourceType.vehicles,
+      vehicleId,
+      'service',
+      query: [
+        if (includeOperations) Include(['operations']),
+      ],
+    );
+    final operationsById = {
+      for (final resource in response.included)
+        if (resource.type == ResourceType.operations) resource.id: resource.toOperation(),
+    };
+    return response.collection.map((resource) {
+      final operations = resource.many('operations') ?? const <Identifier>[];
+      return resource.toService(
+        operations: List.unmodifiable(
+          operations
+              .where((identifier) => identifier.type == ResourceType.operations)
+              .map((identifier) => operationsById[identifier.id])
+              .whereType<Operation>(),
+        ),
+      );
+    }).toList();
+  }
 
   Future<Service> createService(
     String vehicleId, {
-    required DateTime date,
+    String? id,
+    required CalendarDate date,
     required int odometer,
     String details = '',
   }) async {
-    final response = await _jsonApi.createNew(
-      ResourceType.services,
-      one: {'vehicle': Identifier(ResourceType.vehicles, vehicleId)},
-      attributes: {'date': _date(date), 'odometer': odometer, 'details': details},
-    );
-    return response.resource.toService();
+    final one = {'vehicle': Identifier(ResourceType.vehicles, vehicleId)};
+    final attributes = {'date': date.toIsoDateString(), 'odometer': odometer, 'details': details};
+    final resource = id == null
+        ? (await _jsonApi.createNew(
+            ResourceType.services,
+            one: one,
+            attributes: attributes,
+          )).resource
+        : (await _jsonApi.create(
+            ResourceType.services,
+            id,
+            one: one,
+            attributes: attributes,
+          )).resource;
+    if (resource == null) {
+      throw InvalidResponse('Missing created service');
+    }
+    return resource.toService();
   }
 
   Future<Service?> updateService(
     String serviceId, {
-    required DateTime date,
+    required CalendarDate date,
     required int odometer,
     String? details,
   }) async {
     final response = await _jsonApi.updateResource(
       ResourceType.services,
       serviceId,
-      attributes: {'date': _date(date), 'odometer': odometer, 'details': ?details},
+      attributes: {'date': date.toIsoDateString(), 'odometer': odometer, 'details': ?details},
     );
     return response.resource?.toService();
   }
@@ -219,19 +283,32 @@ class TwApiClient(UriDesign urlDesign, Handler handler) {
 
   Future<Operation> createOperation(
     String serviceId, {
+    String? id,
     String? scheduleId,
     String? name,
     String? details,
   }) async {
-    final response = await _jsonApi.createNew(
-      ResourceType.operations,
-      one: {
-        'service': Identifier(ResourceType.services, serviceId),
-        if (scheduleId != null) 'schedule': Identifier(ResourceType.schedules, scheduleId),
-      },
-      attributes: {'name': ?name, 'details': ?details},
-    );
-    return response.resource.toOperation();
+    final one = {
+      'service': Identifier(ResourceType.services, serviceId),
+      if (scheduleId != null) 'schedule': Identifier(ResourceType.schedules, scheduleId),
+    };
+    final attributes = {'name': ?name, 'details': ?details};
+    final resource = id == null
+        ? (await _jsonApi.createNew(
+            ResourceType.operations,
+            one: one,
+            attributes: attributes,
+          )).resource
+        : (await _jsonApi.create(
+            ResourceType.operations,
+            id,
+            one: one,
+            attributes: attributes,
+          )).resource;
+    if (resource == null) {
+      throw InvalidResponse('Missing created operation');
+    }
+    return resource.toOperation();
   }
 
   Future<Operation?> updateOperation(
@@ -260,8 +337,6 @@ class TwApiClient(UriDesign urlDesign, Handler handler) {
     }
     return inner(request);
   };
-
-  String _date(DateTime date) => date.toIso8601String().split('T').first;
 }
 
 class InvalidResponse(final String message) implements Exception;
